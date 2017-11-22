@@ -362,40 +362,14 @@ Proof.
 Qed.
 
 
-(* NEW DESIGN IDEA:
-  
-   The required invariants about runtime evaluation rely in crucial
-   ways on transporting properties from the creation site of
-   type objects to their use sites -- in particular the fact
-   that only type aliases can be created (TMem T T), and that these
-   cannot be recursive. 
+(* NEW NEW DESIGN IDEA:
 
-   This suggests that in the proof, we should pair each (vty T) value
-   with the semantic interpretation of the type member [[ T ]].
-
-   So [[ T ]] in general is no longer a set of values, but a set of 
-   (vl, vset) pairs. This leads to some complication as the type vset 
-   is now recursive 
-
-      Definition vset := vset -> vl -> Prop.
-
-   which Coq wouldn't let us do (for good reasons).
-
-   But we can do some close with an indexed variant such that
-
-      vset (S n) := vset n -> vl -> Prop
-
-   and quantify over n to denote all finite ones.
-
-   As it turns out, we no longer need the previuos l/u bound selectors,
-   and the TMem case can ensure that the *actual* type member of an
-   object is inbetween the given bounds. This enables the case for
-   intersection types.   
+I'm changing definitions a lot to make val_type monotone.
 *)
 
-Definition mval_type_measure T k := (existT (fun _ => nat) (tsize_flat T) k).
+Definition val_type_measure T k := (existT (fun _ => nat) (tsize_flat T) k).
 
-Hint Unfold mval_type_measure.
+Hint Unfold val_type_measure.
 
 Require Import Arith.Wf_nat.
 Require Import Coq.Program.Wf.
@@ -439,21 +413,21 @@ Ltac smaller_calls :=
   unfold open; try rewrite <- open_preserves_size; simpl; omega.
 Ltac discriminatePlus := repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
 
-Program Fixpoint mval_type (n: nat) (env: list vset) (GH: list vset) (T:ty) (dd: vset) (v:vl)
-        {measure (mval_type_measure T n) (termRel)}: Prop :=
+Program Fixpoint val_type (n: nat) (env: list vset) (GH: list vset) (T:ty) (dd: vset) (v:vl)
+        {measure (val_type_measure T n) (termRel)}: Prop :=
   match v,T with
     | vabs env1 T0 y, TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       forall j vx ddvx, j < n ->
-        mval_type j env GH T1 ddvx vx ->
-        exists (jj2: vset) v, tevaln (vx::env1) y v /\ mval_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v
+        val_type j env GH T1 ddvx vx ->
+        exists (jj2: vset) v, tevaln (vx::env1) y v /\ val_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v
 
     | vty env1 TX, TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
       forall n0, n0 < n ->
         forall dy vy,
-                      (mval_type n0 env GH T1 dy vy -> dd vy) /\
-                      (dd vy -> mval_type n0 env GH T2 dy vy)
+                      (val_type n0 env GH T1 dy vy -> dd vy) /\
+                      (dd vy -> val_type n0 env GH T2 dy vy)
     | _, TSel (varF x) =>
       match indexr x env with
         | Some jj => jj v
@@ -466,11 +440,11 @@ Program Fixpoint mval_type (n: nat) (env: list vset) (GH: list vset) (T:ty) (dd:
       end
 
     | _, TAnd T1 T2 =>
-      mval_type n env GH T1 dd v /\ mval_type n env GH T2 dd v
+      val_type n env GH T1 dd v /\ val_type n env GH T2 dd v
         
     | _, TBind T1 =>
       closed 1 (length GH) (length env) T1 /\
-      forall j, j < n -> mval_type j env (dd::GH) (open (varH (length GH)) T1) dd v
+      forall j, j < n -> val_type j env (dd::GH) (open (varH (length GH)) T1) dd v
                                   
     | _, TTop =>
       True
@@ -482,13 +456,6 @@ Solve Obligations with smaller_calls.
 (* Show that different branches are disjoint. *)
 Solve Obligations with discriminatePlus.
 
-(* Next Obligation. simpl. omega. Qed. *)
-(* Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TApp case: open *) *)
-(* Next Obligation. simpl. omega. Qed. *)
-(* Next Obligation. simpl. omega. Qed. *)
-(* Next Obligation. simpl. omega. Qed. *)
-(* Next Obligation. simpl. omega. Qed. *)
-(* Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TBind case: open *) *)
 
 
 Ltac ev := repeat match goal with
@@ -503,13 +470,6 @@ Ltac inv_mem := match goal with
                     closed 0 (length ?GH) (length ?G) ?T1 => inversion H; subst; eauto
                 end.
 
-
-(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
-(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
-(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
-(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
-(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
-(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
 
                                   
 (* 
