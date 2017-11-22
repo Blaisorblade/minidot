@@ -393,70 +393,102 @@ Qed.
    intersection types.   
 *)
 
-Fixpoint vset n := match n with
-                     | 0 => vl -> Prop
-                     | S n => vset n -> vl -> Prop
-                   end.
+Definition mval_type_measure T k := (existT (fun _ => nat) (tsize_flat T) k).
 
-Definition vseta := forall n, vset n.
+Hint Unfold mval_type_measure.
+
+Require Import Arith.Wf_nat.
+Require Import Coq.Program.Wf.
+Import WfExtensionality.
+Require Import Coq.Relations.Relation_Operators.
+Require Import Coq.Wellfounded.Lexicographic_Product.
+
+Definition vset := vl -> Prop.
+Hint Unfold vset.
+Definition nvset := nat -> vset.
+Hint Unfold nvset.
+Definition termRel := lexprod nat (fun _ => nat) lt (fun _ => lt).
+Hint Unfold termRel.
+
+Lemma wf_termRel : well_founded termRel.
+Proof.
+ apply wf_lexprod; try intro; apply lt_wf.
+Defined.
+
+Hint Resolve wf_termRel.
+
+(* Fixpoint vset n := match n with *)
+(*                      | 0 => vl -> Prop *)
+(*                      | S n => vset n -> vl -> Prop *)
+(*                    end. *)
+
+(* Definition vseta := forall n, vset n. *)
 
 
-(* this is just a helper for pattern matching *)
-Inductive vset_match : nat -> Type :=
-| vsmatch: forall n, vset n -> vset_match n
-.                                
+(* (* this is just a helper for pattern matching *) *)
+(* Inductive vset_match : nat -> Type := *)
+(* | vsmatch: forall n, vset n -> vset_match n *)
+(* .                                 *)
 
 
-Require Coq.Program.Wf.
+(* Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop := *)
 
-Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop :=
+Ltac smaller_calls :=
+  Tactics.program_simpl;
+  autounfold; apply left_lex;
+  unfold open; try rewrite <- open_preserves_size; simpl; omega.
+Ltac discriminatePlus := repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
+
+Program Fixpoint mval_type (n: nat) (env: list vset) (GH: list vset) (T:ty) (dd: vset) (v:vl)
+        {measure (mval_type_measure T n) (termRel)}: Prop :=
   match v,T with
     | vabs env1 T0 y, TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
-      forall jj vx,
-        (forall kx, val_type env GH T1 kx (jj kx) vx) ->
-        exists (jj2:vseta) v, tevaln (vx::env1) y v /\ (forall k, val_type env (jj::GH) (open (varH (length GH)) T2) k (jj2 k) v)
+      forall j vx ddvx, j < n ->
+        mval_type j env GH T1 ddvx vx ->
+        exists (jj2: vset) v, tevaln (vx::env1) y v /\ mval_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v
 
     | vty env1 TX, TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
-      match (vsmatch n dd) with
-        | vsmatch 0 dd => True
-        | vsmatch (S n0) dd => forall (dy:vseta) vy, 
-                      (val_type env GH T1 n0 (dy n0) vy -> dd (dy n0) vy) /\
-                      (dd (dy n0) vy -> val_type env GH T2 n0 (dy n0) vy)
-      end
-
+      forall n0, n0 < n ->
+        forall dy vy,
+                      (mval_type n0 env GH T1 dy vy -> dd vy) /\
+                      (dd vy -> mval_type n0 env GH T2 dy vy)
     | _, TSel (varF x) =>
       match indexr x env with
-        | Some jj => jj (S n) dd v
+        | Some jj => jj v
         | _ => False
       end
     | _, TSel (varH x) =>
       match indexr x GH with
-        | Some jj => jj (S n) dd v
+        | Some jj => jj v
         | _ => False
       end
 
     | _, TAnd T1 T2 =>
-      val_type env GH T1 n dd v /\ val_type env GH T2 n dd v
+      mval_type n env GH T1 dd v /\ mval_type n env GH T2 dd v
         
     | _, TBind T1 =>
       closed 1 (length GH) (length env) T1 /\
-      exists jj:vseta, jj n = dd /\ forall n, val_type env (jj::GH) (open (varH (length GH)) T1) n (jj n) v
-
-    | _, TTop => 
+      forall j, j < n -> mval_type j env (dd::GH) (open (varH (length GH)) T1) dd v
+                                  
+    | _, TTop =>
       True
     | _,_ =>
       False
   end.
 
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TApp case: open *)
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TBind case: open *)
+Solve Obligations with smaller_calls.
+(* Show that different branches are disjoint. *)
+Solve Obligations with discriminatePlus.
+
+(* Next Obligation. simpl. omega. Qed. *)
+(* Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TApp case: open *) *)
+(* Next Obligation. simpl. omega. Qed. *)
+(* Next Obligation. simpl. omega. Qed. *)
+(* Next Obligation. simpl. omega. Qed. *)
+(* Next Obligation. simpl. omega. Qed. *)
+(* Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TBind case: open *) *)
 
 
 Ltac ev := repeat match goal with
@@ -472,12 +504,12 @@ Ltac inv_mem := match goal with
                 end.
 
 
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
+(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
+(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
+(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
+(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
+(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
+(* Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed. *)
 
                                   
 (* 
