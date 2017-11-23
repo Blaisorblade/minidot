@@ -629,37 +629,6 @@ Proof.
     rewrite val_type_unfold';
     reflexivity.
 Qed.
-(*   Require Import Coq.Setoids.Setoid. *)
-(*   destruct v; destruct T; trivial; repeat f_equal. *)
-(*   -  *)
-(*     apply prop_extensionality; split; intros. *)
-(*   + setoid_rewrite vtp_unfold. *)
-(*     rewrite vtp_unfold in H0. *)
-(*     apply H; assumption. *)
-(*   +  *)
-(*    setoid_rewrite <- vtp_unfold. *)
-(*    apply H;  *)
-(*      try rewrite vtp_unfold; *)
-(*      assumption. *)
-(*   - *)
-(*     apply prop_extensionality; split; intros; match_case_analysis; *)
-(*     try setoid_rewrite vtp_unfold; *)
-(*     try setoid_rewrite vtp_unfold in H; *)
-(*     apply H. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(*   - rewrite vtp_unfold'; reflexivity. *)
-(* Qed. *)
-(*   ... *)
-
-
-(* Require Import Coq.Logic.Eqdep_dec. *)
-(* Require Import Coq.Arith.Peano_dec. *)
 
 (* some quick examples *)
 
@@ -695,61 +664,25 @@ Ltac split_conj :=
   repeat match goal with
   | |- _ /\ _ => split
   end.
+
 Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
 Proof.
-  induction T; intros * Hnv * Hmn;
-    destruct v; rewrite val_type_unfold;
-      rewrite val_type_unfold in Hnv; ev; repeat split_conj; match_case_analysis; try inversion Hnv; try assumption;
-        intros; try assert (Hjn: j < n) by omega; eauto 2.
-  (* all: eauto 2. *)
-  (*     (* try solve [ rewrite val_type_unfold in Hnv; try inversion Hnv ]. *) *)
-  (* (* all: ev. *) *)
-  (* - *)
-  (*   (* rewrite val_type_unfold in Hnv; *) *)
-  (*   auto 2. *)
-  (* - auto 2. *)
-  (* - auto 2. *)
-  (* - auto 2. *)
-  (* - auto 2. *)
-  (* - auto 2. *)
-  (* - auto 2. *)
-  (* - auto 2. *)
-  (* - eauto 2. *)
-  (* - eauto 2. *)
-  (* - eauto 2. *)
-  (* - eauto 2. *)
-  (* (* - auto 2. *) *)
-  (* (* - auto 2. *) *)
-  (* (* - auto 2. *) *)
-  (* (*   (* match_case_analysis; *) *) *)
-  (* (*   (*   intros; assert (Hjn: j < n) by omega; apply Hnv; apply Hjn. *) *) *)
-  (* (* - *) *)
-  (* (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *) *)
-  (* (*   match_case_analysis; intros; *) *)
-  (* (*     assert (Hjn: j < n) by omega; apply Hnv; apply Hjn. *) *)
-  (* - *)
-  (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *)
-  (*     match_case_analysis. *)
-  (* - *)
-  (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *)
-  (*   ev. *)
-  (*   split; try assumption. *)
-  (*   split; try assumption. *)
-  (*   intros; assert (Hjn: j < n) by omega. *)
-  (*   auto 2. *)
-  (*   (* intros; apply H2; try assumption. omega. *) *)
-  (* - *)
-  (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *)
-  (*   split; try assumption. *)
-  (*   intros. *)
-  (*   assert (Hjn: j < n) by omega. *)
-  (*   auto 2. *)
-  (*   - split; try assumption. *)
-  (*   intros. *)
-  (*   assert (Hjn: j < n) by omega. *)
-  (*   auto 2. *)
-  (*   - split; eauto 2. *)
-  (*   - split; eauto 2. *)
+  (* The proof is by induction on type T, because monotonicity on intersection types follows by induction. *)
+  (* We proceed by case analysis on values. *)
+  induction T; intros;
+    rewrite val_type_unfold in *;
+      destruct v; ev; repeat split_conj; match_case_analysis.
+  (* We could finish the proof by *)
+  (* all: intros; try assert (Hjn: j < n) by omega; eauto 2. *)
+  (* But let's look how our cases (24 right now!) are solved. *)
+  (* Most cases (12) follow trivially, or by using the induction hypothesis. *)
+  all: trivial.
+  (* A couple (4) follow just by using induction. *)
+  all: eauto 2.
+  (* The other cases (8) have hypothesis for all j < n and have a conclusion for
+     all j < m (with m < n). So we assert that j < n, and then Coq can finish
+     the proof automatically. *)
+  all: intros; assert (Hjn: j < n) by omega; eauto 2.
 Qed.
 
 (* (* This lemma  establishes that val_type indeed defines a value set (vseta). *)
