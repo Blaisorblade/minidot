@@ -709,14 +709,13 @@ Qed.
 
 
 (* (* consistent environment *) *)
-(* Definition R_env venv genv tenv := *)
-(*   length venv = length tenv /\ *)
-(*   length genv = length tenv /\ *)
-(*   forall x TX, indexr x tenv = Some TX -> *)
-(*     (exists (jj:vseta) vx, *)
-(*        indexr x venv = Some vx /\ *)
-(*        indexr x genv = Some jj /\ *)
-(*        forall n, vtp genv [] TX n (jj n) vx). *)
+Definition R_env venv genv tenv :=
+  length venv = length tenv /\
+  length genv = length tenv /\
+  forall x TX, indexr x tenv = Some TX ->
+    (exists vx,
+       indexr x venv = Some vx /\
+       forall n, vtp genv [] TX n vx).
 
 
 (* (* automation *) *)
