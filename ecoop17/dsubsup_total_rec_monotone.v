@@ -431,8 +431,9 @@ Program Fixpoint val_type (n: nat) (env: list vset) (GH: list vset) (T:ty) (dd: 
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
       forall n0, n0 < n ->
         forall dy vy,
-                      (val_type n0 env GH T1 dy vy -> dd vy) /\
-                      (dd vy -> val_type n0 env GH T2 dy vy)
+          (* Using env1 rather than env is semantically wrong. We must make env and GH be lists of values! *)
+                      (val_type n0 env GH T1 dy vy -> val_type n0 env GH TX dy vy) /\
+                      (val_type n0 env GH TX dy vy -> val_type n0 env GH T2 dy vy)
     | _, TSel (varF x) =>
       match indexr x env with
         | Some jj => jj v
