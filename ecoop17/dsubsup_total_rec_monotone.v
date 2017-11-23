@@ -381,6 +381,11 @@ Definition vset := vl -> Prop.
 Hint Unfold vset.
 Definition nvset := nat -> vset.
 Hint Unfold nvset.
+
+Check val_type_measure.
+Definition mon_nvset := { phi : nvset | forall m n v, m < n -> phi n v -> phi m v }.
+Hint Unfold mon_nvset.
+
 Definition termRel := lexprod nat (fun _ => nat) lt (fun _ => lt).
 Hint Unfold termRel.
 
