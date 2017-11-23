@@ -367,7 +367,7 @@ Qed.
 I'm changing definitions a lot to make val_type monotone.
 *)
 
-Definition val_type_measure T k := (existT (fun _ => nat) (tsize_flat T) k).
+Definition val_type_measure T (k : nat) := (existT (fun _ => nat) k (tsize_flat T)).
 
 Hint Unfold val_type_measure.
 
@@ -409,48 +409,62 @@ Hint Resolve wf_termRel.
 (* | vsmatch: forall n, vset n -> vset_match n *)
 (* .                                 *)
 
+Ltac smaller_n :=
+  Tactics.program_simpl;
+  autounfold; apply left_lex; omega.
+
+Ltac smaller_types :=
+  Tactics.program_simpl;
+  autounfold; apply right_lex;
+  unfold open; try rewrite <- open_preserves_size; simpl; omega.
+(* Show that different branches are disjoint. *)
+Ltac discriminatePlus := repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
+
+Ltac valTypeObligations := smaller_n || smaller_types || discriminatePlus.
+(* Require Import LibLogic. *)
+(* Require Import Nat. *)
+(* Search "_ <? _". *)
+(* Check Nat.ltb_lt. *)
+(* Check ltb. *)
+
+(* Definition cutLe n (phi: forall x : nat, x < n -> Prop) := forall j (Hj : j < n) , phi j Hj. *)
+(* Hint Unfold cutLe. *)
 
 (* Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop := *)
 
-Ltac smaller_calls :=
-  Tactics.program_simpl;
-  autounfold; apply left_lex;
-  unfold open; try rewrite <- open_preserves_size; simpl; omega.
-Ltac discriminatePlus := repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
-
-Program Fixpoint val_type (n: nat) (env: list vset) (GH: list vset) (T:ty) (dd: vset) (v:vl)
+Program Fixpoint val_type (n: nat) (env: list vl) (GH: list vl) (T:ty) (v:vl)
         {measure (val_type_measure T n) (termRel)}: Prop :=
   match v,T with
     | vabs env1 T0 y, TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
-      forall j vx ddvx, j < n ->
-        val_type j env GH T1 ddvx vx ->
-        exists (jj2: vset) v, tevaln (vx::env1) y v /\ val_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v
+      forall vx j (Hj : j < n),
+        (* cutLe n (fun j Hk => *)
+        val_type j env GH T1 vx ->
+        exists v, tevaln (vx::env1) y v /\ val_type j env (v::GH) (open (varH (length GH)) T2) v
 
     | vty env1 TX, TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
-      forall n0, n0 < n ->
-        forall dy vy,
-          (* Using env1 rather than env is semantically wrong. We must make env and GH be lists of values! *)
-                      (val_type n0 env GH T1 dy vy -> val_type n0 env GH TX dy vy) /\
-                      (val_type n0 env GH TX dy vy -> val_type n0 env GH T2 dy vy)
+      forall j (Hj : j < n),
+        forall vy,
+          (val_type j env GH T1 vy -> val_type j env1 GH TX vy) /\
+          (val_type j env1 GH TX vy -> val_type j env GH T2 vy)
     | _, TSel (varF x) =>
       match indexr x env with
-        | Some jj => jj v
+        | Some (vty env1 TX) => forall j (Hk : j < n), val_type j env1 GH TX v 
         | _ => False
       end
     | _, TSel (varH x) =>
       match indexr x GH with
-        | Some jj => jj v
+        | Some (vty env1 TX) => forall j (Hk : j < n), val_type j env1 GH TX v 
         | _ => False
       end
 
     | _, TAnd T1 T2 =>
-      val_type n env GH T1 dd v /\ val_type n env GH T2 dd v
+      val_type n env GH T1 v /\ val_type n env GH T2 v
         
     | _, TBind T1 =>
       closed 1 (length GH) (length env) T1 /\
-      forall j, j < n -> val_type j env (dd::GH) (open (varH (length GH)) T1) dd v
+      forall j (Hj : j < n) , val_type j env (v::GH) (open (varH (length GH)) T1) v
                                   
     | _, TTop =>
       True
@@ -458,10 +472,23 @@ Program Fixpoint val_type (n: nat) (env: list vset) (GH: list vset) (T:ty) (dd: 
       False
   end.
 
-Solve Obligations with smaller_calls.
-(* Show that different branches are disjoint. *)
-Solve Obligations with discriminatePlus.
+(* Next Obligation. *)
+(*   Tactics.program_simpl; *)
+(*     autounfold. *)
 
+(*   apply left_lex; omega. *)
+  (* unfold open; try rewrite <- open_preserves_size; simpl; omega. *)
+
+Solve Obligations with valTypeObligations.
+
+(* Solve Obligations with smaller_n. *)
+(* Solve Obligations with smaller_types. *)
+(* Solve Obligations with discriminatePlus. *)
+
+(* Next Obligation. *)
+(*   Tactics.program_simpl; *)
+(*   autounfold; apply right_lex; *)
+(*   unfold open; try rewrite <- open_preserves_size; simpl; omega. *)
 
 
 Ltac ev := repeat match goal with
@@ -476,7 +503,6 @@ Ltac inv_mem := match goal with
                     closed 0 (length ?GH) (length ?G) ?T1 => inversion H; subst; eauto
                 end.
 
-
                                   
 (* 
    The expansion of val_type, val_type_func is incomprehensible. 
@@ -489,58 +515,58 @@ Ltac inv_mem := match goal with
 Import Coq.Program.Wf.
 Import WfExtensionality.
 
-Lemma val_type_unfold : forall n env GH T dd v, val_type n env GH T dd v =
-  match v,T with
-    | vabs env1 T0 y, TAll T1 T2 =>
-      closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
-      forall j vx ddvx, j < n ->
-        val_type j env GH T1 ddvx vx ->
-        exists (jj2: vset) v, tevaln (vx::env1) y v /\ val_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v
+(* Lemma val_type_unfold : forall n env GH T dd v, val_type n env GH T dd v = *)
+(*   match v,T with *)
+(*     | vabs env1 T0 y, TAll T1 T2 => *)
+(*       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\ *)
+(*       forall j vx ddvx, j < n -> *)
+(*         val_type j env GH T1 ddvx vx -> *)
+(*         exists (jj2: vset) v, tevaln (vx::env1) y v /\ val_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v *)
 
-    | vty env1 TX, TMem T1 T2 =>
-      closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
-      forall n0, n0 < n ->
-        forall dy vy,
-                      (val_type n0 env GH T1 dy vy -> dd vy) /\
-                      (dd vy -> val_type n0 env GH T2 dy vy)
-    | _, TSel (varF x) =>
-      match indexr x env with
-        | Some jj => jj v
-        | _ => False
-      end
-    | _, TSel (varH x) =>
-      match indexr x GH with
-        | Some jj => jj v
-        | _ => False
-      end
+(*     | vty env1 TX, TMem T1 T2 => *)
+(*       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\ *)
+(*       forall n0, n0 < n -> *)
+(*         forall dy vy, *)
+(*                       (val_type n0 env GH T1 dy vy -> dd vy) /\ *)
+(*                       (dd vy -> val_type n0 env GH T2 dy vy) *)
+(*     | _, TSel (varF x) => *)
+(*       match indexr x env with *)
+(*         | Some jj => jj v *)
+(*         | _ => False *)
+(*       end *)
+(*     | _, TSel (varH x) => *)
+(*       match indexr x GH with *)
+(*         | Some jj => jj v *)
+(*         | _ => False *)
+(*       end *)
 
-    | _, TAnd T1 T2 =>
-      val_type n env GH T1 dd v /\ val_type n env GH T2 dd v
+(*     | _, TAnd T1 T2 => *)
+(*       val_type n env GH T1 dd v /\ val_type n env GH T2 dd v *)
         
-    | _, TBind T1 =>
-      closed 1 (length GH) (length env) T1 /\
-      forall j, j < n -> val_type j env (dd::GH) (open (varH (length GH)) T1) dd v
+(*     | _, TBind T1 => *)
+(*       closed 1 (length GH) (length env) T1 /\ *)
+(*       forall j, j < n -> val_type j env (dd::GH) (open (varH (length GH)) T1) dd v *)
                                   
-    | _, TTop =>
-      True
-    | _,_ =>
-      False
-  end.
-Proof.
-  intros. unfold val_type at 1. unfold val_type_func.
-  unfold_sub val_type (val_type n env GH T dd v).
-  simpl; destruct v; simpl.
-  - destruct T; try reflexivity.
-    destruct v.
-    + destruct (indexr i env); reflexivity.
-    + destruct (indexr i GH); reflexivity.
-    + reflexivity.
-  - destruct T; try reflexivity.
-    destruct v.
-    + destruct (indexr i env); reflexivity.
-    + destruct (indexr i GH); reflexivity.
-    + reflexivity.
-Qed.
+(*     | _, TTop => *)
+(*       True *)
+(*     | _,_ => *)
+(*       False *)
+(*   end. *)
+(* Proof. *)
+(*   intros. unfold val_type at 1. unfold val_type_func. *)
+(*   unfold_sub val_type (val_type n env GH T dd v). *)
+(*   simpl; destruct v; simpl. *)
+(*   - destruct T; try reflexivity. *)
+(*     destruct v. *)
+(*     + destruct (indexr i env); reflexivity. *)
+(*     + destruct (indexr i GH); reflexivity. *)
+(*     + reflexivity. *)
+(*   - destruct T; try reflexivity. *)
+(*     destruct v. *)
+(*     + destruct (indexr i env); reflexivity. *)
+(*     + destruct (indexr i GH); reflexivity. *)
+(*     + reflexivity. *)
+(* Qed. *)
 
   (* - destruct T; try reflexivity. *)
   (*   destruct v. *)
@@ -552,7 +578,7 @@ Qed.
 (*       destruct T; try reflexivity. *)
 (*   (* destruct v; try destruct T; try reflexivity. *) *)
 (* Admitted. *)
-Check val_type_unfold.
+(* Check val_type_unfold. *)
 
 (*   ... *)
 
