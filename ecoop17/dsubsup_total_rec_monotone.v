@@ -382,7 +382,6 @@ Hint Unfold vset.
 Definition nvset := nat -> vset.
 Hint Unfold nvset.
 
-Check val_type_measure.
 Definition mon_nvset := { phi : nvset | forall m n v, m < n -> phi n v -> phi m v }.
 Hint Unfold mon_nvset.
 
@@ -396,19 +395,6 @@ Defined.
 
 Hint Resolve wf_termRel.
 
-(* Fixpoint vset n := match n with *)
-(*                      | 0 => vl -> Prop *)
-(*                      | S n => vset n -> vl -> Prop *)
-(*                    end. *)
-
-(* Definition vseta := forall n, vset n. *)
-
-
-(* (* this is just a helper for pattern matching *) *)
-(* Inductive vset_match : nat -> Type := *)
-(* | vsmatch: forall n, vset n -> vset_match n *)
-(* .                                 *)
-
 Ltac smaller_n :=
   Tactics.program_simpl;
   autounfold; apply left_lex; omega.
@@ -421,14 +407,6 @@ Ltac smaller_types :=
 Ltac discriminatePlus := repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
 
 Ltac valTypeObligations := smaller_n || smaller_types || discriminatePlus.
-(* Require Import LibLogic. *)
-(* Require Import Nat. *)
-(* Search "_ <? _". *)
-(* Check Nat.ltb_lt. *)
-(* Check ltb. *)
-
-(* Definition cutLe n (phi: forall x : nat, x < n -> Prop) := forall j (Hj : j < n) , phi j Hj. *)
-(* Hint Unfold cutLe. *)
 
 (* Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop := *)
 
@@ -473,23 +451,8 @@ Program Fixpoint val_type (n: nat) (env: list vl) (GH: list vl) (T:ty) (v:vl)
   end.
 
 (* Next Obligation. *)
-(*   Tactics.program_simpl; *)
-(*     autounfold. *)
-
-(*   apply left_lex; omega. *)
-  (* unfold open; try rewrite <- open_preserves_size; simpl; omega. *)
 
 Solve Obligations with valTypeObligations.
-
-(* Solve Obligations with smaller_n. *)
-(* Solve Obligations with smaller_types. *)
-(* Solve Obligations with discriminatePlus. *)
-
-(* Next Obligation. *)
-(*   Tactics.program_simpl; *)
-(*   autounfold; apply right_lex; *)
-(*   unfold open; try rewrite <- open_preserves_size; simpl; omega. *)
-
 
 Ltac ev := repeat match goal with
                     | H: exists _, _ |- _ => destruct H

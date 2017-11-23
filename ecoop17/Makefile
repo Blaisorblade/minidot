@@ -87,6 +87,7 @@ COQMKTOP?="$(COQBIN)coqmktop"
 ######################
 
 VFILES:=SfLib.v\
+  dsubsup_total_rec_monotone.v \
   dsubsup_total.v\
   dsubsup_total_rec.v
 
