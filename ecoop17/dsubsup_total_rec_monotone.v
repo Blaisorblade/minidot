@@ -410,39 +410,39 @@ Ltac valTypeObligations := smaller_n || smaller_types || discriminatePlus.
 
 (* Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop := *)
 
-Program Fixpoint val_type (n: nat) (env: list vl) (GH: list vl) (T:ty) (v:vl)
+Program Fixpoint val_type (env: list vl) (GH: list vl) (T:ty) (n: nat) (v:vl)
         {measure (val_type_measure T n) (termRel)}: Prop :=
   match v,T with
     | vabs env1 T0 y, TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       forall vx j (Hj : j < n),
         (* cutLe n (fun j Hk => *)
-        val_type j env GH T1 vx ->
-        exists v, tevaln (vx::env1) y v /\ val_type j env (v::GH) (open (varH (length GH)) T2) v
+        val_type env GH T1 j vx ->
+        exists v, tevaln (vx::env1) y v /\ val_type env (v::GH) (open (varH (length GH)) T2) j v
 
     | vty env1 TX, TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
       forall j (Hj : j < n),
         forall vy,
-          (val_type j env GH T1 vy -> val_type j env1 GH TX vy) /\
-          (val_type j env1 GH TX vy -> val_type j env GH T2 vy)
+          (val_type env GH T1 j vy -> val_type env1 GH TX j vy) /\
+          (val_type env1 GH TX j vy -> val_type env GH T2 j vy)
     | _, TSel (varF x) =>
       match indexr x env with
-        | Some (vty env1 TX) => forall j (Hk : j < n), val_type j env1 GH TX v 
+        | Some (vty env1 TX) => forall j (Hk : j < n), val_type env1 GH TX j v
         | _ => False
       end
     | _, TSel (varH x) =>
       match indexr x GH with
-        | Some (vty env1 TX) => forall j (Hk : j < n), val_type j env1 GH TX v 
+        | Some (vty env1 TX) => forall j (Hk : j < n), val_type env1 GH TX j v
         | _ => False
       end
 
     | _, TAnd T1 T2 =>
-      val_type n env GH T1 v /\ val_type n env GH T2 v
+      val_type env GH T1 n v /\ val_type env GH T2 n v
         
     | _, TBind T1 =>
       closed 1 (length GH) (length env) T1 /\
-      forall j (Hj : j < n) , val_type j env (v::GH) (open (varH (length GH)) T1) v
+      forall j (Hj : j < n) , val_type env (v::GH) (open (varH (length GH)) T1) j v
                                   
     | _, TTop =>
       True
