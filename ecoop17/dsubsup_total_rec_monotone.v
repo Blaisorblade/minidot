@@ -437,7 +437,7 @@ Program Fixpoint val_type (n: nat) (env: list vl) (GH: list vl) (T:ty) (v:vl)
   match v,T with
     | vabs env1 T0 y, TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
-      forall vx j (Hj : j < n),
+      forall vx j, j < n ->
         (* cutLe n (fun j Hk => *)
         val_type j env GH T1 vx ->
         exists v, tevaln (vx::env1) y v /\ val_type j env (v::GH) (open (varH (length GH)) T2) v
