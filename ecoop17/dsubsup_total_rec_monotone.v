@@ -416,7 +416,6 @@ Program Fixpoint val_type (env: list vl) (GH: list vl) (T:ty) (n: nat) (v:vl)
     | vabs env1 T0 y, TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       forall vx j (Hj : j < n),
-        (* cutLe n (fun j Hk => *)
         val_type env GH T1 j vx ->
         exists v, tevaln (vx::env1) y v /\ val_type env (v::GH) (open (varH (length GH)) T2) j v
 
@@ -475,127 +474,283 @@ Ltac inv_mem := match goal with
    functional extensionality)
 *)
 
-Import Coq.Program.Wf.
+
+(* this is just to accelerate Coq -- val_type in the goal is slooow *)
+Inductive vtp: list vl -> list vl -> ty -> forall n, vl -> Prop :=
+| vv: forall G H T n v, val_type G H T n v -> vtp G H T n v.
+
+Lemma unvv: forall G H T n v,
+  vtp G H T n v -> val_type G H T n v.
+Proof.
+  intros * H0. destruct H0. assumption.
+Qed.
+
+Require Import FunctionalExtensionality.
+
+Axiom prop_extensionality:
+  forall (P Q: Prop), (P <-> Q) -> P = Q.
+Lemma vtp_unfold: forall G H T n v,
+  vtp G H T n v = val_type G H T n v.
+Proof.
+  intros.
+  apply prop_extensionality.
+  split; intros.
+  apply unvv. assumption.
+  constructor. assumption.
+Qed.
+
 Import WfExtensionality.
 
-(* Lemma val_type_unfold : forall n env GH T dd v, val_type n env GH T dd v = *)
-(*   match v,T with *)
-(*     | vabs env1 T0 y, TAll T1 T2 => *)
-(*       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\ *)
-(*       forall j vx ddvx, j < n -> *)
-(*         val_type j env GH T1 ddvx vx -> *)
-(*         exists (jj2: vset) v, tevaln (vx::env1) y v /\ val_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v *)
+Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
+  match v,T with
+    | vabs env1 T0 y, TAll T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
+      forall vx j (Hj : j < n),
+        val_type env GH T1 j vx ->
+        exists v, tevaln (vx::env1) y v /\ val_type env (v::GH) (open (varH (length GH)) T2) j v
 
-(*     | vty env1 TX, TMem T1 T2 => *)
-(*       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\ *)
-(*       forall n0, n0 < n -> *)
-(*         forall dy vy, *)
-(*                       (val_type n0 env GH T1 dy vy -> dd vy) /\ *)
-(*                       (dd vy -> val_type n0 env GH T2 dy vy) *)
-(*     | _, TSel (varF x) => *)
-(*       match indexr x env with *)
-(*         | Some jj => jj v *)
-(*         | _ => False *)
-(*       end *)
-(*     | _, TSel (varH x) => *)
-(*       match indexr x GH with *)
-(*         | Some jj => jj v *)
-(*         | _ => False *)
-(*       end *)
+    | vty env1 TX, TMem T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
+      forall j (Hj : j < n),
+        forall vy,
+          (val_type env GH T1 j vy -> val_type env1 GH TX j vy) /\
+          (val_type env1 GH TX j vy -> val_type env GH T2 j vy)
+    | _, TSel (varF x) =>
+      match indexr x env with
+        | Some (vty env1 TX) => forall j (Hk : j < n), val_type env1 GH TX j v
+        | _ => False
+      end
+    | _, TSel (varH x) =>
+      match indexr x GH with
+        | Some (vty env1 TX) => forall j (Hk : j < n), val_type env1 GH TX j v
+        | _ => False
+      end
 
-(*     | _, TAnd T1 T2 => *)
-(*       val_type n env GH T1 dd v /\ val_type n env GH T2 dd v *)
-        
-(*     | _, TBind T1 => *)
-(*       closed 1 (length GH) (length env) T1 /\ *)
-(*       forall j, j < n -> val_type j env (dd::GH) (open (varH (length GH)) T1) dd v *)
-                                  
-(*     | _, TTop => *)
-(*       True *)
-(*     | _,_ => *)
-(*       False *)
-(*   end. *)
-(* Proof. *)
-(*   intros. unfold val_type at 1. unfold val_type_func. *)
-(*   unfold_sub val_type (val_type n env GH T dd v). *)
-(*   simpl; destruct v; simpl. *)
-(*   - destruct T; try reflexivity. *)
-(*     destruct v. *)
-(*     + destruct (indexr i env); reflexivity. *)
-(*     + destruct (indexr i GH); reflexivity. *)
-(*     + reflexivity. *)
-(*   - destruct T; try reflexivity. *)
-(*     destruct v. *)
-(*     + destruct (indexr i env); reflexivity. *)
-(*     + destruct (indexr i GH); reflexivity. *)
-(*     + reflexivity. *)
-(* Qed. *)
+    | _, TAnd T1 T2 =>
+      val_type env GH T1 n v /\ val_type env GH T2 n v
 
-  (* - destruct T; try reflexivity. *)
-  (*   destruct v. *)
-  (*   destruct (indexr i env); reflexivity. *)
-  (*   destruct (indexr i GH); reflexivity. *)
-  (*   reflexivity. *)
-  (* Qed. *)
+    | _, TBind T1 =>
+      closed 1 (length GH) (length env) T1 /\
+      forall j (Hj : j < n) , val_type env (v::GH) (open (varH (length GH)) T1) j v
 
-(*       destruct T; try reflexivity. *)
-(*   (* destruct v; try destruct T; try reflexivity. *) *)
-(* Admitted. *)
-(* Check val_type_unfold. *)
-
-(*   ... *)
-
+    | _, TTop =>
+      True
+    | _,_ =>
+      False
+  end.
+Admitted.
 (*   We admit this lemma here for performance reasons. The invocations *)
 (*   of unfold_sub. simpl. above can take Coq an hour or more to *)
 (*   complete (for reasons that are not clear). *)
 
 (*   The right-hand side of val_type_unfold has been copied and pasted *)
 (*   literally from val_type, so there is no question about the  *)
-(*   validity of the lemma. *) *)
+(*   validity of the lemma. *)
 
+(* Proof. *)
+(*   intros. unfold val_type at 1. unfold val_type_func. *)
+(*   unfold_sub val_type (val_type env GH T n v). *)
+(*   simpl; destruct v; simpl. *)
 
-(* (* this is just to accelerate Coq -- val_type in the goal is slooow *) *)
-(* Inductive vtp: list vseta -> list vseta -> ty -> forall n, vset n -> vl -> Prop := *)
-(* | vv: forall G H T n dd v, val_type G H T n dd v -> vtp G H T n dd v. *)
+(*   - destruct T; try reflexivity. *)
+(*     destruct v. *)
+(*     + destruct (indexr i env); try destruct v; reflexivity. *)
+(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
+(*     + reflexivity.  *)
+(*   - destruct T; try reflexivity. *)
+(*     destruct v. *)
+(*     + destruct (indexr i env); try destruct v; reflexivity. *)
+(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
+(*     + reflexivity. *)
+(* Qed. *)
 
+Lemma vtp_unfold':
+  vtp = val_type.
+Proof.
+  repeat (apply functional_extensionality; intro).
+  apply vtp_unfold.
+Qed.
 
-(* Lemma unvv: forall G H T n dd v, *)
-(*   vtp G H T n dd v -> val_type G H T n dd v. *)
-(* Proof.  *)
+Ltac inverse H := (inversion H; subst).
+Ltac match_case_analysis :=
+  repeat
+    match goal with
+    | H : context f [match ?x with _ => _ end] |- _ =>
+      destruct x; try solve [inverse H]
+    end.
+
+Ltac match_case_analysis_eauto :=
+  repeat
+    match goal with
+    | H : context f [match ?x with _ => _ end] |- _ =>
+      destruct x; try solve [inverse H; eauto]
+    end.
+
+Lemma val_type_unfold : forall n env GH T v, vtp env GH T n v =
+  match v,T with
+    | vabs env1 T0 y, TAll T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
+      forall vx j (Hj : j < n),
+        vtp env GH T1 j vx ->
+        exists v, tevaln (vx::env1) y v /\ vtp env (v::GH) (open (varH (length GH)) T2) j v
+
+    | vty env1 TX, TMem T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
+      forall j (Hj : j < n),
+        forall vy,
+          (vtp env GH T1 j vy -> vtp env1 GH TX j vy) /\
+          (vtp env1 GH TX j vy -> vtp env GH T2 j vy)
+    | _, TSel (varF x) =>
+      match indexr x env with
+        | Some (vty env1 TX) => forall j (Hk : j < n), vtp env1 GH TX j v
+        | _ => False
+      end
+    | _, TSel (varH x) =>
+      match indexr x GH with
+        | Some (vty env1 TX) => forall j (Hk : j < n), vtp env1 GH TX j v
+        | _ => False
+      end
+
+    | _, TAnd T1 T2 =>
+      vtp env GH T1 n v /\ vtp env GH T2 n v
+
+    | _, TBind T1 =>
+      closed 1 (length GH) (length env) T1 /\
+      forall j (Hj : j < n) , vtp env (v::GH) (open (varH (length GH)) T1) j v
+
+    | _, TTop =>
+      True
+    | _,_ =>
+      False
+  end.
+Proof.
+  intros;
+    rewrite vtp_unfold';
+    rewrite val_type_unfold';
+    reflexivity.
+Qed.
+(*   Require Import Coq.Setoids.Setoid. *)
+(*   destruct v; destruct T; trivial; repeat f_equal. *)
+(*   -  *)
+(*     apply prop_extensionality; split; intros. *)
+(*   + setoid_rewrite vtp_unfold. *)
+(*     rewrite vtp_unfold in H0. *)
+(*     apply H; assumption. *)
+(*   +  *)
+(*    setoid_rewrite <- vtp_unfold. *)
+(*    apply H;  *)
+(*      try rewrite vtp_unfold; *)
+(*      assumption. *)
+(*   - *)
+(*     apply prop_extensionality; split; intros; match_case_analysis; *)
+(*     try setoid_rewrite vtp_unfold; *)
+(*     try setoid_rewrite vtp_unfold in H; *)
+(*     apply H. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(*   - rewrite vtp_unfold'; reflexivity. *)
+(* Qed. *)
+(*   ... *)
+
 
 (* Require Import Coq.Logic.Eqdep_dec. *)
 (* Require Import Coq.Arith.Peano_dec. *)
 
-(* intros. inversion H0. apply inj_pair2_eq_dec in H2. subst. assumption. *)
-(* apply eq_nat_dec.  *)
-(* Qed. *)
+(* some quick examples *)
 
-(* (* some quick examples *) *)
+Example ex0 : forall n v, vtp [] [] (TTop) n v.
+Proof.
+  intros. rewrite val_type_unfold. destruct v; auto.
+Qed.
 
-(* Example ex0 : forall n dd v, vtp [] [] (TTop) n dd v. *)
-(* Proof. *)
-(*   intros. eapply vv. rewrite val_type_unfold. destruct v; auto. *)
-(* Qed. *)
+Example ex1: forall G1 GH T n, exists (dd:vset), forall v, val_type G1 GH T n v <-> dd  v.
+Proof.
+  intros. remember (vtp G1 GH T n) as V.
 
-(* Example ex1: forall G1 GH T n, exists (dd:vset (S n)), forall d v, val_type G1 GH T n d v <-> dd d v. *)
-(* Proof. *)
-(*   intros. remember (vtp G1 GH T n) as V. *)
+  simpl.
+  exists (fun v => val_type G1 GH T n v). intros.
+  split; intros; assumption.
+Qed.
 
-(*   simpl. *)
-(*   exists (fun d v => val_type G1 GH T n d v). intros. *)
-(*   split; intros; assumption. *)
-(* Qed. *)
+Example ex3: forall H T n, vtp [] [] (TMem TBot TTop) n (vty H T).
+Proof.
+  intros. rewrite val_type_unfold.
+  split. constructor.
+  split. constructor.
+  induction n.
+  - intros j Hj. inversion Hj.
+  -
+    intros. split. intros. rewrite val_type_unfold in H0. destruct vy; inversion H0.
+    intros. rewrite val_type_unfold. destruct vy; trivial.
+Qed.
 
-(* Example ex3: forall H T n d, vtp [] [] (TMem TBot TTop) n d (vty H T). *)
-(* Proof. *)
-(*   intros. eapply vv. rewrite val_type_unfold. *)
-(*   split. constructor. *)
-(*   split. constructor. *)
-(*   destruct n. trivial. *)
-(*   intros. split. intros. rewrite val_type_unfold in H0. destruct vy; inversion H0. *)
-(*   intros. rewrite val_type_unfold. destruct vy; trivial. *)
-(* Qed. *)
 
+(* Safer version of split; for use in automation. *)
+Ltac split_conj :=
+  repeat match goal with
+  | |- _ /\ _ => split
+  end.
+Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
+Proof.
+  induction T; intros * Hnv * Hmn;
+    destruct v; rewrite val_type_unfold;
+      rewrite val_type_unfold in Hnv; ev; repeat split_conj; match_case_analysis; try inversion Hnv; try assumption;
+        intros; try assert (Hjn: j < n) by omega; eauto 2.
+  (* all: eauto 2. *)
+  (*     (* try solve [ rewrite val_type_unfold in Hnv; try inversion Hnv ]. *) *)
+  (* (* all: ev. *) *)
+  (* - *)
+  (*   (* rewrite val_type_unfold in Hnv; *) *)
+  (*   auto 2. *)
+  (* - auto 2. *)
+  (* - auto 2. *)
+  (* - auto 2. *)
+  (* - auto 2. *)
+  (* - auto 2. *)
+  (* - auto 2. *)
+  (* - auto 2. *)
+  (* - eauto 2. *)
+  (* - eauto 2. *)
+  (* - eauto 2. *)
+  (* - eauto 2. *)
+  (* (* - auto 2. *) *)
+  (* (* - auto 2. *) *)
+  (* (* - auto 2. *) *)
+  (* (*   (* match_case_analysis; *) *) *)
+  (* (*   (*   intros; assert (Hjn: j < n) by omega; apply Hnv; apply Hjn. *) *) *)
+  (* (* - *) *)
+  (* (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *) *)
+  (* (*   match_case_analysis; intros; *) *)
+  (* (*     assert (Hjn: j < n) by omega; apply Hnv; apply Hjn. *) *)
+  (* - *)
+  (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *)
+  (*     match_case_analysis. *)
+  (* - *)
+  (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *)
+  (*   ev. *)
+  (*   split; try assumption. *)
+  (*   split; try assumption. *)
+  (*   intros; assert (Hjn: j < n) by omega. *)
+  (*   auto 2. *)
+  (*   (* intros; apply H2; try assumption. omega. *) *)
+  (* - *)
+  (*   (* apply unvv in Hnv; rewrite val_type_unfold in Hnv; *) *)
+  (*   split; try assumption. *)
+  (*   intros. *)
+  (*   assert (Hjn: j < n) by omega. *)
+  (*   auto 2. *)
+  (*   - split; try assumption. *)
+  (*   intros. *)
+  (*   assert (Hjn: j < n) by omega. *)
+  (*   auto 2. *)
+  (*   - split; eauto 2. *)
+  (*   - split; eauto 2. *)
+Qed.
 
 (* (* This lemma  establishes that val_type indeed defines a value set (vseta). *)
 (*    We need this result in the t_typ/TMem case in the main proof, *)
