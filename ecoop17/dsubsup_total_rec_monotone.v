@@ -483,53 +483,71 @@ Ltac inv_mem := match goal with
 Import Coq.Program.Wf.
 Import WfExtensionality.
 
-(* Lemma val_type_unfold: forall env GH T n dd v, val_type env GH T n dd v = *)
-(*   match v,T with *)
-(*     | vabs env1 T0 y, TAll T1 T2 => *)
-(*       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\ *)
-(*       forall jj vx, *)
-(*         (forall kx, val_type env GH T1 kx (jj kx) vx) -> *)
-(*         exists (jj2:vseta) v, tevaln (vx::env1) y v /\ (forall k, val_type env (jj::GH) (open (varH (length GH)) T2) k (jj2 k) v) *)
+Lemma val_type_unfold : forall n env GH T dd v, val_type n env GH T dd v =
+  match v,T with
+    | vabs env1 T0 y, TAll T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
+      forall j vx ddvx, j < n ->
+        val_type j env GH T1 ddvx vx ->
+        exists (jj2: vset) v, tevaln (vx::env1) y v /\ val_type j env (ddvx::GH) (open (varH (length GH)) T2) jj2 v
 
-(*     | vty env1 TX, TMem T1 T2 => *)
-(*       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\ *)
-(*       match (vsmatch n dd) with *)
-(*         | vsmatch 0 dd => True *)
-(*         | vsmatch (S n0) dd => forall (dy:vseta) vy,  *)
-(*                       (val_type env GH T1 n0 (dy n0) vy -> dd (dy n0) vy) /\ *)
-(*                       (dd (dy n0) vy -> val_type env GH T2 n0 (dy n0) vy) *)
-(*       end *)
+    | vty env1 TX, TMem T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
+      forall n0, n0 < n ->
+        forall dy vy,
+                      (val_type n0 env GH T1 dy vy -> dd vy) /\
+                      (dd vy -> val_type n0 env GH T2 dy vy)
+    | _, TSel (varF x) =>
+      match indexr x env with
+        | Some jj => jj v
+        | _ => False
+      end
+    | _, TSel (varH x) =>
+      match indexr x GH with
+        | Some jj => jj v
+        | _ => False
+      end
 
-(*     | _, TSel (varF x) => *)
-(*       match indexr x env with *)
-(*         | Some jj => jj (S n) dd v *)
-(*         | _ => False *)
-(*       end *)
-(*     | _, TSel (varH x) => *)
-(*       match indexr x GH with *)
-(*         | Some jj => jj (S n) dd v *)
-(*         | _ => False *)
-(*       end *)
-
-(*     | _, TAnd T1 T2 => *)
-(*       val_type env GH T1 n dd v /\ val_type env GH T2 n dd v *)
+    | _, TAnd T1 T2 =>
+      val_type n env GH T1 dd v /\ val_type n env GH T2 dd v
         
-(*     | _, TBind T1 => *)
-(*       closed 1 (length GH) (length env) T1 /\ *)
-(*       exists jj:vseta, jj n = dd /\ forall n, val_type env (jj::GH) (open (varH (length GH)) T1) n (jj n) v *)
+    | _, TBind T1 =>
+      closed 1 (length GH) (length env) T1 /\
+      forall j, j < n -> val_type j env (dd::GH) (open (varH (length GH)) T1) dd v
+                                  
+    | _, TTop =>
+      True
+    | _,_ =>
+      False
+  end.
+Proof.
+  intros. unfold val_type at 1. unfold val_type_func.
+  unfold_sub val_type (val_type n env GH T dd v).
+  simpl; destruct v; simpl.
+  - destruct T; try reflexivity.
+    destruct v.
+    + destruct (indexr i env); reflexivity.
+    + destruct (indexr i GH); reflexivity.
+    + reflexivity.
+  - destruct T; try reflexivity.
+    destruct v.
+    + destruct (indexr i env); reflexivity.
+    + destruct (indexr i GH); reflexivity.
+    + reflexivity.
+Qed.
 
-(*     | _, TTop =>  *)
-(*       True *)
-(*     | _,_ => *)
-(*       False *)
-(*   end. *)
+  (* - destruct T; try reflexivity. *)
+  (*   destruct v. *)
+  (*   destruct (indexr i env); reflexivity. *)
+  (*   destruct (indexr i GH); reflexivity. *)
+  (*   reflexivity. *)
+  (* Qed. *)
 
-  
+(*       destruct T; try reflexivity. *)
+(*   (* destruct v; try destruct T; try reflexivity. *) *)
+(* Admitted. *)
+Check val_type_unfold.
 
-(* Proof. (* *)
-(*   intros. unfold val_type at 1. unfold val_type_func. *)
-(*   unfold_sub val_type (val_type env GH T n dd v). *)
-(*   simpl. *)
 (*   ... *)
 
 (*   We admit this lemma here for performance reasons. The invocations *)
@@ -539,7 +557,6 @@ Import WfExtensionality.
 (*   The right-hand side of val_type_unfold has been copied and pasted *)
 (*   literally from val_type, so there is no question about the  *)
 (*   validity of the lemma. *) *)
-(* Admitted. *)
 
 
 (* (* this is just to accelerate Coq -- val_type in the goal is slooow *) *)
