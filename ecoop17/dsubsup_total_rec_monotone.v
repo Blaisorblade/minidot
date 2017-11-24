@@ -410,6 +410,15 @@ Ltac valTypeObligations := smaller_n || smaller_types || discriminatePlus.
 
 (* Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop := *)
 
+(*
+Again:
+The first env (env, or G1) is for looking up varF variables.
+The first env matches the concrete runtime environment, and is
+extended during type assignment, so never here.
+The second env (GH) is for looking up varH variables.
+The second env matches the abstract runtime environment, and is
+extended during subtyping and here.
+ *)
 Program Fixpoint val_type (env: list vl) (GH: list vl) (T:ty) (n: nat) (v:vl)
         {measure (val_type_measure T n) (termRel)}: Prop :=
   match v,T with

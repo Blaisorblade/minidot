@@ -148,13 +148,12 @@ Qed.
 
 
 (* (* consistent environment *) *)
-Definition R_env venv genv tenv :=
+Definition R_env venv tenv :=
   length venv = length tenv /\
-  length genv = length tenv /\
   forall x TX, indexr x tenv = Some TX ->
     (exists vx,
        indexr x venv = Some vx /\
-       forall n, vtp genv [] TX n vx).
+       forall n, vtp venv [] TX n vx).
 
 
 (* automation *)
@@ -217,19 +216,19 @@ Qed.
 
 (* ## Extension, Regularity ## *)
 
-Lemma wf_length : forall vs gs ts,
-                    R_env vs gs ts ->
+Lemma wf_length : forall vs ts,
+                    R_env vs ts ->
                     (length vs = length ts).
 Proof.
   intros. induction H. auto.
 Qed.
 
-Lemma wf_length2 : forall vs gs ts,
-                    R_env vs gs ts ->
-                    (length gs = length ts).
-Proof.
-  intros. destruct H. destruct H0. auto.
-Qed.
+(* Lemma wf_length2 : forall vs ts, *)
+(*                     R_env vs ts -> *)
+(*                     (length gs = length ts). *)
+(* Proof. *)
+(*   intros. destruct H. destruct H0. auto. *)
+(* Qed. *)
 
 
 Hint Immediate wf_length.
@@ -662,13 +661,13 @@ Proof.
 Qed.
 
 
-Lemma indexr_safe_ex: forall H1 GH G1 TF i,
-             R_env H1 GH G1 ->
+Lemma indexr_safe_ex: forall GH G1 TF i,
+             R_env GH G1 ->
              indexr i G1 = Some TF ->
-             exists v, indexr i H1 = Some v /\ forall n, val_type GH [] TF n v.
+             exists v, indexr i GH = Some v /\ forall n, vtp GH [] TF n v.
 Proof.
-  intros. destruct H. destruct H2. destruct (H3 i TF H0) as [v [E G]].
-  exists v. split. eauto. intros. eapply unvv. apply (G n).
+  intros. destruct H. destruct (H1 i TF H0) as [v [E G]].
+  exists v. split. eauto. intros. apply (G n).
 Qed.
 
 
@@ -2014,30 +2013,31 @@ Admitted.
 (* Qed. *)
 
 
-Lemma valtp_widen: forall kf vf GH H G1 T1 T2,
-  vtp GH [] T1 kf  vf ->
+Lemma valtp_widen: forall kf vf GH G1 T1 T2,
+  vtp GH [] T1 kf vf ->
   stp G1 [] T1 T2 ->
-  R_env H GH G1 ->
-  vtp GH [] T2 kf  vf.
+  R_env GH G1 ->
+  vtp GH [] T2 kf vf.
 Proof.
-  intros. destruct H2 as [L1 [L2 A]]. symmetry in L2.
+  intros * H H0 H1. destruct H1 as [L1 A]. symmetry in L1.
   eapply valtp_widen_aux; try eassumption; try reflexivity.
 
-  intros. specialize (A _ _ H2). ev.
-  eexists. intro. apply H4.
+  - intros. specialize (A _ _ H1). ev.
+    eexists. intro.
+    apply H3. (* XXX *)
 
-  intros. inversion H2.
+  - intros. inversion H1.
 Qed.
 
 
-Lemma wf_env_extend: forall vx vy G1 R1 H1 T1,
-  R_env H1 R1 G1 ->
-  (forall n, vtp (vy::R1) [] T1 n vx) ->
-  R_env (vx::H1) (vy::R1) (T1::G1).
+Lemma wf_env_extend: forall vx G1 R1 T1,
+  R_env R1 G1 ->
+  (forall n, vtp (vx::R1) [] T1 n vx) ->
+  R_env (vx::R1) (T1::G1).
 Proof.
-  intros. unfold R_env in *. destruct H as [L1 [L2 U]].
+  intros * H H0. unfold R_env in *. destruct H as [L1 U].
   split. simpl. rewrite L1. reflexivity.
-  split. simpl. rewrite L2. reflexivity.
+  (* split. simpl. rewrite L2. reflexivity. *)
   intros. simpl in H. case_eq (beq_nat x (length G1)); intros E; rewrite E in H.
   - inversion H. subst T1. exists vx.
     split. simpl. rewrite <-L1 in E. rewrite E. reflexivity.
@@ -2048,13 +2048,13 @@ Proof.
     intros. eapply valtp_extend. eapply IR.
 Qed.
 
-Lemma wf_env_extend0: forall vx vy G1 R1 H1 T1,
-  R_env H1 R1 G1 ->
-  (forall n, vtp R1 [] T1 n  vx) ->
-  R_env (vx::H1) (vy::R1) (T1::G1).
+Lemma wf_env_extend0: forall vx G1 R1 T1,
+  R_env R1 G1 ->
+  (forall n, vtp R1 [] T1 n vx) ->
+  R_env (vx::R1) (T1::G1).
 Proof.
   intros.
-  assert (forall n, vtp (vy::R1) [] T1 n vx) as V0.
+  assert (forall n, vtp (vx::R1) [] T1 n vx) as V0.
   intro. eapply valtp_extend. eapply H0.
   eapply wf_env_extend; assumption.
 Qed.
@@ -2066,26 +2066,34 @@ Qed.
 
 (* (* type assignment for variables *) *)
 
-(* Lemma invert_var : forall x tenv T, *)
-(*   has_type tenv (tvar x) T -> forall venv renv, R_env venv renv tenv -> *)
-(*   exists  v, tevaln venv (tvar x) v /\ indexr x venv = Some v /\ forall k, val_type venv [] T k v. *)
-(* Proof. *)
-(*   intros ? ? ? W. remember (tvar x) as e. *)
-(*   induction W; intros ? ? WFE; inversion Heqe; try subst x0. *)
+Lemma invert_var : forall x tenv T,
+  has_type tenv (tvar x) T -> forall venv, R_env venv tenv ->
+  exists  v, tevaln venv (tvar x) v /\ indexr x venv = Some v /\ forall k, vtp venv [] T k v.
+Proof.
+  intros ? ? ? W. remember (tvar x) as e.
+  induction W; intros * WFE; inversion Heqe; try subst x0.
 
-(*   - Case "Var". *)
-(*     destruct (indexr_safe_ex venv0 renv env T1 x) as [d [v [I [D V]]]]. eauto. eauto. *)
+  - Case "Var".
+    destruct (indexr_safe_ex venv env T1 x) as [v [I V]]; try assumption.
+      (* as [d [v [I [D V]]]]. eauto. eauto. *)
     
-(*     exists d. exists v. split. exists 0. intros. destruct n. omega. simpl. rewrite I. eauto. split. apply I. split. apply D. eapply V. *)
+    exists v.
+    split_conj.
+    + exists 0. intros. destruct n. * omega.
+                                    * simpl. rewrite I. eauto.
+    + assumption.
+    + intro. eapply V.
 
-(*   - Case "VarPack". *)
-(*     unfold R_env in WFE. ev. destruct (H4 _ _ H) as [d [v [I ?]]]. ev. *)
-(*     exists d. exists v. split. exists 0. intros. destruct n. omega. simpl. rewrite I. reflexivity. *)
-(*     intros. *)
-(*     assert (forall n, val_type renv [d] (open (varH 0) T1) n (d n) v). { *)
-(*       intros. eapply unvv. eapply vtp_subst2_general. rewrite H3. assumption. eassumption. eapply H6. } *)
-(*     split. assumption. split. assumption. intros. rewrite val_type_unfold. rewrite H3. *)
-(*     destruct v; split; try assumption; exists d; (split; [reflexivity| assumption]). *)
+  - Case "VarPack".
+    unfold R_env in WFE. ev. destruct (H3 _ _ H) as [v [I ?]]. ev.
+    exists v. split. exists 0. intros. destruct n. omega. simpl. rewrite I. reflexivity.
+    intros.
+    assert (forall n, vtp venv [v] (open (varH 0) T1) n v). {
+      intros. eapply vtp_subst2_general.
+      rewrite H2. assumption. eassumption. eapply H4. }
+    split. assumption. intros. rewrite val_type_unfold. rewrite H2.
+    destruct v; split; try assumption; intros; auto.
+    Admitted.
 
 (*   - Case "And". *)
 (*     destruct (IHW1 eq_refl venv0 renv WFE) as [d1 [v1 [E1 [I1 [D1 HVF]]]]]. *)
