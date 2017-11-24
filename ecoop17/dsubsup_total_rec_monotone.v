@@ -535,25 +535,21 @@ Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
       False
   end.
 
-(*   We admit this lemma here for performance reasons. The invocations *)
-(*   of unfold_sub. simpl. above can take Coq an hour or more to *)
-(*   complete (for reasons that are not clear). *)
-
-(*   The right-hand side of val_type_unfold has been copied and pasted *)
+(*   This proof is slow, and the right-hand side of val_type_unfold has been copied and pasted *)
 (*   literally from val_type, so there is no question about the  *)
-(*   validity of the lemma. *)
+(*   validity of the lemma, and we often admit it for performance reasons. *)
 
-(* Proof. *)
-(*   intros. unfold val_type at 1. unfold val_type_func. *)
-(*   unfold_sub val_type (val_type env GH T n v). *)
-(*   simpl; destruct v; simpl. *)
+Proof.
+  intros. unfold val_type at 1. unfold val_type_func.
+  unfold_sub val_type (val_type env GH T n v).
+  simpl; destruct v; simpl.
 
-(*   - destruct T; try reflexivity; destruct v. *)
-(*     + destruct (indexr i env); try destruct v; reflexivity. *)
-(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
-(*     + reflexivity. *)
-(*   - destruct T; try reflexivity; destruct v. *)
-(*     + destruct (indexr i env); try destruct v; reflexivity. *)
-(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
-(*     + reflexivity. *)
-(* Qed. *)
+  - destruct T; try reflexivity; destruct v.
+    + destruct (indexr i env); try destruct v; reflexivity.
+    + destruct (indexr i GH); try destruct v; reflexivity.
+    + reflexivity.
+  - destruct T; try reflexivity; destruct v.
+    + destruct (indexr i env); try destruct v; reflexivity.
+    + destruct (indexr i GH); try destruct v; reflexivity.
+    + reflexivity.
+Qed.
