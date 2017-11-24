@@ -14,6 +14,12 @@ Require Export Arith.Le.
 Require Import Coq.Program.Equality.
 Require Import Omega.
 
+Require Import Arith.Wf_nat.
+Require Import Coq.Program.Wf.
+Import WfExtensionality.
+Require Import Coq.Relations.Relation_Operators.
+Require Import Coq.Wellfounded.Lexicographic_Product.
+
 (* ### Syntax ### *)
 
 Definition id := nat.
@@ -371,12 +377,6 @@ Definition val_type_measure T (k : nat) := (existT (fun _ => nat) k (tsize_flat 
 
 Hint Unfold val_type_measure.
 
-Require Import Arith.Wf_nat.
-Require Import Coq.Program.Wf.
-Import WfExtensionality.
-Require Import Coq.Relations.Relation_Operators.
-Require Import Coq.Wellfounded.Lexicographic_Product.
-
 Definition vset := vl -> Prop.
 Hint Unfold vset.
 Definition nvset := nat -> vset.
@@ -485,8 +485,6 @@ Proof.
   intros * H0. destruct H0. assumption.
 Qed.
 
-Require Import FunctionalExtensionality.
-
 Axiom prop_extensionality:
   forall (P Q: Prop), (P <-> Q) -> P = Q.
 Lemma vtp_unfold: forall G H T n v,
@@ -498,8 +496,6 @@ Proof.
   apply unvv. assumption.
   constructor. assumption.
 Qed.
-
-Import WfExtensionality.
 
 Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
   match v,T with
