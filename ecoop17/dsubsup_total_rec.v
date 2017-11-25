@@ -101,34 +101,15 @@ Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n
       False
   end.
 
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TApp case: open *)
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. omega. Qed.
-Next Obligation. simpl. unfold open. rewrite <-open_preserves_size. omega. Qed. (* TBind case: open *)
+Ltac smaller_types :=
+  Tactics.program_simpl; simpl;
+  unfold open; try rewrite <- open_preserves_size; omega.
 
+Ltac discriminatePlus := ev; inv_mem; repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
 
-Ltac ev := repeat match goal with
-                    | H: exists _, _ |- _ => destruct H
-                    | H: _ /\  _ |- _ => destruct H
-           end.
+Ltac valTypeObligations := smaller_types || discriminatePlus.
 
-Ltac inv_mem := match goal with
-                  | H: closed 0 (length ?GH) (length ?G) (TMem ?T1 ?T2) |-
-                    closed 0 (length ?GH) (length ?G) ?T2 => inversion H; subst; eauto
-                  | H: closed 0 (length ?GH) (length ?G) (TMem ?T1 ?T2) |-
-                    closed 0 (length ?GH) (length ?G) ?T1 => inversion H; subst; eauto
-                end.
-
-
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
-Next Obligation. compute. repeat split; intros; ev; try solve by inversion. Qed.
+Solve Obligations with valTypeObligations.
 
                                   
 (* 
