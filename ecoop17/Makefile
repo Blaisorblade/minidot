@@ -87,10 +87,12 @@ COQMKTOP?="$(COQBIN)coqmktop"
 ######################
 
 VFILES:=SfLib.v\
-  dsubsup_total_rec_monotone_part2.v \
-  dsubsup_total_rec_monotone.v \
+  dsubsup_total_rec_binding.v \
+  dsubsup_total_rec_base.v \
   dsubsup_total.v\
-  dsubsup_total_rec.v
+  dsubsup_total_rec.v \
+  dsubsup_total_rec_monotone.v \
+  dsubsup_total_rec_monotone_part2.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
