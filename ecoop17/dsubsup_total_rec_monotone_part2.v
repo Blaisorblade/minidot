@@ -55,7 +55,7 @@ Lemma val_type_unfold : forall n env GH T v, vtp env GH T n v =
 
     | _, TBind T1 =>
       closed 1 (length GH) (length env) T1 /\
-      forall j (Hj : j < n) , vtp env (v::GH) (open (varH (length GH)) T1) j v
+      vtp env (v::GH) (open (varH (length GH)) T1) n v
 
     | _, TTop =>
       True

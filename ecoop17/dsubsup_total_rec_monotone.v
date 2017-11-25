@@ -450,7 +450,7 @@ Program Fixpoint val_type (env: list vl) (GH: list vl) (T:ty) (n: nat) (v:vl)
         
     | _, TBind T1 =>
       closed 1 (length GH) (length env) T1 /\
-      forall j (Hj : j < n) , val_type env (v::GH) (open (varH (length GH)) T1) j v
+      val_type env (v::GH) (open (varH (length GH)) T1) n v
                                   
     | _, TTop =>
       True
@@ -536,7 +536,7 @@ Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
 
     | _, TBind T1 =>
       closed 1 (length GH) (length env) T1 /\
-      forall j (Hj : j < n) , val_type env (v::GH) (open (varH (length GH)) T1) j v
+      val_type env (v::GH) (open (varH (length GH)) T1) n v
 
     | _, TTop =>
       True
