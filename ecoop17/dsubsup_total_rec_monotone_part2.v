@@ -162,44 +162,44 @@ Program Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -
 Proof.
   (* The proof is by induction on type T, because monotonicity on intersection types follows by induction. *)
   (* We proceed by case analysis on values. *)
-  rewrite vtp_unfold'.
+  (* rewrite vtp_unfold'. *)
 
-  (* unfold val_type. *)
-  intros * Hn * Hmn.
-  rewrite unfold_val_type_less in *.
-  generalize dependent m.
-  pose (s := (val_type_args G H T n v)).
-  assert (Hs: s = (val_type_args G H T n v)) by reflexivity.
-  assert (Hn': n = (projT1 (projT2 (projT2 (projT2 s))))) by reflexivity.
-  replace n with (projT1 (projT2 (projT2 (projT2 s)))).
-  replace (val_type_args G H T n v) with s in *.
-  clear Hs.
-  generalize dependent s. intro.
+  (* (* unfold val_type. *) *)
+  (* intros * Hn * Hmn. *)
+  (* rewrite unfold_val_type_less in *. *)
+  (* generalize dependent m. *)
+  (* pose (s := (val_type_args G H T n v)). *)
+  (* assert (Hs: s = (val_type_args G H T n v)) by reflexivity. *)
+  (* assert (Hn': n = (projT1 (projT2 (projT2 (projT2 s))))) by reflexivity. *)
+  (* replace n with (projT1 (projT2 (projT2 (projT2 s)))). *)
+  (* replace (val_type_args G H T n v) with s in *. *)
+  (* clear Hs. *)
+  (* generalize dependent s. intro. *)
 
   
-  unfold val_type_func.
-  eapply Fix_sub_rect with (A := {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}}).
-  intros.
-  fold val_type_func.
-
-  match_case_analysis_goal.
+  (* unfold val_type_func. *)
+  (* eapply Fix_sub_rect with (A := {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}}). *)
+  (* intros. *)
+  (* fold val_type_func. *)
 
   (* match_case_analysis_goal. *)
-  destruct x0.
 
-  ev.
+  (* (* match_case_analysis_goal. *) *)
+  (* destruct x0. *)
 
-  match_case_analysis_goal.
-  (* fold_sub val_type. *)
-  (* (R := termRel). *)
-  (* unfold_sub val_type (val_type env GH T n v). *)
-  (* intros *. *)
-  (* generalize dependent G. *)
-  (* generalize dependent H. *)
-  intros.
-  dependent inversion H0.  ev.
-intros.
-  induction T.
+  (* ev. *)
+
+  (* match_case_analysis_goal. *)
+  (* (* fold_sub val_type. *) *)
+  (* (* (R := termRel). *) *)
+  (* (* unfold_sub val_type (val_type env GH T n v). *) *)
+  (* (* intros *. *) *)
+  (* (* generalize dependent G. *) *)
+  (* (* generalize dependent H. *) *)
+  (* intros. *)
+  (* dependent inversion H0.  ev. *)
+  
+  induction T;
   intros;
     rewrite val_type_unfold in *;
       destruct v; ev; repeat split_conj; match_case_analysis.
@@ -214,10 +214,9 @@ intros.
      all j < m (with m < n). So we assert that j < n, and then Coq can finish
      the proof automatically. *)
   all: intros; try assert (Hjn: j < n) by omega; eauto 2.
-  - 
-    eapply IHT.
 
-Qed.
+(* Qed. *)
+Admitted.
 
 (* (* This lemma  establishes that val_type indeed defines a value set (vseta). *)
 (*    We need this result in the t_typ/TMem case in the main proof, *)
