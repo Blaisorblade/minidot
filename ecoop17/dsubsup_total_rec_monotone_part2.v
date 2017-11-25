@@ -148,12 +148,11 @@ Qed.
 
 
 (* (* consistent environment *) *)
-Definition R_env venv tenv :=
+Definition R_env k venv tenv :=
   length venv = length tenv /\
   forall x TX, indexr x tenv = Some TX ->
     (exists vx,
-       indexr x venv = Some vx /\
-       forall n, vtp venv [] TX n vx).
+       indexr x venv = Some vx /\ vtp venv [] TX k vx).
 
 
 (* automation *)
@@ -216,8 +215,8 @@ Qed.
 
 (* ## Extension, Regularity ## *)
 
-Lemma wf_length : forall vs ts,
-                    R_env vs ts ->
+Lemma wf_length : forall k vs ts,
+                    R_env k vs ts ->
                     (length vs = length ts).
 Proof.
   intros. induction H. auto.
@@ -661,13 +660,13 @@ Proof.
 Qed.
 
 
-Lemma indexr_safe_ex: forall GH G1 TF i,
-             R_env GH G1 ->
+Lemma indexr_safe_ex: forall n GH G1 TF i,
+             R_env n GH G1 ->
              indexr i G1 = Some TF ->
-             exists v, indexr i GH = Some v /\ forall n, vtp GH [] TF n v.
+             exists v, indexr i GH = Some v /\ vtp GH [] TF n v.
 Proof.
   intros. destruct H. destruct (H1 i TF H0) as [v [E G]].
-  exists v. split. eauto. intros. apply (G n).
+  exists v. split; eauto.
 Qed.
 
 
@@ -1803,19 +1802,19 @@ Qed.
 
 
 (* ### Relating Value Typing and Subtyping ### *)
-Lemma valtp_widen_aux: forall G1 GH1 T1 T2,
+Lemma valtp_widen_aux: forall k G1 GH1 T1 T2,
   stp G1 GH1 T1 T2 ->
   forall H GH,
     length G1 = length H ->
     (forall x TX, indexr x G1 = Some TX ->
                    exists vx,
-                     (forall n, vtp H GH TX n vx)) ->
+                     vtp H GH TX k vx) ->
     length GH1 = length GH ->
     (forall x TX, indexr x GH1 = Some TX ->
                    exists vx,
-                     (forall n, vtp H GH TX n vx)) ->
-  (forall kf vf,
-     vtp H GH T1 kf vf -> vtp H GH T2 kf vf).
+                     vtp H GH TX k vx) ->
+  (forall vf,
+     vtp H GH T1 k vf -> vtp H GH T2 k vf).
 Proof.
 Admitted.
 (*   intros ? ? ? ? stp.  *)
@@ -2012,28 +2011,26 @@ Admitted.
 (*     eapply IHstp2. eapply unvv. eapply IHstp1. eapply V0. *)
 (* Qed. *)
 
-
-Lemma valtp_widen: forall kf vf GH G1 T1 T2,
-  vtp GH [] T1 kf vf ->
+ 
+Lemma valtp_widen: forall k vf GH G1 T1 T2,
+  vtp GH [] T1 k vf ->
   stp G1 [] T1 T2 ->
-  R_env GH G1 ->
-  vtp GH [] T2 kf vf.
+  R_env k GH G1 ->
+  vtp GH [] T2 k vf.
 Proof.
   intros * H H0 H1. destruct H1 as [L1 A]. symmetry in L1.
   eapply valtp_widen_aux; try eassumption; try reflexivity.
 
   - intros. specialize (A _ _ H1). ev.
-    eexists. intro.
-    apply H3. (* XXX *)
-
+    eauto.
   - intros. inversion H1.
 Qed.
 
 
-Lemma wf_env_extend: forall vx G1 R1 T1,
-  R_env R1 G1 ->
-  (forall n, vtp (vx::R1) [] T1 n vx) ->
-  R_env (vx::R1) (T1::G1).
+Lemma wf_env_extend: forall k vx G1 R1 T1,
+  R_env k R1 G1 ->
+  vtp (vx::R1) [] T1 k vx ->
+  R_env k (vx::R1) (T1::G1).
 Proof.
   intros * H H0. unfold R_env in *. destruct H as [L1 U].
   split. simpl. rewrite L1. reflexivity.
@@ -2048,15 +2045,15 @@ Proof.
     intros. eapply valtp_extend. eapply IR.
 Qed.
 
-Lemma wf_env_extend0: forall vx G1 R1 T1,
-  R_env R1 G1 ->
-  (forall n, vtp R1 [] T1 n vx) ->
-  R_env (vx::R1) (T1::G1).
+Lemma wf_env_extend0: forall k vx G1 R1 T1,
+  R_env k R1 G1 ->
+  vtp R1 [] T1 k vx ->
+  R_env k (vx::R1) (T1::G1).
 Proof.
-  intros.
-  assert (forall n, vtp (vx::R1) [] T1 n vx) as V0.
-  intro. eapply valtp_extend. eapply H0.
-  eapply wf_env_extend; assumption.
+  (* intros. *)
+  (* eapply wf_env_extend. assumption. *)
+  (* eapply valtp_extend. assumption. *)
+  eauto using valtp_extend, wf_env_extend.
 Qed.
 
 
@@ -2066,33 +2063,31 @@ Qed.
 
 (* (* type assignment for variables *) *)
 
-Lemma invert_var : forall x tenv T,
-  has_type tenv (tvar x) T -> forall venv, R_env venv tenv ->
-  exists  v, tevaln venv (tvar x) v /\ indexr x venv = Some v /\ forall k, vtp venv [] T k v.
+Lemma invert_var : forall k x tenv T,
+  has_type tenv (tvar x) T -> forall venv, R_env k venv tenv ->
+  exists v, tevaln venv (tvar x) v /\ indexr x venv = Some v /\ vtp venv [] T k v.
 Proof.
-  intros ? ? ? W. remember (tvar x) as e.
+  intros * W. remember (tvar x) as e.
   induction W; intros * WFE; inversion Heqe; try subst x0.
 
   - Case "Var".
-    destruct (indexr_safe_ex venv env T1 x) as [v [I V]]; try assumption.
+    destruct (indexr_safe_ex k venv env T1 x) as [v [I V]]; try assumption.
       (* as [d [v [I [D V]]]]. eauto. eauto. *)
     
     exists v.
-    split_conj.
+    split_conj; try assumption.
     + exists 0. intros. destruct n. * omega.
                                     * simpl. rewrite I. eauto.
-    + assumption.
-    + intro. eapply V.
 
   - Case "VarPack".
     unfold R_env in WFE. ev. destruct (H3 _ _ H) as [v [I ?]]. ev.
     exists v. split. exists 0. intros. destruct n. omega. simpl. rewrite I. reflexivity.
     intros.
-    assert (forall n, vtp venv [v] (open (varH 0) T1) n v). {
+    assert (vtp venv [v] (open (varH 0) T1) k v). {
       intros. eapply vtp_subst2_general.
       rewrite H2. assumption. eassumption. eapply H4. }
-    split. assumption. intros. rewrite val_type_unfold. rewrite H2.
-    destruct v; split; try assumption; intros; auto.
+    split. assumption. rewrite val_type_unfold. simpl. rewrite H2.
+    destruct v; split; try assumption; intros; eauto using val_type_mon.
 
 
   - Case "And".
@@ -2134,6 +2129,7 @@ Ltac tevaln_det :=
     assert (v1 = v2) by (eauto using tevaln_det); subst v1
   end.
 
+(* XXX Still needed? *)
 Lemma quant_swap: forall venv e T,
     (exists v, tevaln venv e v /\ forall k, vtp venv [] T k v) <->
     (forall k, exists v, tevaln venv e v /\ vtp venv [] T k v).
@@ -2150,26 +2146,26 @@ Proof.
 Qed.
 
 (* (* main theorem *) *)
-Theorem full_total_safety : forall e tenv T,
-  has_type tenv e T -> forall venv, R_env venv tenv ->
-  exists v, tevaln venv e v /\ forall k, vtp venv [] T k v.
+Theorem full_total_safety : forall k e tenv T,
+  has_type tenv e T -> forall venv, R_env k venv tenv ->
+  exists v, tevaln venv e v /\ vtp venv [] T k v.
 Proof.
   intros * W.
+  generalize k. clear k.
   induction W; intros * WFE.
 
   - Case "Var".
-    destruct (invert_var x env T1 (t_var x env T1 H H0) venv WFE)
+    destruct (invert_var k x env T1 (t_var x env T1 H H0) venv WFE)
       as [v [E [I V]]].
     exists v. split. apply E. apply V.
   - Case "VarPack".
-    destruct (invert_var x G1 (TBind T1) (t_var_pack _ x T1 T1' H H0 H1) venv WFE) as [v [E [I V]]].
+    destruct (invert_var k x G1 (TBind T1) (t_var_pack _ x T1 T1' H H0 H1) venv WFE) as [v [E [I V]]].
     exists v. split. apply E. apply V.
 
   - Case "Unpack".
-    rewrite <-(wf_length _ _ WFE) in H.
-    destruct (IHW1 venv WFE) as [vx [IW1 HVX]].
+    rewrite <-(wf_length _ _ _ WFE) in H.
+    destruct (IHW1 k venv WFE) as [vx [IW1 HVX]].
 
-    apply quant_swap; intros.
     (* assert (R_env (vx::venv) (T1'::env)) as WFE1. *)
     (* eapply wf_env_extend. assumption. rewrite H. assumption. *)
 
@@ -2177,7 +2173,6 @@ Proof.
     (* destruct IHW2 as [vy [IW2 HVY]]. *)
     (* clear HVX. clear VXF. *)
 
-    specialize (HVX k).
     rewrite val_type_unfold in HVX.
     simpl in HVX.
     assert (forall j, j < k -> vtp venv [vx] (open (varH 0) T1) j vx) as E by (
@@ -2196,11 +2191,19 @@ Proof.
       intros. eapply vtp_subst2. assumption. eapply valtp_extend. eapply E. assumption.
       eapply indexr_hit2; reflexivity. }
     
-    assert (R_env (vx::venv) (T1'::env)) as WFE1.
-    eapply wf_env_extend. assumption. rewrite H. assumption.
+    assert (forall j, j < k -> R_env j (vx::venv) (T1'::env)) as WFE1. {
+      intros. eapply wf_env_extend. shelve (* R_env is monotonic *). rewrite H. eauto using val_type_mon.
+    }
 
-    specialize (IHW2 _ _ WFE1).
-    destruct IHW2 as [vy [IW2 HVY]].
+
+    (* specialize (IHW2 _ _ _ WFE1). *)
+    assert (IHW2' : forall j, j < k -> exists v, tevaln (vx :: venv) y v /\ vtp (vx :: venv) [] T2 j v)
+      by eauto.
+    (* { *)
+    (*   intros. *)
+    (*   apply IHW2. eapply WFE1. assumption. *)
+    (* } *)
+    destruct IHW2' as [vy [IW2 HVY]].
     clear HVX. clear VXF.
 
     exists vy. split. {
