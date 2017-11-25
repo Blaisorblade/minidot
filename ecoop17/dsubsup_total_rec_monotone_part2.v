@@ -2110,6 +2110,44 @@ Proof.
     intros. eapply valtp_widen. eapply H3. eapply H. eapply WFE.
 Qed.
 
+Lemma tevaln_det: forall venv e v1 v2,
+    tevaln venv e v1 -> tevaln venv e v2 -> v1 = v2.
+Proof.
+  unfold tevaln. intros * H1 H2.
+  ev.
+  assert (exists x1, x1 > x /\ x1 > x0).
+  - exists (1 + max x x0).
+    unfold gt, lt. simpl.
+    split.
+    + pose (Max.le_max_l x x0). omega.
+    + pose (Max.le_max_r x x0). omega.
+  - ev.
+    repeat match goal with
+           | H : forall n : nat, _ |- _ => specialize (H x1)
+           end.
+    intuition congruence.
+Qed.
+
+Ltac tevaln_det :=
+  match goal with
+  | H1 : tevaln ?venv ?e ?v1, H2 : tevaln ?venv ?e ?v2 |- _ =>
+    assert (v1 = v2) by (eauto using tevaln_det); subst v1
+  end.
+
+Lemma quant_swap: forall venv e T,
+    (exists v, tevaln venv e v /\ forall k, vtp venv [] T k v) <->
+    (forall k, exists v, tevaln venv e v /\ vtp venv [] T k v).
+Proof.
+  intros.
+  split; split_conj; intros.
+  - ev. eexists. split_conj; eauto.
+  - destruct (H 0) as [? [? _]].
+    eexists. split_conj; eauto.
+    intro k. specialize (H k).
+    ev.
+    tevaln_det.
+    assumption.
+Qed.
 
 (* (* main theorem *) *)
 Theorem full_total_safety : forall e tenv T,
@@ -2127,39 +2165,11 @@ Proof.
     destruct (invert_var x G1 (TBind T1) (t_var_pack _ x T1 T1' H H0 H1) venv WFE) as [v [E [I V]]].
     exists v. split. apply E. apply V.
 
+  - Case "Unpack".
+    rewrite <-(wf_length _ _ WFE) in H.
+    destruct (IHW1 venv WFE) as [vx [IW1 HVX]].
 
-  - Case "unpack".
-    shelve.
-    (* rewrite <-(wf_length _ _ WFE) in H. *)
-    (* destruct (IHW1 venv WFE) as [vx [IW1 HVX]]. *)
-
-    (* (* assert (R_env (vx::venv) (T1'::env)) as WFE1. *) *)
-    (* (* eapply wf_env_extend. assumption. rewrite H. assumption. *) *)
-
-    (* (* specialize (IHW2 _ _ WFE1). *) *)
-    (* (* destruct IHW2 as [vy [IW2 HVY]]. *) *)
-    (* (* clear HVX. clear VXF. *) *)
-
-    (* (* specialize (HVX 0). *) *)
-    (* (* rewrite val_type_unfold in HVX. *) *)
-    (* (* simpl in HVX. *) *)
-    (* (* match_case_analysis; ev. *) *)
-
-    (* (* assert (exists jj : vseta, *) *)
-    (* (*           (forall n : nat, *) *)
-    (* (*              vtp [jj] (open (varH 0) T1) n (jj n) vx)) as E. *) *)
-    (* (* destruct vx; ev; exists x0; assumption. *) *)
-    (* (* destruct E as [jj VXH]. *) *)
-    (* assert (forall n, vtp (vx::venv) [] (open (varF (length venv)) T1) n vx) as VXF. { *)
-    (*   assert (closed 1 0 (S (length venv)) T1). *)
-    (*   { *)
-    (*     destruct vx; ev. *)
-    (*       eapply closed_upgrade_freef. *)
-    (*              try eassumption; auto. *)
-    (*   } *)
-    (*   intros. eapply vtp_subst2. assumption. eapply valtp_extend. eapply VXH. *)
-    (*   eapply indexr_hit2. reflexivity. reflexivity. } *)
-    
+    apply quant_swap; intros.
     (* assert (R_env (vx::venv) (T1'::env)) as WFE1. *)
     (* eapply wf_env_extend. assumption. rewrite H. assumption. *)
 
@@ -2167,15 +2177,41 @@ Proof.
     (* destruct IHW2 as [vy [IW2 HVY]]. *)
     (* clear HVX. clear VXF. *)
 
-    (* exists vy. split. { *)
-    (*   destruct IW1 as [nx IWX]. *)
-    (*   destruct IW2 as [ny IWY]. *)
-    (*   exists (S (nx+ny)). intros. destruct n. omega. simpl. *)
-    (*   rewrite IWX. rewrite IWY. eauto. *)
-    (*   omega. omega. *)
-    (* } *)
-    (* intros. eapply valtp_shrink. *)
-    (* eapply HVY. rewrite (wf_length2 _ _ _ WFE). assumption. *)
+    specialize (HVX k).
+    rewrite val_type_unfold in HVX.
+    simpl in HVX.
+    assert (forall j, j < k -> vtp venv [vx] (open (varH 0) T1) j vx) as E by (
+      match_case_analysis; ev; assumption).
+
+    (* assert (exists jj : vseta, *)
+    (*           (forall n : nat, *)
+    (*              vtp [jj] (open (varH 0) T1) n (jj n) vx)) as E. *)
+    (* destruct vx; ev; exists x0; assumption. *)
+    (* destruct E as [jj VXH]. *)
+    assert (forall j, j < k -> vtp (vx::venv) [] (open (varF (length venv)) T1) j vx) as VXF. {
+      assert (closed 1 0 (S (length venv)) T1).
+      {
+        match_case_analysis; ev; eapply closed_upgrade_freef; try eassumption; auto.
+      }
+      intros. eapply vtp_subst2. assumption. eapply valtp_extend. eapply E. assumption.
+      eapply indexr_hit2; reflexivity. }
+    
+    assert (R_env (vx::venv) (T1'::env)) as WFE1.
+    eapply wf_env_extend. assumption. rewrite H. assumption.
+
+    specialize (IHW2 _ _ WFE1).
+    destruct IHW2 as [vy [IW2 HVY]].
+    clear HVX. clear VXF.
+
+    exists vy. split. {
+      destruct IW1 as [nx IWX].
+      destruct IW2 as [ny IWY].
+      exists (S (nx+ny)). intros. destruct n. omega. simpl.
+      rewrite IWX. rewrite IWY. eauto.
+      omega. omega.
+    }
+    intros. eapply valtp_shrink.
+    eapply HVY. rewrite (wf_length2 _ _ _ WFE). assumption.
 
   - Case "And".
     destruct (invert_var x env (TAnd T1 T2) (t_and env x T1 T2 W1 W2) venv WFE) as [v [E [I V]]].
