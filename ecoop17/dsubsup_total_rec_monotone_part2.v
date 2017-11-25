@@ -2,6 +2,8 @@ Require Import dsubsup_total_rec_monotone.
 
 Require Import Omega.
 Require Import FunctionalExtensionality.
+Require Import Program.
+Require Import Coq.Program.Wf.
 
 Lemma vtp_unfold':
   vtp = val_type.
@@ -16,6 +18,13 @@ Ltac match_case_analysis :=
     match goal with
     | H : context f [match ?x with _ => _ end] |- _ =>
       destruct x; try solve [inverse H]
+    end.
+
+Ltac match_case_analysis_goal :=
+  repeat
+    match goal with
+    | |- context f [match ?x with _ => _ end] =>
+      destruct x
     end.
 
 Ltac match_case_analysis_eauto :=
@@ -104,11 +113,95 @@ Ltac split_conj :=
   | |- _ /\ _ => split
   end.
 
-Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
+Print val_type.
+(*
+val_type = 
+fun (env GH : list vl) (T : ty) (n : nat) (v : vl) =>
+val_type_func
+  (existT (fun _ : list vl => {_ : list vl & {_ : ty & {_ : nat & vl}}})
+     env
+     (existT (fun _ : list vl => {_ : ty & {_ : nat & vl}}) GH
+        (existT (fun _ : ty => {_ : nat & vl}) T
+           (existT (fun _ : nat => vl) n v))))
+     : list vl -> list vl -> ty -> nat -> vl -> Prop
+
+Argument scopes are [list_scope list_scope _ nat_scope _]
+ *)
+Definition val_type_args := fun (env GH : list vl) (T : ty) (n : nat) (v : vl) =>
+  (existT (fun _ : list vl => {_ : list vl & {_ : ty & {_ : nat & vl}}})
+     env
+     (existT (fun _ : list vl => {_ : ty & {_ : nat & vl}}) GH
+        (existT (fun _ : ty => {_ : nat & vl}) T
+           (existT (fun _ : nat => vl) n v)))).
+Check val_type_args.
+
+Lemma unfold_val_type_less: forall env GH T n v, val_type env GH T n v = val_type_func (val_type_args env GH T n v).
+Proof.
+  intros. unfold val_type. reflexivity.
+Qed.
+(* val_type_args *)
+(*      : list vl -> *)
+(*        list vl -> *)
+(*        ty -> *)
+(*        nat -> *)
+(*        vl -> {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}} *)
+Check val_type_func.
+(*
+val_type_func
+     : forall
+         recarg : {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}},
+       let env := projT1 recarg in
+       let GH := projT1 (projT2 recarg) in
+       let T := projT1 (projT2 (projT2 recarg)) in
+       let n := projT1 (projT2 (projT2 (projT2 recarg))) in
+       let v := projT2 (projT2 (projT2 (projT2 recarg))) in Prop
+ *)
+Print val_type_func.
+
+(* Ltac foo := match goal with | H : forall x, ?P x |- _ => idtac P end. *)
+Program Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
 Proof.
   (* The proof is by induction on type T, because monotonicity on intersection types follows by induction. *)
   (* We proceed by case analysis on values. *)
-  induction T; intros;
+  rewrite vtp_unfold'.
+
+  (* unfold val_type. *)
+  intros * Hn * Hmn.
+  rewrite unfold_val_type_less in *.
+  generalize dependent m.
+  pose (s := (val_type_args G H T n v)).
+  assert (Hs: s = (val_type_args G H T n v)) by reflexivity.
+  assert (Hn': n = (projT1 (projT2 (projT2 (projT2 s))))) by reflexivity.
+  replace n with (projT1 (projT2 (projT2 (projT2 s)))).
+  replace (val_type_args G H T n v) with s in *.
+  clear Hs.
+  generalize dependent s. intro.
+
+  
+  unfold val_type_func.
+  eapply Fix_sub_rect with (A := {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}}).
+  intros.
+  fold val_type_func.
+
+  match_case_analysis_goal.
+
+  (* match_case_analysis_goal. *)
+  destruct x0.
+
+  ev.
+
+  match_case_analysis_goal.
+  (* fold_sub val_type. *)
+  (* (R := termRel). *)
+  (* unfold_sub val_type (val_type env GH T n v). *)
+  (* intros *. *)
+  (* generalize dependent G. *)
+  (* generalize dependent H. *)
+  intros.
+  dependent inversion H0.  ev.
+intros.
+  induction T.
+  intros;
     rewrite val_type_unfold in *;
       destruct v; ev; repeat split_conj; match_case_analysis.
   (* We could finish the proof by *)
@@ -121,7 +214,10 @@ Proof.
   (* The other cases (8) have hypothesis for all j < n and have a conclusion for
      all j < m (with m < n). So we assert that j < n, and then Coq can finish
      the proof automatically. *)
-  all: intros; assert (Hjn: j < n) by omega; eauto 2.
+  all: intros; try assert (Hjn: j < n) by omega; eauto 2.
+  - 
+    eapply IHT.
+
 Qed.
 
 (* (* This lemma  establishes that val_type indeed defines a value set (vseta). *)
