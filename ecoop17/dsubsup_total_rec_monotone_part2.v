@@ -3,7 +3,6 @@ Require Import dsubsup_total_rec_monotone.
 Require Import Omega.
 Require Import FunctionalExtensionality.
 Require Import Program.
-Require Import Coq.Program.Wf.
 
 Lemma vtp_unfold':
   vtp = val_type.
