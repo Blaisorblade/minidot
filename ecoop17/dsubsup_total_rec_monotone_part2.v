@@ -107,17 +107,6 @@ Proof.
 Qed.
 
 (* Infrastructure for well-founded induction for properties of vtp. *)
-Definition argPair := (ty * nat)%type.
-
-Definition argMeasure (p: argPair) := let '(T, n) := p in val_type_measure T n.
-Definition val_type_termRel := MR termRel argMeasure.
-
-Lemma wf_val_type_termRel : well_founded val_type_termRel.
-Proof.
-  apply measure_wf. apply wf_termRel.
-Qed.
-Hint Resolve wf_val_type_termRel.
-
 Lemma ind_args : forall (P: ty -> nat -> Prop),
     (forall T n,
         (forall T' n', val_type_termRel (T', n') (T, n) -> P T' n') -> P T n) ->
