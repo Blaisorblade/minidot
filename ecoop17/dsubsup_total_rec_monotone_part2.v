@@ -388,7 +388,7 @@ Proof.
       * eapply closed_open. simpl. eapply closed_upgrade_free.
         eassumption.
         all: omega || constructor; simpl; omega.
-      * eapply H2; assumption.
+      (* * eapply H2; assumption. *)
     + eapply closed_upgrade_freef. eassumption. omega.
 
     + intros.
@@ -400,7 +400,7 @@ Proof.
       * eapply closed_open. simpl. eapply closed_upgrade_free.
         eassumption.
         all: omega || constructor; simpl; omega.
-      * eapply H2; assumption.
+      (* * eapply H2; assumption. *)
   - inversion C. subst.
     simpl in *.
     assert (tsize_flat T1 < n) by omega.
@@ -413,7 +413,7 @@ Proof.
       * eapply closed_open. simpl. eapply closed_upgrade_free.
         eassumption.
         all: omega || constructor; simpl; omega.
-      * eapply H2; assumption.
+      (* * eapply H2; assumption. *)
     + eapply closed_upgrade_freef. eassumption. omega.
 
     + intros.
@@ -425,7 +425,7 @@ Proof.
       * eapply closed_open. simpl. eapply closed_upgrade_free.
         eassumption.
         all: omega || constructor; simpl; omega.
-      * eapply H2; assumption.
+      (* * eapply H2; assumption. *)
     (* assert (closed 1 (length G1) (length H1) T1 /\ *)
     (*     (exists jj : forall x : nat, vset x, *)
     (*        jj k = df k /\ *)
