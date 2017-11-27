@@ -54,8 +54,9 @@ Ltac smaller_types :=
 (* Show that different branches are disjoint. *)
 Ltac discriminatePlus := repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
 
-Ltac valTypeObligations := smaller_n || smaller_types || discriminatePlus.
-
+Ltac valTypeObligations Hj :=
+  Tactics.program_simpl;
+  smaller_n || smaller_types || discriminatePlus || (try destruct Hj; [ smaller_types | smaller_n ]).
 (* Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop := *)
 
 (*
@@ -106,10 +107,11 @@ Program Fixpoint val_type (env: list vl) (GH: list vl) (T:ty) (n: nat) (v:vl)
       False
   end.
 
+Solve Obligations with valTypeObligations Hj.
+
 (* Next Obligation. *)
 
-Solve Obligations with valTypeObligations.
-                                  
+
 (* 
    The expansion of val_type, val_type_func is incomprehensible. 
    We cannot (easily) unfold and reason about it. Therefore, we prove unfolding of
@@ -117,7 +119,6 @@ Solve Obligations with valTypeObligations.
    (Note that the unfold_sub tactic relies on 
    functional extensionality)
 *)
-
 
 Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
   match v,T with
