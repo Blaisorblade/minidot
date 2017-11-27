@@ -106,6 +106,7 @@ Proof.
     intros. rewrite val_type_unfold. destruct vy; trivial.
 Qed.
 
+(* Infrastructure for well-founded induction for properties of vtp. *)
 Definition argPair := (ty * nat)%type.
 
 Definition argMeasure (p: argPair) := let '(T, n) := p in val_type_measure T n.
@@ -135,11 +136,12 @@ Proof.
   intros *.
   apply Hless.
 Qed.
+
 Ltac vtp_induction T n :=
   apply ind_args with (T := T) (n := n);
   clear T n.
 
-Program Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
+Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
 Proof.
   intros *.
   revert G H v.
@@ -153,9 +155,9 @@ Proof.
   
   (* We proceed by case analysis on types and values. *)
   destruct T;
-  intros;
+    destruct v;
     rewrite val_type_unfold in *;
-      destruct v; ev; repeat split_conj; match_case_analysis.
+    ev; repeat split_conj; match_case_analysis.
   (* We could finish the proof by a single line combining the next tactics. *)
   (* But let's look how our cases (24 right now!) are solved. *)
   (* Most cases (12) follow trivially, or by using the induction hypothesis. *)
