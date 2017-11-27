@@ -106,214 +106,67 @@ Proof.
     intros. rewrite val_type_unfold. destruct vy; trivial.
 Qed.
 
-Print val_type.
-(*
-val_type = 
-fun (env GH : list vl) (T : ty) (n : nat) (v : vl) =>
-val_type_func
-  (existT (fun _ : list vl => {_ : list vl & {_ : ty & {_ : nat & vl}}})
-     env
-     (existT (fun _ : list vl => {_ : ty & {_ : nat & vl}}) GH
-        (existT (fun _ : ty => {_ : nat & vl}) T
-           (existT (fun _ : nat => vl) n v))))
-     : list vl -> list vl -> ty -> nat -> vl -> Prop
-
-Argument scopes are [list_scope list_scope _ nat_scope _]
- *)
-(* Definition val_type_args := fun (env GH : list vl) (T : ty) (n : nat) (v : vl) => *)
-(*   (existT (fun _ : list vl => {_ : list vl & {_ : ty & {_ : nat & vl}}}) *)
-(*      env *)
-(*      (existT (fun _ : list vl => {_ : ty & {_ : nat & vl}}) GH *)
-(*         (existT (fun _ : ty => {_ : nat & vl}) T *)
-(*            (existT (fun _ : nat => vl) n v)))). *)
-(* Check val_type_args. *)
-
-(* Lemma unfold_val_type_less: forall env GH T n v, val_type env GH T n v = val_type_func (val_type_args env GH T n v). *)
-(* Proof. *)
-(*   intros. unfold val_type. reflexivity. *)
-(* Qed. *)
-(* (* val_type_args *) *)
-(* (*      : list vl -> *) *)
-(* (*        list vl -> *) *)
-(* (*        ty -> *) *)
-(* (*        nat -> *) *)
-(* (*        vl -> {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}} *) *)
-(* Check val_type_func. *)
-(* (* *)
-(* val_type_func *)
-(*      : forall *)
-(*          recarg : {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}}, *)
-(*        let env := projT1 recarg in *)
-(*        let GH := projT1 (projT2 recarg) in *)
-(*        let T := projT1 (projT2 (projT2 recarg)) in *)
-(*        let n := projT1 (projT2 (projT2 (projT2 recarg))) in *)
-(*        let v := projT2 (projT2 (projT2 (projT2 recarg))) in Prop *)
-(*  *) *)
-(* Print val_type_func. *)
-
-Print termRel.
-Definition natPair := {_ : nat & nat}.
-(* Definition argPair : Set := ((ty * nat)). *)
 Definition argPair := (ty * nat)%type.
-Program Definition natPairI : nat -> nat -> natPair :=
-  fun n1 n2 => existT _ n1 n2.
-Check termRel: natPair -> natPair -> Prop.
-Print val_type_func.
 
-Definition argMeasure T (n: nat): natPair := val_type_measure T n. 
-Check argMeasure.
-Definition argMeasure' (p: argPair) := let '(T, n) := p in argMeasure T n.
-(*(fun T n => val_type_measure T n) *)
-Check (MR termRel ).
-Check (MR termRel argMeasure').
-Definition val_type_termRel := MR termRel argMeasure'.
-(* (fun `(T, n) => argMeasure T n)). *)
+Definition argMeasure (p: argPair) := let '(T, n) := p in val_type_measure T n.
+Definition val_type_termRel := MR termRel argMeasure.
+
 Lemma wf_val_type_termRel : well_founded val_type_termRel.
 Proof.
-  (* unfold val_type_termRel. *)
   apply measure_wf. apply wf_termRel.
 Qed.
 Hint Resolve wf_val_type_termRel.
 
-Print well_founded.
-
-(* XXX expand p2 to make this hypothesis more usable! *)
-
-Lemma ind_args : forall (P: argPair -> Prop),
-  (forall p1 : argPair,
-      (forall p2 : argPair, val_type_termRel p2 p1 -> P p2) -> P p1) ->
-  forall (p: argPair), P p.
-Proof.
-  intros;
-  eapply well_founded_ind; eauto.
-Qed.
- 
-Lemma ind_args' : forall (P: ty -> nat -> Prop),
+Lemma ind_args : forall (P: ty -> nat -> Prop),
     (forall T n,
         (forall T' n', val_type_termRel (T', n') (T, n) -> P T' n') -> P T n) ->
     forall T n, P T n.
 Proof.
-  (* intros * Hind *. *)
-  (* eapply well_founded_ind; eauto. *)
-  (* intros * Hless. *)
-  (* apply Hind. *)
   intros * Hind *.
   pose (p := (T, n)).
   replace T with (fst p) by reflexivity.
   replace n with (snd p) by reflexivity.
   generalize dependent p.
   clear T n.
-  apply ind_args.
-  intros * Hless.
+  eapply well_founded_ind; eauto.
+  intros p1 Hless.
   destruct p1 as [T n]; simpl in *.
   apply Hind.
   intros *.
   apply Hless.
-  (* destruct p1 as [T n]; simpl in *. *)
-  (* eapply well_founded_ind; eauto. *)
-  (* intros * Hless. *)
-  (* apply Hind. *)
 Qed.
+Ltac vtp_induction T n :=
+  apply ind_args with (T := T) (n := n);
+  clear T n.
 
-(* Ltac foo := match goal with | H : forall x, ?P x |- _ => idtac P end. *)
-Program Lemma val_type_mon: forall T n, forall G H v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
+Program Lemma val_type_mon: forall G H T n v, vtp G H T n v -> forall m, m < n -> vtp G H T m v.
 Proof.
   intros *.
   revert G H v.
-  apply ind_args' with (T := T) (n := n).
-  clear T n.
-  intros * Hind * Hvtpn1 * Hmn.
-
-  (* pose (p := (T, n)). *)
-  (* replace T with (fst p) by reflexivity. *)
-  (* replace n with (snd p) by reflexivity. *)
-  (* generalize dependent p. *)
+    
+  (* The proof is by well-founded induction on type T and count n, because monotonicity on intersection types follows by induction. *)
+  vtp_induction T n.
+  (* apply ind_args with (T := T) (n := n). *)
   (* clear T n. *)
-  (* intro. *)
-  (* apply ind_args with (p := p). *)
-  (* clear p. *)
-  (* intros. *)
-  (* destruct p1 as [T n]; simpl in *. *)
-  (* Until now, this is just setup for well-founded induction. *)
+
+  intros * Hind * Hvtpn1 * Hmn.
   
+  (* We proceed by case analysis on types and values. *)
   destruct T;
   intros;
     rewrite val_type_unfold in *;
       destruct v; ev; repeat split_conj; match_case_analysis.
-  (* We could finish the proof by *)
-  (* all: intros; try assert (Hjn: j < n) by omega; eauto 2. *)
-  (* But let's look how our cases (24 right now!) are solved. *)
-  (* Most cases (12) follow trivially, or by using the induction hypothesis. *)
-
-  (* (* We could finish the proof by *) *)
-  (* (* all: intros; try assert (Hjn: j < n) by omega; eauto 2. *) *)
+  (* We could finish the proof by a single line combining the next tactics. *)
   (* But let's look how our cases (24 right now!) are solved. *)
   (* Most cases (12) follow trivially, or by using the induction hypothesis. *)
   all: trivial.
-  (* (* A couple (4) follow just by using induction. *) *)
-  (* all: eauto 2. *)
-  (* The other cases (8) have hypothesis for all j < n and have a conclusion for
+  (* Many other cases (6) have hypothesis for all j < n and have a conclusion for
      all j < m (with m < n). So we assert that j < n, and then Coq can finish
      the proof automatically. *)
   all: intros; try assert (Hjn: j < n) by omega; eauto 2.
-  (* (* A couple (4) follow just by using induction. *) *)
-  all: apply Hind with (n' := n); try smaller_types; assumption.
-  (* The proof is by induction on type T, because monotonicity on intersection types follows by induction. *)
 
-  (* We proceed by case analysis on values. *)
-  (* rewrite vtp_unfold'. *)
-
-  (* (* unfold val_type. *) *)
-  (* intros * Hn * Hmn. *)
-  (* rewrite unfold_val_type_less in *. *)
-  (* generalize dependent m. *)
-  (* pose (s := (val_type_args G H T n v)). *)
-  (* assert (Hs: s = (val_type_args G H T n v)) by reflexivity. *)
-  (* assert (Hn': n = (projT1 (projT2 (projT2 (projT2 s))))) by reflexivity. *)
-  (* replace n with (projT1 (projT2 (projT2 (projT2 s)))). *)
-  (* replace (val_type_args G H T n v) with s in *. *)
-  (* clear Hs. *)
-  (* generalize dependent s. intro. *)
-
-  
-  (* unfold val_type_func. *)
-  (* eapply Fix_sub_rect with (A := {_ : list vl & {_ : list vl & {_ : ty & {_ : nat & vl}}}}). *)
-  (* intros. *)
-  (* fold val_type_func. *)
-
-  (* match_case_analysis_goal. *)
-
-  (* (* match_case_analysis_goal. *) *)
-  (* destruct x0. *)
-
-  (* ev. *)
-
-  (* match_case_analysis_goal. *)
-  (* (* fold_sub val_type. *) *)
-  (* (* (R := termRel). *) *)
-  (* (* unfold_sub val_type (val_type env GH T n v). *) *)
-  (* (* intros *. *) *)
-  (* (* generalize dependent G. *) *)
-  (* (* generalize dependent H. *) *)
-  (* intros. *)
-  (* dependent inversion H0.  ev. *)
-  
-  (* induction T; *)
-  (* intros; *)
-  (*   rewrite val_type_unfold in *; *)
-  (*     destruct v; ev; repeat split_conj; match_case_analysis. *)
-  (* (* We could finish the proof by *) *)
-  (* (* all: intros; try assert (Hjn: j < n) by omega; eauto 2. *) *)
-  (* (* But let's look how our cases (24 right now!) are solved. *) *)
-  (* (* Most cases (12) follow trivially, or by using the induction hypothesis. *) *)
-  (* all: trivial. *)
-  (* (* A couple (4) follow just by using induction. *) *)
-  (* all: eauto 2. *)
-  (* (* The other cases (8) have hypothesis for all j < n and have a conclusion for *)
-  (*    all j < m (with m < n). So we assert that j < n, and then Coq can finish *)
-  (*    the proof automatically. *) *)
-  (* all: intros; try assert (Hjn: j < n) by omega; eauto 2. *)
-
+  (* A couple (6) follow just by using induction on smaller types. *)
+  all: try (apply Hind with (n' := n); try smaller_types; assumption).
 Qed.
 
 
