@@ -1310,6 +1310,21 @@ Proof.
     assumption.
 Qed.
 
+Lemma R_env_mon: forall venv env k,
+    R_env k venv env ->
+    forall j, j < k -> R_env j venv env.
+Admitted.
+Lemma R_env_mon_le: forall venv env k,
+    R_env k venv env ->
+    forall j, j <= k -> R_env j venv env.
+Proof.
+  intros * ? * Hj.
+  destruct Hj.
+  - assumption.
+  - assert (j < S m) by simple_ineq.
+    eauto using R_env_mon.
+Qed.
+
 (* (* main theorem *) *)
 Theorem full_total_safety : forall k e tenv T,
   has_type tenv e T -> forall venv, R_env k venv tenv ->
@@ -1412,13 +1427,10 @@ Proof.
     
     destruct HVF as [C1 [C2 IHF]].
     ev.
-    destruct k.
-    + shelve.
     + destruct (IHF vx k) as [vy [IW3 HVY]].
-      * omega.
-      * eapply val_type_mon. apply HVX. omega.
-      *
-    exists vy. split. {
+      * simple_ineq.
+      * apply HVX.
+      * exists vy. split. {
       (* pick large enough n. nf+nx+ny will do. *)
       destruct IW1 as [nf IWF].
       destruct IW2 as [nx IWX].
@@ -1430,17 +1442,19 @@ Proof.
     intros. eapply vtp_subst1. simpl in HVY. eapply HVY. eapply H.
 
   - Case "DApp".
-    rewrite <-(wf_length2 _ _ _ WFE) in H0.
-    destruct (IHW1 venv WFE) as [df [vf [IW1 HVF]]].
-    destruct (invert_var x env T1 W2 venv WFE) as [dx [vx [IW2 [I [D HVX]]]]].
+    rewrite <-(wf_length _ _ _ WFE) in H0.
+    destruct (IHW1 _ venv WFE) as [vf [IW1 HVF]].
+    destruct (invert_var _ x env T1 W2 venv WFE) as [vx [IW2 [I HVX]]].
 
-    specialize (HVF 0).
     rewrite val_type_unfold in HVF.
     destruct vf; try solve [inversion HVF].
     
     destruct HVF as [C1 [C2 IHF]].
-    ev. destruct (IHF dx vx) as [dy [vy [IW3 HVY]]]. apply HVX.
-    exists vy. split. {
+    ev.
+    + destruct (IHF vx k) as [vy [IW3 HVY]].
+      * simple_ineq.
+      * apply HVX.
+      * exists vy. split. {
       (* pick large enough n. nf+nx+ny will do. *)
       destruct IW1 as [nf IWF].
       destruct IW2 as [nx IWX].
@@ -1449,31 +1463,28 @@ Proof.
       rewrite IWF. rewrite IWX. rewrite IWY. eauto.
       omega. omega. omega.
     }
-    intros. subst T. eapply vtp_subst2. assumption. eapply HVY. eapply D.
+    intros. subst T. eapply vtp_subst2. assumption. eapply HVY.
+    assumption.
 
   - Case "Abs".
-    rewrite <-(wf_length2 _ _ _ WFE) in H.
-    inversion H; subst.
-    (* vabs doesn't have a type member, so construct a bogus vseta *)
-    exists (fun n => match n return vset n with
-                     | 0 => fun v => True
-                     | S n0 => (fun d v => True)
-                   end).
+    rewrite <-(wf_length _ _ _ WFE) in H.    inversion H; subst.
     
     eexists. split. exists 0. intros. destruct n. omega. simpl. eauto.
-    intros. rewrite val_type_unfold. repeat split; eauto.
+    rewrite val_type_unfold. split_conj; eauto.
     intros.
-    assert (R_env (vx::venv) (jj::renv) (T1::env)) as WFE1. {
-      eapply wf_env_extend0. eapply WFE. eapply H0. }
-    specialize (IHW (vx::venv) (jj::renv) WFE1).
-    destruct IHW as [d [v [EV VT]]]. rewrite <-(wf_length2 _ _ _ WFE) in VT.
+    assert (R_env j (vx::venv) (T1::env)) as WFE1. {
+      eapply wf_env_extend0.
+      eapply R_env_mon_le; eassumption.
+      eassumption.}
+    specialize (IHW _ (vx::venv) WFE1).
+    destruct IHW as [v [EV VT]]. rewrite <-(wf_length _ _ _ WFE) in VT.
     exists v. split. eapply EV.
-    intros. eapply vtp_subst3. assumption. eapply VT.
+    eapply vtp_subst3. assumption. eapply VT.
 
   - Case "Sub".
-    specialize (IHW venv WFE). ev. exists x. exists x0. split. eassumption.
-    intros. eapply valtp_widen. eapply H1. eapply H. eapply WFE.
+    specialize (IHW _ venv WFE). ev. exists x. split. eassumption.
+    eapply valtp_widen. eapply H1. eapply H. eapply WFE.
 
-Grab Existential Variables.
+(* Grab Existential Variables. *)
 
 Qed.
