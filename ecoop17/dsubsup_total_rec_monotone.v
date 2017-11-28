@@ -72,7 +72,7 @@ Program Fixpoint val_type (env: list vl) (GH: list vl) (T:ty) (n: nat) (v:vl)
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       forall vx j (Hj : j <= n),
         val_type env GH T1 j vx ->
-        exists v, tevaln (vx::env1) y v /\ val_type env (v::GH) (open (varH (length GH)) T2) j v
+        exists v, tevaln (vx::env1) y v /\ val_type env (vx::GH) (open (varH (length GH)) T2) j v
 
     | vty env1 TX, TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
@@ -233,7 +233,7 @@ Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       forall vx j (Hj : j <= n),
         val_type env GH T1 j vx ->
-        exists v, tevaln (vx::env1) y v /\ val_type env (v::GH) (open (varH (length GH)) T2) j v
+        exists v, tevaln (vx::env1) y v /\ val_type env (vx::GH) (open (varH (length GH)) T2) j v
 
     | vty env1 TX, TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\

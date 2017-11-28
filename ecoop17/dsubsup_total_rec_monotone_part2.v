@@ -10,9 +10,9 @@ Lemma val_type_unfold : forall n env GH T v, vtp env GH T n v =
   match v,T with
     | vabs env1 T0 y, TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
-      forall vx j (Hj : j < n),
+      forall vx j (Hj : j <= n),
         vtp env GH T1 j vx ->
-        exists v, tevaln (vx::env1) y v /\ vtp env (v::GH) (open (varH (length GH)) T2) j v
+        exists v, tevaln (vx::env1) y v /\ vtp env (vx::GH) (open (varH (length GH)) T2) j v
 
     | vty env1 TX, TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
@@ -126,7 +126,7 @@ Proof.
   (* Many other cases (6) have hypothesis for all j < n and have a conclusion for
      all j < m (with m < n). So we assert that j < n, and then Coq can finish
      the proof automatically. *)
-  all: intros; try assert (Hjn: j < n) by omega; eauto 2.
+  all: intros; try assert (Hjn: j < n) by omega; try assert (j <= n) by omega; auto 2.
 
   (* A couple (6) follow just by using induction on smaller types. *)
   all: try (apply Hind with (n' := n); try smaller_types; assumption).
