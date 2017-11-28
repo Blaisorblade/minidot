@@ -107,10 +107,13 @@ Program Fixpoint val_type (env: list vl) (GH: list vl) (T:ty) (n: nat) (v:vl)
 (* Show that different branches are disjoint. *)
 Ltac discriminatePlus := repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate.
 
+(* Prove some inequalities needed below, without producing big proof terms like omega does. Probably not worth it. *)
 Ltac simple_ineq :=
   (* simpl; omega. *)
   simpl; auto using le_n_S, le_plus_l, le_plus_r.
+  (* If this tactic fails, add back omega at the end. *)
 
+(* These three lemmas take care of the various forms of proof obligations that arise from val_type. *)
 Lemma termRelShow: forall j n T1 T2,
   j <= n -> tsize_flat T2 < tsize_flat T1 ->
   val_type_termRel (T2, j) (T1, n).
@@ -118,8 +121,7 @@ Proof.
   intros * Hj Ht.
   unfold val_type_termRel, MR, termRel, argMeasure, val_type_measure.
   (* If we only know that Hj: j <= n, we must case-split on it, and use
-   smaller_types when j = n and smaller_n when j < n.
- A lternatively, we could allow *)
+     smaller_types when j = n and smaller_n when j < n. *)
   destruct Hj; try assert (j < S m) by simple_ineq; auto using left_lex, right_lex.
 Qed.
   (* - apply right_lex. assumption. *)
@@ -152,146 +154,41 @@ Ltac applyNSimpleIneq l := apply l; simple_ineq.
 Ltac valTypeObligationsSSReflection :=
   program_simpl;
   solve [applyNSimpleIneq termRelShowOpen | applyNSimpleIneq termRelShow | applyNSimpleIneq termRelShowLt | discriminatePlus].
-Solve Obligations with valTypeObligationsSSReflection.
-
-Print val_type_func_obligation_1.
-Check val_type_func_obligation_1.
-Check val_type_func_obligation_2.
-Check val_type_func_obligation_3.
-Check val_type_func_obligation_4.
-Print val_type_func_obligation_2.
-Print val_type_func_obligation_3.
-Print val_type_func_obligation_4.
-Print val_type_func_obligation_5.
-Print val_type_func_obligation_6.
-Print val_type_func_obligation_7.
-(* Print val_type_func_obligation_8. *)
-(* Print val_type_func_obligation_9. *)
-Print val_type_func_obligation_10.
-(* Print val_type_func_obligation_11. *)
-(* Print val_type_func_obligation_12. *)
-Print val_type_func_obligation_13.
-Print val_type_func_obligation_14.
-Print val_type_func_obligation_15.
-(* Print val_type_func_obligation_16. *)
-(* Print val_type_func_obligation_17. *)
-(* Print val_type_func_obligation_18. *)
-(* Print val_type_func_obligation_19. *)
-(* Print val_type_func_obligation_20. *)
-(* Print val_type_func_obligation_21. *)
-(* Print val_type_func_obligation_22. *)
-
-(* (* Solve Obligations with *) *)
-(* (*     program_simpl; *) *)
-(* (*   unfold val_type_termRel, MR, termRel, argMeasure, val_type_measure; *) *)
-(* (*   auto using termRelShowLt, termRelShowOpen, termRelShow, le_n_S, le_plus_l, le_plus_r. *) *)
-
-(* (* Next Obligation. *) *)
-(* (*   program_simpl. *) *)
-(* (*   (apply termRelShowOpen; simple_ineq) || solve [apply termRelShow; simple_ineq] || (apply termRelShowLt; simple_ineq). *) *)
-(* (*   simple_ineq. *) *)
-(* (*   (apply termRelShowOpen; simple_ineq) || (apply termRelShow; simple_ineq) || (apply termRelShowLt; simple_ineq). *) *)
-(* (*   apply termRelShowLt; simple_ineq. *) *)
-(* (*   simple_ineq. *) *)
-
-(* (*   program_simpl; *) *)
-(* (*   (apply termRelShow; simple_ineq || apply termRelShowOpen; simple_ineq || apply termRelShowOpen; simple_ineq).   *) *)
-
-(* (*   using termRelShowLt, termRelShowOpen, termRelShow, le_n_S, le_plus_l, le_plus_r. *) *)
-(* (*     apply termRelShow. *) *)
-(* (*     auto using termRelShowLt, termRelShowOpen, termRelShow, le_n_S, le_plus_l, le_plus_r. *) *)
-(* (*   apply termRelShow; simple_ineq. Qed. *) *)
-(* (* Next Obligation. apply termRelShowOpen; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShowLt; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShowLt; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShowLt; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShowLt; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShowLt; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShowLt; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShow; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShow; simple_ineq. Qed.   *) *)
-(* (* Next Obligation. apply termRelShowOpen; simple_ineq. Qed.   *) *)
-(* (* Solve Obligations with discriminatePlus. *) *)
-(* (*   auto using termRelShowLt, termRelShowOpen, termRelShow. *) *)
-
-(* (* Solve Obligations with discriminatePlus. *) *)
 
 Ltac smaller_n :=
   Tactics.program_simpl;
-  autounfold; apply left_lex; simple_ineq.
+  autounfold; apply left_lex;
+  (* simpl; omega. *)
+  simple_ineq.
 
 Ltac smaller_types :=
   Tactics.program_simpl;
   autounfold; apply right_lex;
-  unfold open; try rewrite <- open_preserves_size; simpl; omega.
+  unfold open; try rewrite <- open_preserves_size;
+  (* simpl; omega. *)
+  simple_ineq.
 
-(* Ltac valTypeObligations Hj := *)
-(*   Tactics.program_simpl; *)
-(*   smaller_n || smaller_types || discriminatePlus || (try destruct Hj; [ smaller_types | smaller_n ]). *)
-
-(* Solve Obligations with valTypeObligations Hj. *)
-(* Ltac valTypeObligationsReflect := *)
-(*   Tactics.program_simpl; *)
-(*   (((apply termRelShowOpen || apply termRelShow); simple_ineq || omega) ||  *)
-(*   discriminatePlus). *)
-
-(* Solve Obligations with valTypeObligationsReflect. *)
-(* Next Obligation. *)
-(*   smaller_n. *)
-
-Ltac valTypeObligations :=
+Ltac valTypeObligations Hj :=
   Tactics.program_simpl;
-  smaller_n || smaller_types || discriminatePlus ||
-            (* (apply termRelShowOpen || apply termRelShow); auto; *)
-  (* unfold open; try rewrite <- open_preserves_size; *)
-  (* simple_ineq. *)
-  simpl; omega.
+  solve [ smaller_n | smaller_types | discriminatePlus | (try destruct Hj; [ smaller_types | smaller_n ])].
 
-(* Solve Obligations with valTypeObligations. *)
 
-(* Next Obligation. *)
-(*   apply termRelShowOpen. *)
-(*   simple_ineq. simple_ineq. *)
-(* Ltac valTypeObligations' := *)
+(* Broken *)
+(* Ltac valTypeObligationsOld := *)
 (*   Tactics.program_simpl; *)
 (*   smaller_n || smaller_types || discriminatePlus || *)
+(*             (apply termRelShowOpen || apply termRelShow || apply termRelShowLt); auto; *)
+(*   unfold open; try rewrite <- open_preserves_size; *)
+(*   (* simple_ineq. *) *)
+(*   simpl; omega. *)
 
-(*             (apply termRelShowOpen || apply termRelShow); auto; *)
-(*   (* unfold open; try rewrite <- open_preserves_size; *) *)
-(*   simple_ineq. *)
-(*   (* simpl; omega. *) *)
+(* Solve Obligations with valTypeObligationsOld. *)
 
-(* Solve Obligations with valTypeObligations'. *)
+(* (* Working *) *)
+(* Solve Obligations with valTypeObligations Hj. *)
 
-(* (* Check eq_ind. *) *)
-(* (* Print eq_ind. *) *)
-(* (* eq_ind =  *) *)
-(* (* fun (A : Type) (x : A) (P : A -> Prop) => eq_rect x P *) *)
-(* (*      : forall (A : Type) (x : A) (P : A -> Prop), P x -> forall y : A, x = y -> P y *) *)
-(* (* Argument A is implicit *) *)
-(* (* Argument scopes are [type_scope _ function_scope _ _ _] *) *)
-(* Print termRelShowOpen. *)
-(* (* Solve Obligations with valTypeObligations'. *) *)
-(* Solve Obligations with  *)
-(*   Tactics.program_simpl; *)
-(*   apply termRelShowOpen; *)
-(*   auto; simpl; omega. *)
-(* Print val_type_func_obligation_2. *)
-(* Next Obligation. *)
-(*   apply termRelShow; *)
-(*   auto; simpl; omega. *)
-(* Qed. *)
-(* Print val_type_func_obligation_3. *)
-(* Solve Obligations with  *)
-(*   Tactics.program_simpl; *)
-(*   apply termRelShow; *)
-(*   auto; simpl; omega. *)
-(* Solve Obligations with smaller_n. *)
-(* Solve Obligations with discriminatePlus. *)
-(*   apply termRelShow; auto; simpl; omega. *)
-
-
-(*   Solve Obligations with valTypeObligations Hj. *)
+(* Better *)
+Solve Obligations with valTypeObligationsSSReflection.
 
 
 (* 
