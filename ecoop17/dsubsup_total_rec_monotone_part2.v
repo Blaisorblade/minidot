@@ -1475,7 +1475,7 @@ Proof.
     assert (R_env j (vx::venv) (T1::env)) as WFE1. {
       eapply wf_env_extend0.
       eapply R_env_mon_le; eassumption.
-      eassumption.}
+      eassumption. }
     specialize (IHW _ (vx::venv) WFE1).
     destruct IHW as [v [EV VT]]. rewrite <-(wf_length _ _ _ WFE) in VT.
     exists v. split. eapply EV.
