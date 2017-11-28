@@ -190,6 +190,34 @@ Ltac valTypeObligations Hj :=
 (* Better *)
 Solve Obligations with valTypeObligationsSSReflection.
 
+(* this is just to accelerate Coq -- val_type in the goal is slooow *)
+Inductive vtp: list vl -> list vl -> ty -> forall n, vl -> Prop :=
+| vv: forall G H T n v, val_type G H T n v -> vtp G H T n v.
+
+Lemma unvv: forall G H T n v,
+  vtp G H T n v -> val_type G H T n v.
+Proof.
+  intros * H0. destruct H0. assumption.
+Qed.
+
+Axiom prop_extensionality:
+  forall (P Q: Prop), (P <-> Q) -> P = Q.
+Lemma vtp_unfold: forall G H T n v,
+  vtp G H T n v = val_type G H T n v.
+Proof.
+  intros.
+  apply prop_extensionality.
+  split; intros.
+  apply unvv. assumption.
+  constructor. assumption.
+Qed.
+
+Lemma vtp_unfold':
+  vtp = val_type.
+Proof.
+  repeat (apply functional_extensionality; intro).
+  apply vtp_unfold.
+Qed.
 
 (* 
    The expansion of val_type, val_type_func is incomprehensible. 
