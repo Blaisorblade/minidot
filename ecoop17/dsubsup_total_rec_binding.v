@@ -33,32 +33,28 @@ Lemma indexr_max : forall X vs n (T: X),
                        indexr n vs = Some T ->
                        n < length vs.
 Proof.
-  intros X vs. induction vs.
-  - Case "nil". intros. inversion H.
-  - Case "cons".
-    intros. inversion H.
-    case_eq (beq_nat n (length vs)); intros E2.
-    + SSCase "hit".
-      eapply beq_nat_true in E2. subst n. compute. eauto.
-    + SSCase "miss".
+  induction vs; intros * H; inversion H.
+  case_eq (beq_nat n (length vs)); intros E2.
+    + SCase "hit".
+      eapply beq_nat_true in E2. subst. simpl. auto.
+    + SCase "miss".
       rewrite E2 in H1.
-      assert (n < length vs). eapply IHvs. apply H1.
-      compute. eauto.
+      assert (n < length vs) by eauto 2.
+      simpl. eauto.
 Qed.
+Hint Resolve indexr_max.
 
 Lemma le_xx : forall a b,
                        a <= b ->
                        exists E, le_lt_dec a b = left E.
-Proof. intros.
-  case_eq (le_lt_dec a b). intros. eauto.
-  intros. omega.
+Proof.
+  intros; case_eq (le_lt_dec a b); intros; eauto || omega.
 Qed.
 Lemma le_yy : forall a b,
                        a > b ->
                        exists E, le_lt_dec a b = right E.
-Proof. intros.
-  case_eq (le_lt_dec a b). intros. omega.
-  intros. eauto.
+Proof.
+  intros; case_eq (le_lt_dec a b); intros; eauto || omega.
 Qed.
 
 Lemma indexr_extend : forall X vs n x (T: X),
@@ -67,7 +63,7 @@ Lemma indexr_extend : forall X vs n x (T: X),
 
 Proof.
   intros.
-  assert (n < length vs). eapply indexr_max. eauto.
+  assert (n < length vs) by eauto.
   assert (beq_nat n (length vs) = false) as E. eapply beq_nat_false_iff. omega.
   unfold indexr. unfold indexr in H. rewrite H. rewrite E. reflexivity.
 Qed.
@@ -331,6 +327,7 @@ Proof.
     econstructor. eapply beq_nat_false_iff in E. omega.
   - eapply closed_upgrade. eassumption. omega.
 Qed.
+Hint Resolve closed_open.
 
 Lemma indexr_has: forall X (G: list X) x,
   length G > x ->
