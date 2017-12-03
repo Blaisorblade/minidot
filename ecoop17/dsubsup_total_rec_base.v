@@ -349,6 +349,36 @@ Fixpoint tsize_flat(T: ty) :=
     | TAnd T1 T2 => S (tsize_flat T1 + tsize_flat T2)
   end. 
 
+Ltac inverse H := (inversion H; subst).
+
+Ltac match_case_analysis :=
+  repeat
+    match goal with
+    | H : context f [match ?x with _ => _ end] |- _ =>
+      destruct x; try solve [inverse H]
+    end.
+
+Ltac match_case_analysis_eauto :=
+  repeat
+    match goal with
+    | H : context f [match ?x with _ => _ end] |- _ =>
+      destruct x; try solve [inverse H; eauto]
+    end.
+
+Ltac match_case_analysis_goal :=
+  repeat
+    match goal with
+    | |- context f [match ?x with _ => _ end] =>
+      destruct x
+    end.
+
+(* Safer version of split; for use in automation. *)
+Ltac split_conj :=
+  repeat match goal with
+  | |- _ /\ _ => split
+  end.
+
+
 Lemma open_preserves_size: forall T x j,
   tsize_flat T = tsize_flat (open_rec j (varH x) T).
 Proof.

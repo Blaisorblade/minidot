@@ -1,33 +1,5 @@
 Require Import dsubsup_total_rec_base.
 Require Import FunctionalExtensionality.
-Ltac inverse H := (inversion H; subst).
-Ltac match_case_analysis :=
-  repeat
-    match goal with
-    | H : context f [match ?x with _ => _ end] |- _ =>
-      destruct x; try solve [inverse H]
-    end.
-
-Ltac match_case_analysis_goal :=
-  repeat
-    match goal with
-    | |- context f [match ?x with _ => _ end] =>
-      destruct x
-    end.
-
-Ltac match_case_analysis_eauto :=
-  repeat
-    match goal with
-    | H : context f [match ?x with _ => _ end] |- _ =>
-      destruct x; try solve [inverse H; eauto]
-    end.
-
-
-(* Safer version of split; for use in automation. *)
-Ltac split_conj :=
-  repeat match goal with
-  | |- _ /\ _ => split
-  end.
 
 Hint Unfold open.
 Hint Unfold indexr.
