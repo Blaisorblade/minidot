@@ -269,21 +269,21 @@ Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
 (*   literally from val_type, so there is no question about the  *)
 (*   validity of the lemma, and we often admit it for performance reasons. *)
 
-(* Admitted. *)
-Proof.
-  intros. unfold val_type at 1. unfold val_type_func.
-  unfold_sub val_type (val_type env GH T n v).
+Admitted.
+(* Proof. *)
+(*   intros. unfold val_type at 1. unfold val_type_func. *)
+(*   unfold_sub val_type (val_type env GH T n v). *)
 
-  program_simplify.
+(*   program_simplify. *)
 
-  destruct v; simpl.
+(*   destruct v; simpl. *)
 
-  - destruct T; try reflexivity; destruct v.
-    + destruct (indexr i env); try destruct v; reflexivity.
-    + destruct (indexr i GH); try destruct v; reflexivity.
-    + reflexivity.
-  - destruct T; try reflexivity; destruct v.
-    + destruct (indexr i env); try destruct v; reflexivity.
-    + destruct (indexr i GH); try destruct v; reflexivity.
-    + reflexivity.
-Qed.
+(*   - destruct T; try reflexivity; destruct v. *)
+(*     + destruct (indexr i env); try destruct v; reflexivity. *)
+(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
+(*     + reflexivity. *)
+(*   - destruct T; try reflexivity; destruct v. *)
+(*     + destruct (indexr i env); try destruct v; reflexivity. *)
+(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
+(*     + reflexivity. *)
+(* Qed. *)
