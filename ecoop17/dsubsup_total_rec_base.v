@@ -383,7 +383,7 @@ Lemma open_preserves_size: forall T x j,
   tsize_flat T = tsize_flat (open_rec j (varH x) T).
 Proof.
   intros T. induction T; intros; simpl; eauto.
-  - destruct v; simpl; destruct (beq_nat j i); eauto.
+  - match_case_analysis_goal; simpl; match_case_analysis_goal; eauto.
 Qed.
 
 
