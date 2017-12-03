@@ -71,6 +71,9 @@ Fixpoint indexr {X : Type} (n : id) (l : list X) : option X :=
       if (beq_nat n (length l')) then Some a else indexr n l'
   end.
 
+Hint Unfold indexr.
+Hint Unfold length.
+
 Inductive closed: nat(*B*) -> nat(*H*) -> nat(*F*) -> ty -> Prop :=
 | cl_top: forall i j k,
     closed i j k TTop
@@ -118,6 +121,7 @@ Fixpoint open_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
   end.
 
 Definition open u T := open_rec 0 u T.
+Hint Unfold open.
 
 (* Locally-nameless encoding with respect to varH variables. *)
 Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
@@ -382,8 +386,7 @@ Ltac split_conj :=
 Lemma open_preserves_size: forall T x j,
   tsize_flat T = tsize_flat (open_rec j (varH x) T).
 Proof.
-  intros T. induction T; intros; simpl; eauto.
-  - match_case_analysis_goal; simpl; match_case_analysis_goal; eauto.
+  induction T; intros; simpl; match_case_analysis_goal; simpl; match_case_analysis_goal; eauto.
 Qed.
 
 
@@ -400,3 +403,17 @@ Ltac inv_mem := match goal with
                   | H: closed 0 (length ?GH) (length ?G) (TMem ?T1 ?T2) |-
                     closed 0 (length ?GH) (length ?G) ?T1 => inversion H; subst; eauto
                 end.
+
+
+Hint Constructors ty.
+Hint Constructors tm.
+Hint Constructors vl.
+
+Hint Constructors closed.
+Hint Constructors has_type.
+Hint Constructors stp.
+
+Hint Constructors option.
+Hint Constructors list.
+
+Hint Resolve ex_intro.

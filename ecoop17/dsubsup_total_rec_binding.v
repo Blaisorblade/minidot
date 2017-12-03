@@ -1,24 +1,6 @@
 Require Import dsubsup_total_rec_base.
 Require Import FunctionalExtensionality.
 
-Hint Unfold open.
-Hint Unfold indexr.
-Hint Unfold length.
-
-
-Hint Constructors ty.
-Hint Constructors tm.
-Hint Constructors vl.
-
-Hint Constructors closed.
-Hint Constructors has_type.
-Hint Constructors stp.
-
-Hint Constructors option.
-Hint Constructors list.
-
-Hint Resolve ex_intro.
-
 (* ############################################################ *)
 (* Examples *)
 (* ############################################################ *)
