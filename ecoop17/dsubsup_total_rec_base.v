@@ -383,14 +383,21 @@ Ltac split_conj :=
   end.
 
 
-Lemma open_preserves_size: forall T x j,
-  tsize_flat T = tsize_flat (open_rec j (varH x) T).
+Lemma open_preserves_size': forall T x j,
+  tsize_flat (open_rec j (varH x) T) =
+  tsize_flat T.
 Proof.
   induction T; intros; simpl; match_case_analysis_goal; simpl; match_case_analysis_goal; eauto.
 Qed.
 
+Hint Rewrite open_preserves_size'.
 
-
+Lemma open_preserves_size: forall T x j,
+  tsize_flat T =
+  tsize_flat (open_rec j (varH x) T).
+Proof.
+  intros; autorewrite with core; trivial.
+Qed.
 
 Ltac ev := repeat match goal with
                     | H: exists _, _ |- _ => destruct H
