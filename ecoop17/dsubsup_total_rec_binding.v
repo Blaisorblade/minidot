@@ -357,21 +357,31 @@ Proof.
   try solve [simpl in H0; constructor; apply IHn; eauto; try omega];
   try solve [apply indexr_has in H1; destruct H1; eauto].
   - simpl in H0.
-    eapply stp_all.
-    eapply IHn; eauto; try omega.
-    reflexivity.
-    assumption.
-    assumption.
-    apply IHn; eauto.
-    simpl. apply closed_open; auto using closed_inc.
-    unfold open. rewrite <- open_preserves_size. omega.
+    eapply stp_all; trivial.
+    + eapply IHn; eauto; try omega.
+    + apply IHn; eauto; simpl; unfold open.
+      * auto using closed_inc.
+      * (* rewrite <- open_preserves_size. *)
+        autorewrite with core.
+        omega.
   - remember (open (varH (length GH)) T0) as TT.
-    assert (stp G (TT :: GH) TT TT). eapply IHn. subst.
-    eapply closed_open. simpl. eapply closed_upgrade_free. eassumption. omega.
-    constructor. simpl. omega. subst. unfold open. erewrite <- open_preserves_size. simpl in H0. omega.
+    assert (stp G (TT :: GH) TT TT). {
+      eapply IHn.
+      + subst.
+        eapply closed_open.
+        * simpl. eapply closed_upgrade_free.
+          -- eassumption.
+          -- omega.
+        * constructor. simpl. omega.
+      +
+        subst. unfold open.
+        rewrite <- open_preserves_size.
+        simpl in H0. omega.
+    }
     eapply stp_bindx; try eassumption.
-  - simpl in *. assert (stp G GH T1 T1). eapply IHn; try eassumption; try omega.
-    assert (stp G GH T2 T2). eapply IHn; try eassumption; try omega.
+  - simpl in *.
+    assert (stp G GH T1 T1) by (eapply IHn; try eassumption; try omega).
+    assert (stp G GH T2 T2) by (eapply IHn; try eassumption; try omega).
     eapply stp_and2; try eassumption. econstructor; try eassumption. eapply stp_and12; try eassumption.
 Qed.
 
