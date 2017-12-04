@@ -56,6 +56,7 @@ Hint Resolve wf_val_type_termRel.
 
 (* Program Fixpoint val_type (env: list vseta) (GH:list vseta) (T:ty) n (dd: vset n) (v:vl) {measure (tsize_flat T)}: Prop := *)
 
+Global Unset Transparent Obligations.
 (*
 Again:
 The first env (env, or G1) is for looking up varF variables.
