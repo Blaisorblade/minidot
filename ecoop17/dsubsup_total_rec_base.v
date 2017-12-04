@@ -376,6 +376,26 @@ Ltac match_case_analysis_goal :=
       destruct x
     end.
 
+(* XXX stop defaulting to repeat above! *)
+Ltac norepeat_match_case_analysis :=
+  match goal with
+  | H : context f [match ?x with _ => _ end] |- _ =>
+    destruct x
+  end.
+
+Ltac norepeat_match_case_analysis_goal :=
+    match goal with
+    | |- context f [match ?x with _ => _ end] =>
+      destruct x
+    end.
+
+Ltac match_case_analysis_remember :=
+  match goal with
+  | H : context f [match ?x with _ => _ end] |- _ =>
+    let L := fresh
+    in remember x as L; destruct L
+  end.
+
 (* Safer version of split; for use in automation. *)
 Ltac split_conj :=
   repeat match goal with

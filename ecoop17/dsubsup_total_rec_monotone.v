@@ -272,19 +272,8 @@ Lemma val_type_unfold' : forall n env GH T v, val_type env GH T n v =
 
 Admitted.
 (* Proof. *)
-(*   intros. unfold val_type at 1. unfold val_type_func. *)
-(*   unfold_sub val_type (val_type env GH T n v). *)
-
-(*   program_simplify. *)
-
-(*   destruct v; simpl. *)
-
-(*   - destruct T; try reflexivity; destruct v. *)
-(*     + destruct (indexr i env); try destruct v; reflexivity. *)
-(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
-(*     + reflexivity. *)
-(*   - destruct T; try reflexivity; destruct v. *)
-(*     + destruct (indexr i env); try destruct v; reflexivity. *)
-(*     + destruct (indexr i GH); try destruct v; reflexivity. *)
-(*     + reflexivity. *)
+(*   intros. unfold val_type at 1; unfold val_type_func; *)
+(*   unfold_sub val_type (val_type env GH T n v);  *)
+(*   program_simplify; *)
+(*   repeat (norepeat_match_case_analysis_goal; try reflexivity). *)
 (* Qed. *)
