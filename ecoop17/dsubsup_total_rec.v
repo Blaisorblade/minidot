@@ -652,7 +652,7 @@ Lemma open_permute : forall T V0 V1 i j a b c d,
   closed 0 a b (TSel V0) -> closed 0 c d (TSel V1) -> i <> j ->
   open_rec i V0 (open_rec j V1 T) = open_rec j V1 (open_rec i V0 T).
 Proof.
-  intros. generalize dependent i. generalize dependent j.
+  intros * Hc0 Hc1 Hdiff. generalize dependent i. generalize dependent j.
   induction T; intros; trivial;
     try solve
         [simpl;
@@ -660,68 +660,121 @@ Proof.
          try rewrite IHT1 by auto;
          try rewrite IHT2 by auto;
          reflexivity].
-  (* - simpl. *)
-  (*   rewrite IHT1 by auto. *)
-  (*   rewrite IHT2 by auto. *)
-  (*   reflexivity. *)
-  -
-    destruct v; try reflexivity.
-    + 
-      (* varB *)
-      destruct (beq_nat i i0) eqn : A.
-      * rewrite beq_nat_true_iff in A. subst.
-        assert (H2 : (open_rec j V1 (TSel (varB i0)) = (TSel (varB i0)))).
-        { simpl.
-          assert (H2 : beq_nat j i0 = false).
-          { rewrite beq_nat_false_iff. omega. }
-          rewrite H2. reflexivity.
-        }
-        rewrite H2. simpl.
-        assert (H3 : beq_nat i0 i0 = true). {
-          erewrite beq_nat_refl. eauto. }
-        rewrite H3.
-        eauto_bind.
-        (* eapply closed_no_open. *)
-        (* eapply closed_upgrade. *)
-        (* eauto. omega. *)
-      * destruct (beq_nat j i0) eqn : B.
-        -- rewrite beq_nat_true_iff in B. subst.
-           simpl.
-           assert (H2: beq_nat i0 i0 = true). {
-             erewrite beq_nat_refl. eauto.
-           }
-           rewrite H2.
-           assert (beq_nat i i0 = false). {
-             rewrite beq_nat_false_iff. omega.
-           }
-           rewrite H3.
-           assert (H4: TSel (V1) = open_rec i V0 (TSel V1)). {
-             eauto_bind.
-             (* eapply closed_no_open. eapply closed_upgrade. *)
-             (* eapply H0. *)
-             (* omega. *)
-           }
-           rewrite <- H4. simpl. rewrite H2. reflexivity.
-        -- assert ((open_rec j V1 (TSel (varB i0))) = TSel (varB i0)). {
-             simpl. rewrite B. reflexivity.
-           }
-           rewrite H2.
-           assert (open_rec i V0 (TSel (varB i0)) = (TSel (varB i0))). {
-             simpl. rewrite A. reflexivity.
-           }
-           rewrite H3. simpl.
-           rewrite B. reflexivity.
-
-  (* - simpl. *)
-  (*   rewrite IHT1 by omega. *)
-  (*   rewrite IHT2 by omega. *)
-  (*   reflexivity. *)
-  (* (*   specialize (IHT1 _ _ H1). rewrite IHT1. *) *)
-  (* (* specialize (IHT2 _ _ H1). rewrite IHT2. reflexivity. *) *)
-  (* - simpl. *)
-  (*   rewrite IHT by omega. reflexivity. *)
-  (* - simpl. rewrite IHT1 by omega. rewrite IHT2 by omega. reflexivity. *)
+  destruct v; try reflexivity.
+  simpl; destruct (i =? i0) eqn : A;
+    simpl; destruct (j =? i0) eqn : B;
+      simpl;
+      try rewrite A;
+      try rewrite B;
+      try rewrite beq_nat_true_iff in *;
+      try rewrite beq_nat_false_iff in *;
+      subst;
+      simpl; try omega || auto;
+        match_case_analysis_goal; trivial;
+          inversion Hc0; inversion Hc1; try omega.
 Qed.
+(* (*     inversion H; inversion H0; subst; simpl; omega. *) *)
+(*   - *)
+(*     (* rewrite <- beq_nat_refl. *) *)
+(*     destruct V0; auto. *)
+(*     inversion Hc0. omega. *)
+(*   -   *)
+(*     (* subst. *) *)
+(*     (* rewrite <- beq_nat_refl. *) *)
+(*     destruct V1; auto. *)
+(*     inversion Hc1. omega. *)
+    
+(*   (* - subst. *) *)
+(*   (*   rewrite <- beq_nat_refl. *) *)
+(*   (*   destruct V1; auto. *) *)
+(*   (*   inversion H0. omega. *) *)
+(*     (* Ltac match_case_analysis_goal_remember_simpl := *) *)
+(*     (*   simpl; match_case_analysis_goal_remember; *) *)
+(*     (*   trivial; *) *)
+(*     (*   simpl in *; *) *)
+(*     (*   try rewrite beq_nat_true_iff in *; *) *)
+(*     (*   try rewrite beq_nat_false_iff in *. *) *)
+
+(*     (* destruct V0; destruct V1; *) *)
+
+(*     (*   try solve [repeat (match_case_analysis_goal_remember_simpl; subst; try congruence)]; simpl. *) *)
+
+(*     (* + match_case_analysis_goal_remember; trivial; *) *)
+(*     (*   try rewrite beq_nat_true_iff in *; *) *)
+(*     (*   try rewrite beq_nat_false_iff in *. *) *)
+(*     (*   * simpl. *) *)
+(*     (*     match_case_analysis_goal_remember_simpl. *) *)
+(*     (*     --  *) *)
+
+(*     (*   match_case_analysis_goal_remember_simpl. try congruence. *) *)
+(*     (*   match_case_analysis_goal_remember_simpl; try congruence. *) *)
+(*     (* + match_case_analysis_goal_remember_simpl; try congruence. *) *)
+(*     (*   match_case_analysis_goal_remember_simpl; try congruence. *) *)
+
+
+(*     (* subst. *) *)
+
+(*     (* simpl. *) *)
+(*     (* congruence. *) *)
+(*     (* repeat match_case_analysis_goal_remember; eauto. *) *)
+(*     (* eauto_bind; *) *)
+(*     (*   match_case_analysis_goal_remember. *) *)
+(*     + *)
+(*       (* varB *) *)
+(*       destruct (beq_nat i i0) eqn : A. *)
+(*       * rewrite beq_nat_true_iff in A. subst. *)
+(*         assert (H2 : (open_rec j V1 (TSel (varB i0)) = (TSel (varB i0)))). *)
+(*         { simpl. *)
+(*           assert (H2 : beq_nat j i0 = false). *)
+(*           { rewrite beq_nat_false_iff. omega. } *)
+(*           rewrite H2. reflexivity. *)
+(*         } *)
+(*         rewrite H2. simpl. *)
+(*         assert (H3 : beq_nat i0 i0 = true). { *)
+(*           erewrite beq_nat_refl. eauto. } *)
+(*         rewrite H3. *)
+(*         eauto_bind. *)
+(*         (* eapply closed_no_open. *) *)
+(*         (* eapply closed_upgrade. *) *)
+(*         (* eauto. omega. *) *)
+(*       * destruct (beq_nat j i0) eqn : B. *)
+(*         -- rewrite beq_nat_true_iff in B. subst. *)
+(*            simpl. *)
+(*            assert (H2: beq_nat i0 i0 = true). { *)
+(*              erewrite beq_nat_refl. eauto. *)
+(*            } *)
+(*            rewrite H2. *)
+(*            assert (beq_nat i i0 = false). { *)
+(*              rewrite beq_nat_false_iff. omega. *)
+(*            } *)
+(*            rewrite H3. *)
+(*            assert (H4: TSel (V1) = open_rec i V0 (TSel V1)). { *)
+(*              eauto_bind. *)
+(*              (* eapply closed_no_open. eapply closed_upgrade. *) *)
+(*              (* eapply H0. *) *)
+(*              (* omega. *) *)
+(*            } *)
+(*            rewrite <- H4. simpl. rewrite H2. reflexivity. *)
+(*         -- assert ((open_rec j V1 (TSel (varB i0))) = TSel (varB i0)). { *)
+(*              simpl. rewrite B. reflexivity. *)
+(*            } *)
+(*            rewrite H2. *)
+(*            assert (open_rec i V0 (TSel (varB i0)) = (TSel (varB i0))). { *)
+(*              simpl. rewrite A. reflexivity. *)
+(*            } *)
+(*            rewrite H3. simpl. *)
+(*            rewrite B. reflexivity. *)
+
+(*   (* - simpl. *) *)
+(*   (*   rewrite IHT1 by omega. *) *)
+(*   (*   rewrite IHT2 by omega. *) *)
+(*   (*   reflexivity. *) *)
+(*   (* (*   specialize (IHT1 _ _ H1). rewrite IHT1. *) *) *)
+(*   (* (* specialize (IHT2 _ _ H1). rewrite IHT2. reflexivity. *) *) *)
+(*   (* - simpl. *) *)
+(*   (*   rewrite IHT by omega. reflexivity. *) *)
+(*   (* - simpl. rewrite IHT1 by omega. rewrite IHT2 by omega. reflexivity. *) *)
+
 
 Lemma closed_open2: forall i j k V T i1, closed i j k T -> closed i j k (TSel V) ->
   closed i j k (open_rec i1 V T).
