@@ -779,11 +779,7 @@ Proof.
   intros. generalize dependent i. revert i1.
   induction T; intros; inversion H;
   try econstructor;
-  try eapply IHT1; try eapply IHT2; try eapply IHT; eauto.
-  - eapply closed_upgrade; eauto.
-  - Case "TVarB". simpl.
-    match_case_analysis_goal; eauto.
-  - eauto_bind.
+  try eapply IHT1; try eapply IHT2; try eapply IHT; simpl; match_case_analysis_goal; eauto_bind.
 Qed.
 
 Lemma splice_retreat4: forall T i j k m V' V ,
