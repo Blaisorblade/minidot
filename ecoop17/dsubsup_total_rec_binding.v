@@ -690,63 +690,133 @@ Ltac match_case_analysis_remember' :=
 Lemma indexr_hit_high: forall (X:Type) x (jj : X) l1 l2 vf,
   indexr x (l1 ++ l2) = Some vf -> (length l2) <= x ->
   indexr (x + 1) (l1 ++ jj :: l2) = Some vf.
-Proof. intros. induction l1. simpl in *. apply indexr_max in H. omega.
-  simpl in *. destruct (beq_nat x (length (l1 ++ l2))) eqn : A.
-  rewrite beq_nat_true_iff in A. assert (x + 1 = length (l1 ++ l2) + 1).
-  omega. rewrite app_length in *. assert(x + 1 = length (l1) + S (length l2)).
-  omega. simpl in *. rewrite <- beq_nat_true_iff in H2. rewrite H2. assumption.
-  rewrite beq_nat_false_iff in A. assert (x + 1 <> length (l1 ++ l2) + 1).
-  omega. rewrite app_length in *. assert(x + 1 <> length (l1) + S (length l2)). omega.
-  rewrite <- beq_nat_false_iff in H2. simpl. rewrite H2. apply IHl1. assumption.
+Proof.
+  intros. induction l1.
+  - simpl in *. apply indexr_max in H. omega.
+  - simpl in *.
+    match_case_analysis_goal_remember;
+      match_case_analysis_remember'; trivial;
+        try rewrite app_length in *;
+        simpl in *;
+        try rewrite beq_nat_true_iff in *;
+        try rewrite beq_nat_false_iff in *;
+        eauto || omega.
+
+    (* destruct (beq_nat x (length (l1 ++ l2))) eqn : A. *)
+    (* + rewrite beq_nat_true_iff in A. *)
+    (*   assert (H1: x + 1 = length (l1 ++ l2) + 1) by omega. *)
+    (*   rewrite app_length in *. *)
+    (*   assert (H2: x + 1 = length (l1) + S (length l2)) by omega. *)
+    (*   simpl in *. rewrite <- beq_nat_true_iff in H2. rewrite H2. assumption. *)
+    (* + rewrite beq_nat_false_iff in A. *)
+    (*   assert (H1: x + 1 <> length (l1 ++ l2) + 1) by omega. *)
+    (*   rewrite app_length in *. *)
+    (*   assert (H2: x + 1 <> length (l1) + S (length l2)) by omega. *)
+    (*   rewrite <- beq_nat_false_iff in H2. simpl. rewrite H2. *)
+    (*   auto. *)
+      (* apply IHl1. assumption. *)
+Qed.
+
+(* Lemma indexr_hit_high: forall (X:Type) x (jj : X) l1 l2 vf, *)
+(*   indexr x (l1 ++ l2) = Some vf -> (length l2) <= x -> *)
+(*   indexr (x + 1) (l1 ++ jj :: l2) = Some vf. *)
+(* Proof. intros. induction l1. simpl in *. apply indexr_max in H. omega. *)
+(*   simpl in *. destruct (beq_nat x (length (l1 ++ l2))) eqn : A. *)
+(*   rewrite beq_nat_true_iff in A. assert (x + 1 = length (l1 ++ l2) + 1). *)
+(*   omega. rewrite app_length in *. assert(x + 1 = length (l1) + S (length l2)). *)
+(*   omega. simpl in *. rewrite <- beq_nat_true_iff in H2. rewrite H2. assumption. *)
+(*   rewrite beq_nat_false_iff in A. assert (x + 1 <> length (l1 ++ l2) + 1). *)
+(*   omega. rewrite app_length in *. assert(x + 1 <> length (l1) + S (length l2)). omega. *)
+(*   rewrite <- beq_nat_false_iff in H2. simpl. rewrite H2. apply IHl1. assumption. *)
+(* Qed. *)
+
+Ltac inject H := injection H; clear H; intros; try subst.
+Hint Resolve indexr_extend.
+Hint Resolve indexr_extend_mult.
+
+Lemma indexr_has': forall X (G1 G2: list X) x,
+  length G2 > x ->
+  exists v, indexr x G2 = Some v /\ indexr x (G1 ++ G2) = Some v.
+Proof.
+  intros * H.
+  apply indexr_has in H as [x0 H0].
+  eauto.
 Qed.
 
 Lemma indexr_hit_low: forall (X:Type) x (jj : X) l1 l2 vf,
   indexr x (l1 ++ l2) = Some vf -> x < (length l2) ->
-  indexr (x) (l1 ++ jj :: l2) = Some vf.
-Proof. intros. apply indexr_has in H0. ev. assert (indexr x (l1 ++ l2) = Some x0).
-  apply indexr_extend_mult. assumption. rewrite H1 in H. inversion H. subst.
-  assert (indexr x (jj :: l2) = Some vf). apply indexr_extend. assumption.
-  apply indexr_extend_mult. eassumption.
+  indexr x (l1 ++ jj :: l2) = Some vf.
+Proof.
+  intros * H H0.
+  apply indexr_has' with (G1 := l1) in H0 as [x0 [H0 H1]].
+  rewrite H1 in H.
+  inject H.
+  auto.
 Qed.
 
 Lemma splice_preserves_size: forall T j,
   tsize_flat T = tsize_flat (splice j T).
 Proof.
-  intros. induction T; simpl; try rewrite IHT1; try rewrite IHT2; try reflexivity.
-  destruct v; simpl; try reflexivity. destruct (le_lt_dec j i); simpl; try reflexivity.
-  rewrite IHT. reflexivity.
+  intros; induction T; simpl; match_case_analysis_goal; simpl; congruence.
 Qed.
 
 Lemma open_permute : forall T V0 V1 i j a b c d,
   closed 0 a b (TSel V0) -> closed 0 c d (TSel V1) -> i <> j ->
   open_rec i V0 (open_rec j V1 T) = open_rec j V1 (open_rec i V0 T).
-Proof. intros. generalize dependent i. generalize dependent j.
-  induction T; intros.
-  simpl. reflexivity.
-  simpl. reflexivity.
-  simpl. specialize (IHT1 _ _ H1). rewrite IHT1. assert ((S i) <> (S j)) by omega.
-  specialize (IHT2 _ _ H2). rewrite IHT2. reflexivity.
-  destruct v. simpl. reflexivity. simpl. reflexivity.
-  (* varB *)
-  destruct (beq_nat i i0) eqn : A. rewrite beq_nat_true_iff in A. subst.
-  assert ((open_rec j V1 (TSel (varB i0)) = (TSel (varB i0)))). simpl.
-  assert (beq_nat j i0 = false). rewrite beq_nat_false_iff. omega. rewrite H2. reflexivity.
-  rewrite H2. simpl. assert (beq_nat i0 i0 = true). erewrite beq_nat_refl. eauto. rewrite H3.
-  eapply closed_no_open. eapply closed_upgrade. eauto. omega.
-  destruct (beq_nat j i0) eqn : B. rewrite beq_nat_true_iff in B. subst.
-  simpl. assert (beq_nat i0 i0 = true). erewrite beq_nat_refl. eauto. rewrite H2.
-  assert (beq_nat i i0 = false). rewrite beq_nat_false_iff. omega. rewrite H3.
-  assert (TSel (V1) = open_rec i V0 (TSel V1)). eapply closed_no_open. eapply closed_upgrade.
-  eapply H0. omega. rewrite <- H4. simpl. rewrite H2. reflexivity.
-  assert ((open_rec j V1 (TSel (varB i0))) = TSel (varB i0)). simpl. rewrite B. reflexivity.
-  rewrite H2. assert (open_rec i V0 (TSel (varB i0)) = (TSel (varB i0))). simpl.
-  rewrite A. reflexivity. rewrite H3. simpl. rewrite B. reflexivity.
-
-  simpl. specialize (IHT1 _ _ H1). rewrite IHT1.
-  specialize (IHT2 _ _ H1). rewrite IHT2. reflexivity.
-  simpl. rewrite IHT. reflexivity. omega.
-  simpl. rewrite IHT1. rewrite IHT2. reflexivity. omega. omega.
+Proof.
+  intros * Hc0 Hc1 Hdiff. generalize dependent i. generalize dependent j.
+  induction T; intros; trivial;
+    try solve
+        [simpl;
+         try rewrite IHT by auto;
+         try rewrite IHT1 by auto;
+         try rewrite IHT2 by auto;
+         reflexivity].
+  destruct v; try reflexivity.
+  simpl; destruct (i =? i0) eqn : A;
+    simpl; destruct (j =? i0) eqn : B;
+      simpl;
+      try rewrite A;
+      try rewrite B;
+      try rewrite beq_nat_true_iff in *;
+      try rewrite beq_nat_false_iff in *;
+      subst;
+      simpl; try omega || auto;
+        match_case_analysis_goal; trivial;
+          inversion Hc0; inversion Hc1; try omega.
 Qed.
+
+(* Lemma open_permute : forall T V0 V1 i j a b c d, *)
+(*   closed 0 a b (TSel V0) -> closed 0 c d (TSel V1) -> i <> j -> *)
+(*   open_rec i V0 (open_rec j V1 T) = open_rec j V1 (open_rec i V0 T). *)
+(* Proof. intros. generalize dependent i. generalize dependent j. *)
+(*   induction T; intros. *)
+(*   simpl. reflexivity. *)
+(*   simpl. reflexivity. *)
+(*   simpl. specialize (IHT1 _ _ H1). rewrite IHT1. assert ((S i) <> (S j)) by omega. *)
+(*   specialize (IHT2 _ _ H2). rewrite IHT2. reflexivity. *)
+(*   destruct v. simpl. reflexivity. simpl. reflexivity. *)
+(*   (* varB *) *)
+(*   destruct (beq_nat i i0) eqn : A. rewrite beq_nat_true_iff in A. subst. *)
+(*   assert ((open_rec j V1 (TSel (varB i0)) = (TSel (varB i0)))). simpl. *)
+(*   assert (beq_nat j i0 = false). rewrite beq_nat_false_iff. omega. rewrite H2. reflexivity. *)
+(*   rewrite H2. simpl. assert (beq_nat i0 i0 = true). erewrite beq_nat_refl. eauto. rewrite H3. *)
+(*   eapply closed_no_open. eapply closed_upgrade. eauto. omega. *)
+(*   destruct (beq_nat j i0) eqn : B. rewrite beq_nat_true_iff in B. subst. *)
+(*   simpl. assert (beq_nat i0 i0 = true). erewrite beq_nat_refl. eauto. rewrite H2. *)
+(*   assert (beq_nat i i0 = false). rewrite beq_nat_false_iff. omega. rewrite H3. *)
+(*   assert (TSel (V1) = open_rec i V0 (TSel V1)). eapply closed_no_open. eapply closed_upgrade. *)
+(*   eapply H0. omega. rewrite <- H4. simpl. rewrite H2. reflexivity. *)
+(*   assert ((open_rec j V1 (TSel (varB i0))) = TSel (varB i0)). simpl. rewrite B. reflexivity. *)
+(*   rewrite H2. assert (open_rec i V0 (TSel (varB i0)) = (TSel (varB i0))). simpl. *)
+(*   rewrite A. reflexivity. rewrite H3. simpl. rewrite B. reflexivity. *)
+
+(*   simpl. specialize (IHT1 _ _ H1). rewrite IHT1. *)
+(*   specialize (IHT2 _ _ H1). rewrite IHT2. reflexivity. *)
+(*   simpl. rewrite IHT. reflexivity. omega. *)
+(*   simpl. rewrite IHT1. rewrite IHT2. reflexivity. omega. omega. *)
+(* Qed. *)
+
 (* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
 Ltac ineq_solver := autorewrite with core; simpl in *; omega.
 Hint Extern 5 (_ > _) => ineq_solver.
@@ -769,58 +839,32 @@ Proof.
   intros. generalize dependent i. revert i1.
   induction T; intros; inversion H;
   try econstructor;
-  try eapply IHT1; eauto; try eapply IHT2; eauto; try eapply IHT; eauto.
-  eapply closed_upgrade. eauto. eauto.
+  try eapply IHT1; try eapply IHT2; try eapply IHT; eauto.
+  - eapply closed_upgrade; eauto.
   - Case "TVarB". simpl.
-    case_eq (beq_nat i1 x); intros E. eauto.
-    econstructor. eapply beq_nat_false_iff in E. omega.
-  - eapply closed_upgrade. eassumption. omega.
+    match_case_analysis_goal; eauto.
+  - eauto_bind.
 Qed.
-
 
 Lemma splice_retreat4: forall T i j k m V' V ,
   closed i (j + 1) k (open_rec m V' (splice 0 T)) ->
   (closed i j k (TSel V) -> closed i (j) k (open_rec m V T)).
-Proof. induction T; intros; try destruct v; simpl in *.
-  constructor.
-  constructor.
-  inversion H; subst.
-  specialize (IHT1 _ _ _ _ _ _ H6 H0). assert (closed (S i) (j) k (TSel V)).
-  eapply closed_upgrade. eapply H0. omega.
-  specialize (IHT2 _ _ _ _ _ _ H7 H1). constructor. assumption. assumption.
-  inversion H. subst. constructor. omega.
-  inversion H. subst. constructor. omega.
-  destruct (beq_nat m i0) eqn : A. assumption.
-    inversion H. subst. constructor. omega.
-  inversion H. subst. constructor. eapply IHT1. eassumption. assumption.
-  eapply IHT2. eassumption. assumption.
-  constructor. inversion H. subst.  eapply IHT; try eassumption. eapply closed_upgrade. eassumption. omega.
-  inversion H. subst. constructor.  eapply IHT1; try eassumption.
-  eapply IHT2; try eassumption.
+Proof.
+  induction T; intros; try destruct v; simpl in *;
+    try solve [
+               match_case_analysis_goal;
+               inversion H; subst; eauto_bind ].
 Qed.
 
 Lemma splice_retreat5: forall T i j k m V' V ,
   closed i (j + 1) k (TSel V') -> closed i (j) k (open_rec m V T) ->
   closed i (j + 1) k (open_rec m V' (splice 0 T)).
-Proof. induction T; intros; try destruct v; simpl in *.
-  constructor.
-  constructor.
-  inversion H0; subst.
-  specialize (IHT1 _ _ _ _ _ _ H H6). assert (closed (S i) (j + 1) k (TSel V')).
-  eapply closed_upgrade. eapply H. omega.
-  specialize (IHT2 _ _ _ _ _ _ H1 H7). constructor. assumption. assumption.
-  inversion H0. subst. constructor. omega.
-  inversion H0. subst. constructor. omega.
-  destruct (beq_nat m i0) eqn : A. assumption.
-    inversion H0. subst. constructor. omega.
-  inversion H0. subst. constructor. eapply IHT1. eassumption. eassumption.
-  eapply IHT2. eassumption. eassumption.
-  inversion H0. subst. constructor. eapply IHT; try eassumption. eapply closed_upgrade. eassumption. omega.
-  inversion H0. subst. constructor. eapply IHT1; try eassumption. eapply IHT2; try eassumption.
-
+Proof.
+  induction T; intros * H H0; try destruct v; simpl in *;
+    solve [
+        match_case_analysis_goal;
+        inversion H0; subst; eauto_bind ].
 Qed.
-
-
 
 Lemma splice_open_permute0: forall x0 T2 n j,
 (open_rec j (varH (n + x0 + 1 )) (splice (x0) T2)) =
@@ -828,35 +872,71 @@ Lemma splice_open_permute0: forall x0 T2 n j,
 Proof.
   intros x0 T. induction T; intros; simpl; eauto;
   try rewrite IHT1; try rewrite IHT2; try rewrite IHT; eauto;
-  destruct v; eauto.
-
-  case_eq (le_lt_dec (x0) i); intros E LE; simpl; eauto.
-  rewrite LE. eauto.
-  rewrite LE. eauto.
-  case_eq (beq_nat j i); intros E; simpl; eauto.
-  case_eq (le_lt_dec (x0) (n + x0)); intros EL LE.
-  rewrite E. eauto. omega.
-  rewrite E. eauto.
+  destruct v; eauto; simpl; match_case_analysis_goal; eauto;
+  simpl; match_case_analysis_goal; eauto; omega.
 Qed.
+
+(* Lemma splice_open_permute0: forall x0 T2 n j, *)
+(* (open_rec j (varH (n + x0 + 1 )) (splice (x0) T2)) = *)
+(* (splice (x0) (open_rec j (varH (n + x0)) T2)). *)
+(* Proof. *)
+(*   intros x0 T. induction T; intros; simpl; eauto; *)
+(*   try rewrite IHT1; try rewrite IHT2; try rewrite IHT; eauto; *)
+(*   destruct v; eauto. *)
+
+(*   case_eq (le_lt_dec (x0) i); intros E LE; simpl; eauto. *)
+(*   rewrite LE. eauto. *)
+(*   rewrite LE. eauto. *)
+(*   case_eq (beq_nat j i); intros E; simpl; eauto. *)
+(*   case_eq (le_lt_dec (x0) (n + x0)); intros EL LE. *)
+(*   rewrite E. eauto. omega. *)
+(*   rewrite E. eauto. *)
+(* Qed. *)
+
+Lemma splice_open_permute0':
+  forall x0 T2 n j,
+    (open_rec j (varH (n + S x0)) (splice x0 T2)) =
+    (splice x0 (open_rec j (varH (n + x0)) T2)).
+Proof.
+  intros;
+    replace (n + S x0) with (n + x0 + 1) by omega;
+    eauto using splice_open_permute0.
+Qed.
+
+Hint Rewrite splice_open_permute0'.
 
 Lemma indexr_extend_end: forall {X : Type} (jj : X) l x,
   indexr (x + 1) (l ++ [jj]) = indexr x l.
-Proof. intros. induction l. simpl. assert (beq_nat (x + 1) 0 = false).
-  rewrite beq_nat_false_iff. omega. rewrite H. reflexivity.
-  simpl. destruct (beq_nat (x) (length (l))) eqn : A.
-  rewrite beq_nat_true_iff in A. assert (x + 1 = length (l ++ [jj])). rewrite app_length. simpl. omega.
-  rewrite <- beq_nat_true_iff in H. rewrite H. reflexivity.
-  rewrite beq_nat_false_iff in A. assert (x +1 <> length (l ++ [jj])). rewrite app_length. simpl. omega.
-  rewrite <- beq_nat_false_iff in H. rewrite H. assumption.
+Proof.
+  intros. induction l; simpl;
+    repeat match_case_analysis_goal_remember; trivial;
+    try rewrite app_length in *;
+    simpl in *;
+    rewrite beq_nat_true_iff in *;
+    try rewrite beq_nat_false_iff in *;
+    omega.
 Qed.
 
+(* Lemma indexr_extend_end: forall {X : Type} (jj : X) l x, *)
+(*   indexr (x + 1) (l ++ [jj]) = indexr x l. *)
+(* Proof. intros. induction l. simpl. assert (beq_nat (x + 1) 0 = false). *)
+(*   rewrite beq_nat_false_iff. omega. rewrite H. reflexivity. *)
+(*   simpl. destruct (beq_nat (x) (length (l))) eqn : A. *)
+(*   rewrite beq_nat_true_iff in A. assert (x + 1 = length (l ++ [jj])). rewrite app_length. simpl. omega. *)
+(*   rewrite <- beq_nat_true_iff in H. rewrite H. reflexivity. *)
+(*   rewrite beq_nat_false_iff in A. assert (x +1 <> length (l ++ [jj])). rewrite app_length. simpl. omega. *)
+(*   rewrite <- beq_nat_false_iff in H. rewrite H. assumption. *)
+(* Qed. *)
+
+(* Require Import FunInd. *)
+(* Functional Scheme indexr_ind := Induction for indexr Sort Prop. *)
+(* Check indexr_ind. *)
 Lemma indexr_hit01: forall {X : Type} GH (jj : X),
       indexr 0 (GH ++ [jj]) = Some (jj).
 Proof.
-  intros X GH. induction GH.
-  - intros. simpl. eauto.
-  - intros. simpl. destruct (length (GH ++ [jj])) eqn : A.
-    rewrite app_length in *. simpl in *. omega.
-    apply IHGH.
+  (* intros. functional induction (indexr 0 (GH ++ [jj])) with (l := GH). *)
+  intros X GH. induction GH; intros; simpl; trivial.
+  destruct (length (GH ++ [jj])) eqn : A; trivial.
+  exfalso.
+  rewrite app_length in *. simpl in *; omega.
 Qed.
-  
