@@ -438,17 +438,6 @@ Proof.
     eauto using indexr_max.
 Qed.
 
-
-(* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
-Ltac ineq_solver := autorewrite with core; simpl in *; omega.
-Hint Extern 1 (_ > _) => ineq_solver.
-Hint Extern 1 (_ >= _) => ineq_solver.
-Hint Extern 1 (_ < _) => ineq_solver.
-Hint Extern 1 (_ <= _) => ineq_solver.
-
-Hint Resolve closed_upgrade_free : bind.
-Hint Resolve closed_upgrade_freef : bind.
-
 Ltac intro_val_type :=
   ev;
   repeat
@@ -580,22 +569,6 @@ Proof.
   intros; eapply valtp_extend_aux; eauto.
 Qed.
 
-Ltac match_case_analysis_goal_remember :=
-  match goal with
-  | |- context f [match ?x with _ => _ end] =>
-    let L := fresh in
-    let H := fresh in
-    remember x as L eqn:H; symmetry in H; destruct L
-  end.
-
-Ltac match_case_analysis_remember' :=
-  match goal with
-  | H : context f [match ?x with _ => _ end] |- _ =>
-    let L := fresh in
-    let H := fresh in
-    remember x as L eqn:H; symmetry in H; destruct L
-  end.
-
 Lemma indexr_hit_high: forall (X:Type) x (jj : X) l1 l2 vf,
   indexr x (l1 ++ l2) = Some vf -> (length l2) <= x ->
   indexr (x + 1) (l1 ++ jj :: l2) = Some vf.
@@ -642,9 +615,6 @@ Lemma splice_preserves_size: forall T j,
 Proof.
   intros; induction T; simpl; match_case_analysis_goal; simpl; congruence.
 Qed.
-
-Hint Resolve closed_no_open: bind.
-Hint Resolve closed_upgrade : bind.
 
 Lemma open_permute : forall T V0 V1 i j a b c d,
   closed 0 a b (TSel V0) -> closed 0 c d (TSel V1) -> i <> j ->

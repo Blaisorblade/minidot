@@ -671,6 +671,22 @@ Proof.
 Qed.
 
 
+Ltac match_case_analysis_goal_remember :=
+  match goal with
+  | |- context f [match ?x with _ => _ end] =>
+    let L := fresh in
+    let H := fresh in
+    remember x as L eqn:H; symmetry in H; destruct L
+  end.
+
+Ltac match_case_analysis_remember' :=
+  match goal with
+  | H : context f [match ?x with _ => _ end] |- _ =>
+    let L := fresh in
+    let H := fresh in
+    remember x as L eqn:H; symmetry in H; destruct L
+  end.
+
 Lemma indexr_hit_high: forall (X:Type) x (jj : X) l1 l2 vf,
   indexr x (l1 ++ l2) = Some vf -> (length l2) <= x ->
   indexr (x + 1) (l1 ++ jj :: l2) = Some vf.
@@ -731,6 +747,21 @@ Proof. intros. generalize dependent i. generalize dependent j.
   simpl. rewrite IHT. reflexivity. omega.
   simpl. rewrite IHT1. rewrite IHT2. reflexivity. omega. omega.
 Qed.
+(* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
+Ltac ineq_solver := autorewrite with core; simpl in *; omega.
+Hint Extern 5 (_ > _) => ineq_solver.
+Hint Extern 5 (_ >= _) => ineq_solver.
+Hint Extern 5 (_ < _) => ineq_solver.
+Hint Extern 5 (_ <= _) => ineq_solver.
+
+Hint Resolve closed_no_open : bind.
+Hint Resolve closed_upgrade : bind.
+Hint Resolve closed_upgrade_free : bind.
+Hint Resolve closed_upgrade_freef : bind.
+
+Ltac eauto_bind := unfold open; eauto with bind.
+    (* unfold open; *)
+    (* eapply IHn; autorewrite with core; eauto. *)
 
 Lemma closed_open2: forall i j k V T i1, closed i j k T -> closed i j k (TSel V) ->
   closed i j k (open_rec i1 V T).
