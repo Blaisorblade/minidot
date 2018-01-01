@@ -331,8 +331,6 @@ Hint Unfold venv.
 Hint Unfold tenv.
 
 Hint Unfold open.
-Hint Unfold indexr.
-Hint Unfold length.
 
 (* Hint Unfold R. *)
 Hint Unfold R_env.

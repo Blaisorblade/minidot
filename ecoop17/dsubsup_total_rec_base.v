@@ -71,8 +71,8 @@ Fixpoint indexr {X : Type} (n : id) (l : list X) : option X :=
       if (beq_nat n (length l')) then Some a else indexr n l'
   end.
 
-(* Hint Unfold indexr. *)
-(* Hint Unfold length. *)
+Hint Unfold indexr.
+Hint Unfold length.
 
 Inductive closed: nat(*B*) -> nat(*H*) -> nat(*F*) -> ty -> Prop :=
 | cl_top: forall i j k,
