@@ -701,34 +701,7 @@ Proof.
         try rewrite beq_nat_true_iff in *;
         try rewrite beq_nat_false_iff in *;
         eauto || omega.
-
-    (* destruct (beq_nat x (length (l1 ++ l2))) eqn : A. *)
-    (* + rewrite beq_nat_true_iff in A. *)
-    (*   assert (H1: x + 1 = length (l1 ++ l2) + 1) by omega. *)
-    (*   rewrite app_length in *. *)
-    (*   assert (H2: x + 1 = length (l1) + S (length l2)) by omega. *)
-    (*   simpl in *. rewrite <- beq_nat_true_iff in H2. rewrite H2. assumption. *)
-    (* + rewrite beq_nat_false_iff in A. *)
-    (*   assert (H1: x + 1 <> length (l1 ++ l2) + 1) by omega. *)
-    (*   rewrite app_length in *. *)
-    (*   assert (H2: x + 1 <> length (l1) + S (length l2)) by omega. *)
-    (*   rewrite <- beq_nat_false_iff in H2. simpl. rewrite H2. *)
-    (*   auto. *)
-      (* apply IHl1. assumption. *)
 Qed.
-
-(* Lemma indexr_hit_high: forall (X:Type) x (jj : X) l1 l2 vf, *)
-(*   indexr x (l1 ++ l2) = Some vf -> (length l2) <= x -> *)
-(*   indexr (x + 1) (l1 ++ jj :: l2) = Some vf. *)
-(* Proof. intros. induction l1. simpl in *. apply indexr_max in H. omega. *)
-(*   simpl in *. destruct (beq_nat x (length (l1 ++ l2))) eqn : A. *)
-(*   rewrite beq_nat_true_iff in A. assert (x + 1 = length (l1 ++ l2) + 1). *)
-(*   omega. rewrite app_length in *. assert(x + 1 = length (l1) + S (length l2)). *)
-(*   omega. simpl in *. rewrite <- beq_nat_true_iff in H2. rewrite H2. assumption. *)
-(*   rewrite beq_nat_false_iff in A. assert (x + 1 <> length (l1 ++ l2) + 1). *)
-(*   omega. rewrite app_length in *. assert(x + 1 <> length (l1) + S (length l2)). omega. *)
-(*   rewrite <- beq_nat_false_iff in H2. simpl. rewrite H2. apply IHl1. assumption. *)
-(* Qed. *)
 
 Ltac inject H := injection H; clear H; intros; try subst.
 Hint Resolve indexr_extend.
@@ -786,37 +759,6 @@ Proof.
           inversion Hc0; inversion Hc1; try omega.
 Qed.
 
-(* Lemma open_permute : forall T V0 V1 i j a b c d, *)
-(*   closed 0 a b (TSel V0) -> closed 0 c d (TSel V1) -> i <> j -> *)
-(*   open_rec i V0 (open_rec j V1 T) = open_rec j V1 (open_rec i V0 T). *)
-(* Proof. intros. generalize dependent i. generalize dependent j. *)
-(*   induction T; intros. *)
-(*   simpl. reflexivity. *)
-(*   simpl. reflexivity. *)
-(*   simpl. specialize (IHT1 _ _ H1). rewrite IHT1. assert ((S i) <> (S j)) by omega. *)
-(*   specialize (IHT2 _ _ H2). rewrite IHT2. reflexivity. *)
-(*   destruct v. simpl. reflexivity. simpl. reflexivity. *)
-(*   (* varB *) *)
-(*   destruct (beq_nat i i0) eqn : A. rewrite beq_nat_true_iff in A. subst. *)
-(*   assert ((open_rec j V1 (TSel (varB i0)) = (TSel (varB i0)))). simpl. *)
-(*   assert (beq_nat j i0 = false). rewrite beq_nat_false_iff. omega. rewrite H2. reflexivity. *)
-(*   rewrite H2. simpl. assert (beq_nat i0 i0 = true). erewrite beq_nat_refl. eauto. rewrite H3. *)
-(*   eapply closed_no_open. eapply closed_upgrade. eauto. omega. *)
-(*   destruct (beq_nat j i0) eqn : B. rewrite beq_nat_true_iff in B. subst. *)
-(*   simpl. assert (beq_nat i0 i0 = true). erewrite beq_nat_refl. eauto. rewrite H2. *)
-(*   assert (beq_nat i i0 = false). rewrite beq_nat_false_iff. omega. rewrite H3. *)
-(*   assert (TSel (V1) = open_rec i V0 (TSel V1)). eapply closed_no_open. eapply closed_upgrade. *)
-(*   eapply H0. omega. rewrite <- H4. simpl. rewrite H2. reflexivity. *)
-(*   assert ((open_rec j V1 (TSel (varB i0))) = TSel (varB i0)). simpl. rewrite B. reflexivity. *)
-(*   rewrite H2. assert (open_rec i V0 (TSel (varB i0)) = (TSel (varB i0))). simpl. *)
-(*   rewrite A. reflexivity. rewrite H3. simpl. rewrite B. reflexivity. *)
-
-(*   simpl. specialize (IHT1 _ _ H1). rewrite IHT1. *)
-(*   specialize (IHT2 _ _ H1). rewrite IHT2. reflexivity. *)
-(*   simpl. rewrite IHT. reflexivity. omega. *)
-(*   simpl. rewrite IHT1. rewrite IHT2. reflexivity. omega. omega. *)
-(* Qed. *)
-
 (* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
 Ltac ineq_solver := autorewrite with core; simpl in *; omega.
 Hint Extern 5 (_ > _) => ineq_solver.
@@ -830,8 +772,6 @@ Hint Resolve closed_upgrade_free : bind.
 Hint Resolve closed_upgrade_freef : bind.
 
 Ltac eauto_bind := unfold open; eauto with bind.
-    (* unfold open; *)
-    (* eapply IHn; autorewrite with core; eauto. *)
 
 Lemma closed_open2: forall i j k V T i1, closed i j k T -> closed i j k (TSel V) ->
   closed i j k (open_rec i1 V T).
