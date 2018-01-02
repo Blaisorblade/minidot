@@ -161,16 +161,8 @@ Program Definition expr_sem {n} (A : type_dom n) j p env1 e
     exists v, tevaln env1 e v /\
               A j p v env GH.
 
-(* Program Definition conv {T} {n} (A: type_dom2 T n) T1 (H: tsize_flat T1 < tsize_flat T): type_dom n := *)
-(*   fun n p => A T1 n _. *)
-(* Hint Unfold conv. *)
-
-Program Definition interpTAll n
-        (A1 : type_dom n)
-        (A2 : type_dom n)
-  : type_dom n :=
+Program Definition interpTAll n (A1 : type_dom n) (A2 : type_dom n) : type_dom n :=
   fun n0 p v env GH =>
-  (* fun env GH v n0 p => *)
     match v with
     | vabs env1 T0 t =>
       forall vx j (Hj: j <= n0),
@@ -180,9 +172,7 @@ Program Definition interpTAll n
     end.
 Hint Unfold interpTAll.
 
-Program Definition interpTMem n
-        (A1 : type_dom n)
-        (A2 : type_dom n)
+Program Definition interpTMem n (A1 : type_dom n) (A2 : type_dom n)
         (val_type2 : ty -> forall j, j < n -> vl_prop) :=
   fun n0 (p : n0 <= n) v env GH =>
     match v with
@@ -201,8 +191,6 @@ Program Fixpoint val_type2 (T: ty) (n : nat)
     | TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       interpTAll n
-                 (* (conv val_type2 T1 _) *)
-                 (* (conv val_type2 (open (varH (length GH)) T2) _) *)
                  (fun n p => val_type2 T1 n _)
                  (fun n p => val_type2 (open (varH (length GH)) T2) n _)
                  n _ v env GH
@@ -211,8 +199,6 @@ Program Fixpoint val_type2 (T: ty) (n : nat)
       interpTMem n
                  (fun n p => val_type2 T1 n _)
                  (fun n p => val_type2 T2 n _)
-                 (* (conv val_type2 T1 _) *)
-                 (* (conv val_type2 T2 _) *)
                  (fun T j p => val_type2 T j _)
                  n _ v env GH
     | TTop => True
@@ -261,51 +247,14 @@ Qed.
    functional extensionality)
 *)
 
-(* Triggers anomaly: *)
-(* Program Definition conv2 n (A: ty -> list vl -> list vl -> vl -> nat -> Prop) T1: *)
-(*   list vl -> list vl -> vl -> forall (n0 : nat) (H : n0 <= n), Prop := *)
-(*    fun env GH v n p => A T1 env GH v n. *)
-
-(* Program Lemma val_type2_unfold' : forall T env GH v n, *)
-(*     val_type2 T n v env GH = *)
-(*     match T with *)
-(*     | TAll T1 T2 => *)
-(*       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\ *)
-(*       interpTAll n *)
-(*                  (* (val_type2 T1) *) *)
-(*                  (* (val_type2 T1) *) *)
-(*                  (conv2 val_type2 T1) *)
-(*                  (* (fun env GH v n p => *) *)
-(*                  (*    val_type2 T1 *) *)
-(*                  (*              env GH v n) *) *)
-(*                  (conv2 val_type2 (open (varH (length GH)) T2)) *)
-(*                  (* (fun env GH v n p => *) *)
-(*                  (*    val_type2 *) *)
-(*                  (*      (open (varH (length GH)) T2) *) *)
-(*                  (*              env GH v n) *) *)
-(*                  env GH v n _ *)
-(*     | _ => *)
-(*       False *)
-(*     end. *)
-
-
-
-(* Program Definition conv2 n (A: ty -> nat -> vl_prop) T1: *)
-(*   forall (n0 : nat) (H : n0 <= n), vl_prop := *)
-(*    fun n p => A T1 n. *)
-
-
 Lemma val_type2_unfold' : forall T n v env GH,
     val_type2 T n v env GH =
     match T with
     | TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       interpTAll n
-                 (* (conv2 n val_type2 T1) *)
-                 (* (conv2 n val_type2 (open (varH (length GH)) T2)) *)
                  (fun n p => val_type2 T1 n)
-                 (fun n p =>
-                    val_type2 (open (varH (length GH)) T2) n)
+                 (fun n p => val_type2 (open (varH (length GH)) T2) n)
                  n (le_n _) v env GH
     | TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
