@@ -135,11 +135,9 @@ Ltac valTypeObligations Hj :=
   Tactics.program_simpl;
   solve [ smaller_n | smaller_types | discriminatePlus | (try destruct Hj; [ smaller_types | smaller_n ])].
 
-(* Definition nvset := nat -> vset. *)
-(* Hint Unfold nvset. *)
-
-(* Definition mon_nvset := { phi : nvset | forall m n v, m < n -> phi n v -> phi m v }. *)
-(* Hint Unfold mon_nvset. *)
+Definition type_dom0 :=
+  list vl -> list vl -> vl -> Prop.
+Hint Unfold type_dom0.
 
 Definition type_dom n :=
   list vl -> list vl -> vl ->
@@ -174,14 +172,9 @@ Program Definition interpTAll n
       forall vx j (Hj: j <= n0),
         A1 env GH vx j _ ->
         expr_sem A2 env (vx :: env1) (vx :: GH) t j _
-        (* exists v, tevaln (vx::env1) y v /\ *)
-        (*           B env (vx::GH) j v *)
     | _ => False
     end.
 Hint Unfold interpTAll.
-
-(* Solve Obligations with Tactics.program_simpl; simple_ineq. *)
-(* Solve Obligations with valTypeObligationsSSReflection. *)
 
 Program Definition interpTMem n
         (A1 : type_dom n)
@@ -232,8 +225,6 @@ Program Fixpoint val_type2 (T: ty) (env: list vl) (GH: list vl) (v:vl)
     | _ =>
       False
   end.
-
-(* Solve Obligations with valTypeObligationsSSReflection. *)
 
 Axiom prop_extensionality:
   forall (P Q: Prop), (P <-> Q) -> P = Q.
