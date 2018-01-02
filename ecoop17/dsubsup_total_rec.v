@@ -190,12 +190,7 @@ Inductive vtp: list vseta -> list vseta -> ty -> forall n, vset n -> vl -> Prop 
 Lemma unvv: forall G H T n dd v,
   vtp G H T n dd v -> val_type G H T n dd v.
 Proof.
-
-Require Import Coq.Logic.Eqdep_dec.
-Require Import Coq.Arith.Peano_dec.
-
-intros. inversion H0. apply inj_pair2_eq_dec in H2. subst. assumption.
-apply eq_nat_dec.
+  intros * H0. destruct H0. assumption.
 Qed.
 
 Axiom prop_extensionality:
@@ -206,8 +201,8 @@ Proof.
   intros.
   apply prop_extensionality.
   split; intros.
-  apply unvv. assumption.
-  constructor. assumption.
+  - apply unvv. assumption.
+  - constructor. assumption.
 Qed.
 
 Require Import FunctionalExtensionality.
