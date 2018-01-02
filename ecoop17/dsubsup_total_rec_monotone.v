@@ -184,6 +184,29 @@ Program Definition interpTMem n (A1 : type_dom n) (A2 : type_dom n)
     | _ => False
     end.
 
+Program Definition interpTSel0 n i (env0: list vl)
+        (val_type2 : ty -> forall j, j < n -> vl_prop): type_dom n :=
+  fun n0 (p : n0 <= n) v env GH =>
+    match indexr i env0 with
+    | Some (vty env1 TX) =>
+      forall j (Hk : j < n0), val_type2 TX j _ v env1 GH
+    | _ => False
+    end.
+
+Program Definition interpTSel n x
+        (val_type2 : ty -> forall j, j < n -> vl_prop) :=
+  fun n0 (p : n0 <= n) v env GH =>
+    match x with
+    | varF i => interpTSel0 n i env val_type2 n0 p v env GH
+    | varH i => interpTSel0 n i GH val_type2 n0 p v env GH
+    | varB _ => False
+     end.
+
+Program Definition interpTAnd n (A1 : type_dom n) (A2 : type_dom n) : type_dom n :=
+  fun n0 p v env GH =>
+    A1 n0 _ v env GH /\
+    A2 n0 _ v env GH.
+
 Program Fixpoint val_type2 (T: ty) (n : nat)
         {measure (val_type_measure T n) (termRel)}: vl_prop :=
   fun v env GH =>
@@ -203,11 +226,20 @@ Program Fixpoint val_type2 (T: ty) (n : nat)
                  n _ v env GH
     | TTop => True
     | TBot => False
+    | TSel x =>
+      interpTSel n x (fun T j p => val_type2 T j _)
+                n _ v env GH
+    | TAnd T1 T2 =>
+      interpTAnd n
+                 (fun n p => val_type2 T1 n _)
+                 (fun n p => val_type2 T2 n _)
+                 n _ v env GH
     (* Placeholders. Avoiding wildcards produces a much better Program output. *)
-    | TSel x => False
-    | TAnd T1 T2 => False
-    | TBind T1 => False
+    | TBind T1 =>
+      closed 1 (length GH) (length env) T1 /\
+      @val_type2 (open (varH (length GH)) T1) n _ v env (v::GH)
   end.
+Print val_type2_func.
 
 Axiom prop_extensionality:
   forall (P Q: Prop), (P <-> Q) -> P = Q.
@@ -264,6 +296,17 @@ Lemma val_type2_unfold' : forall T n v env GH,
                  (fun T j p => val_type2 T j)
                  n (le_n _) v env GH
     | TTop => True
+    | TSel x =>
+      interpTSel n x (fun T j p => val_type2 T j)
+                n (le_n _) v env GH
+    | TAnd T1 T2 =>
+      interpTAnd n
+                 (fun n p => val_type2 T1 n)
+                 (fun n p => val_type2 T2 n)
+                 n (le_n _) v env GH
+    | TBind T1 =>
+      closed 1 (length GH) (length env) T1 /\
+      val_type2 (open (varH (length GH)) T1) n v env (v::GH)
     | _ =>
       False
     end.
