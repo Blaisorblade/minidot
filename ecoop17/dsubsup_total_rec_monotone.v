@@ -135,13 +135,14 @@ Ltac valTypeObligations Hj :=
   Tactics.program_simpl;
   solve [ smaller_n | smaller_types | discriminatePlus | (try destruct Hj; [ smaller_types | smaller_n ])].
 
-Definition type_dom0 :=
-  list vl -> list vl -> vl -> Prop.
-Hint Unfold type_dom0.
+Definition env_prop := list vl -> list vl ->  Prop.
+Hint Unfold env_prop.
+
+Definition vl_prop := vl -> env_prop.
+Hint Unfold vl_prop.
 
 Definition type_dom n :=
-  list vl -> list vl -> vl ->
-  forall (n0: nat) (H: n0 <= n), Prop.
+  forall (n0: nat) (H: n0 <= n), vl_prop.
 Hint Unfold type_dom.
 
 Definition smaller_args T0 n0 T n :=
@@ -150,28 +151,31 @@ Hint Unfold smaller_args.
 
 Definition type_dom2 T n :=
   forall (T0 : ty),
-    list vl -> list vl -> vl ->
-    forall (n0: nat) (Hle : smaller_args T0 n0 T n), Prop.
+    forall (n0: nat) (Hle : smaller_args T0 n0 T n),
+      vl_prop.
+Hint Unfold type_dom2.
 
-Program Definition expr_sem {n} (A : type_dom n) :=
-  fun env env1 GH e j p =>
-        exists v, tevaln env1 e v /\
-                  A env GH v j p.
+Program Definition expr_sem {n} (A : type_dom n) j p env1 e
+  : env_prop :=
+  fun env GH =>
+    exists v, tevaln env1 e v /\
+              A j p v env GH.
 
-Program Definition conv {T} {n} (A: type_dom2 T n) T1 (H: tsize_flat T1 < tsize_flat T): type_dom n :=
-  fun env GH v n p => A T1 env GH v n _.
-Hint Unfold conv.
+(* Program Definition conv {T} {n} (A: type_dom2 T n) T1 (H: tsize_flat T1 < tsize_flat T): type_dom n := *)
+(*   fun n p => A T1 n _. *)
+(* Hint Unfold conv. *)
 
 Program Definition interpTAll n
         (A1 : type_dom n)
         (A2 : type_dom n)
   : type_dom n :=
-  fun env GH v n0 p =>
+  fun n0 p v env GH =>
+  (* fun env GH v n0 p => *)
     match v with
     | vabs env1 T0 t =>
       forall vx j (Hj: j <= n0),
-        A1 env GH vx j _ ->
-        expr_sem A2 env (vx :: env1) (vx :: GH) t j _
+        A1 j _ vx env GH ->
+        expr_sem A2 j _ (vx :: env1) t env (vx :: GH)
     | _ => False
     end.
 Hint Unfold interpTAll.
@@ -179,68 +183,61 @@ Hint Unfold interpTAll.
 Program Definition interpTMem n
         (A1 : type_dom n)
         (A2 : type_dom n)
-        (val_type2 : ty -> list vl -> list vl -> vl -> forall j, j < n -> Prop) :=
-  fun env GH v n0 (p : n0 <= n) =>
+        (val_type2 : ty -> forall j, j < n -> vl_prop) :=
+  fun n0 (p : n0 <= n) v env GH =>
     match v with
     | vty env1 TX =>
       forall j (Hj : j < n0),
       forall vy,
-        (A1 env GH vy j _ -> val_type2 TX env1 GH vy j _) /\
-        (val_type2 TX env1 GH vy j _ -> A2 env GH vy j _)
+        (A1 j _ vy env GH -> val_type2 TX j _ vy env1 GH) /\
+        (val_type2 TX j _ vy env1 GH -> A2 j _ vy env GH)
     | _ => False
     end.
 
-Program Fixpoint val_type2 (T: ty) (env: list vl) (GH: list vl) (v:vl)
-        (n: nat) {measure (val_type_measure T n) (termRel)}: Prop :=
+Program Fixpoint val_type2 (T: ty) (n : nat)
+        {measure (val_type_measure T n) (termRel)}: vl_prop :=
+  fun v env GH =>
   match T with
     | TAll T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
       interpTAll n
-                 (* (val_type2 T1) *)
-                 (conv val_type2 T1 _)
-                 (* (fun env GH v n p => *)
-                 (*    val_type2 T1 *)
-                 (*              env GH v n) *)
-                 (conv val_type2 (open (varH (length GH)) T2) _)
-                 (* (fun env GH v n p => *)
-                 (*    val_type2 *)
-                 (*      (open (varH (length GH)) T2) *)
-                 (*              env GH v n) *)
-                 env GH v n _
+                 (* (conv val_type2 T1 _) *)
+                 (* (conv val_type2 (open (varH (length GH)) T2) _) *)
+                 (fun n p => val_type2 T1 n _)
+                 (fun n p => val_type2 (open (varH (length GH)) T2) n _)
+                 n _ v env GH
     | TMem T1 T2 =>
       closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
       interpTMem n
-                 (conv val_type2 T1 _)
-                 (conv val_type2 T2 _)
-                 (fun T GH env v j p => val_type2 T GH env v j)
-                 GH env v n _
-      (* match v with *)
-      (* | vty env1 TX => *)
-      (*   forall j (Hj : j < n), *)
-      (*   forall vy, *)
-      (*     (val_type2 T1 env GH vy j -> val_type2 TX env1 GH vy j) /\ *)
-      (*     (val_type2 TX env1 GH vy j -> val_type2 T2 env GH vy j) *)
-      (* | _ => False *)
-      (* end *)
-    | _ =>
-      False
+                 (fun n p => val_type2 T1 n _)
+                 (fun n p => val_type2 T2 n _)
+                 (* (conv val_type2 T1 _) *)
+                 (* (conv val_type2 T2 _) *)
+                 (fun T j p => val_type2 T j _)
+                 n _ v env GH
+    | TTop => True
+    | TBot => False
+    (* Placeholders. Avoiding wildcards produces a much better Program output. *)
+    | TSel x => False
+    | TAnd T1 T2 => False
+    | TBind T1 => False
   end.
 
 Axiom prop_extensionality:
   forall (P Q: Prop), (P <-> Q) -> P = Q.
 
 (* this is just to accelerate Coq -- val_type in the goal is slooow *)
-Inductive vtp2: ty -> list vl -> list vl -> vl -> forall n, Prop :=
-| vv2: forall T G H n v, val_type2 T G H v n -> vtp2 T G H v n.
+Inductive vtp2: ty -> nat -> vl_prop :=
+| vv2: forall T n v env GH, val_type2 T n v env GH -> vtp2 T n v env GH.
 
-Lemma unvv2: forall T G H v n,
-  vtp2 T G H v n -> val_type2 T G H v n.
+Lemma unvv2: forall T n v env GH,
+  vtp2 T n v env GH -> val_type2 T n v env GH.
 Proof.
   intros * H0. destruct H0. assumption.
 Qed.
 
-Lemma vtp2_unfold: forall T G H v n,
-  vtp2 T G H v n = val_type2 T G H v n.
+Lemma vtp2_unfold: forall T n v env GH,
+  vtp2 T n v env GH = val_type2 T n v env GH.
 Proof.
   intros.
   apply prop_extensionality.
@@ -270,7 +267,7 @@ Qed.
 (*    fun env GH v n p => A T1 env GH v n. *)
 
 (* Program Lemma val_type2_unfold' : forall T env GH v n, *)
-(*     val_type2 T env GH v n = *)
+(*     val_type2 T n v env GH = *)
 (*     match T with *)
 (*     | TAll T1 T2 => *)
 (*       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\ *)
@@ -293,37 +290,40 @@ Qed.
 
 
 
-Program Definition conv2 n (A: ty -> list vl -> list vl -> vl -> nat -> Prop) T1:
-  list vl -> list vl -> vl -> forall (n0 : nat) (H : n0 <= n), Prop :=
-   fun env GH v n p => A T1 env GH v n.
+(* Program Definition conv2 n (A: ty -> nat -> vl_prop) T1: *)
+(*   forall (n0 : nat) (H : n0 <= n), vl_prop := *)
+(*    fun n p => A T1 n. *)
 
-(* Lemma val_type2_unfold' : forall T env GH v n, *)
-(*     val_type2 T env GH v n = *)
-(*     match T with *)
-(*     | TAll T1 T2 => *)
-(*       closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\  *)
-(*       interpTAll n *)
-(*                  (* (val_type2 T1) *) *)
-(*                  (* (val_type2 T1) *) *)
-(*                  (@conv2 n val_type2 T1) *)
-(*                  (* (fun env GH v n p => *) *)
-(*                  (*    val_type2 T1 *) *)
-(*                  (*              env GH v n) *) *)
-(*                  (@conv2 n val_type2 (open (varH (length GH)) T2)) *)
-(*                  (* (fun env GH v n p => *) *)
-(*                  (*    val_type2 *) *)
-(*                  (*      (open (varH (length GH)) T2) *) *)
-(*                  (*              env GH v n) *) *)
-(*                  env GH v n (le_n _) *)
-(*     | _ => *)
-(*       False *)
-(*     end. *)
-(* Proof. *)
-(*   intros. unfold val_type2 at 1; unfold val_type2_func; *)
-(*   unfold_sub val_type2 (val_type2 T env GH v n); *)
-(*   program_simplify; *)
-(*   repeat (norepeat_match_case_analysis_goal; try reflexivity). *)
-(* Qed. *)
+
+Lemma val_type2_unfold' : forall T n v env GH,
+    val_type2 T n v env GH =
+    match T with
+    | TAll T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 1 (length GH) (length env) T2 /\
+      interpTAll n
+                 (* (conv2 n val_type2 T1) *)
+                 (* (conv2 n val_type2 (open (varH (length GH)) T2)) *)
+                 (fun n p => val_type2 T1 n)
+                 (fun n p =>
+                    val_type2 (open (varH (length GH)) T2) n)
+                 n (le_n _) v env GH
+    | TMem T1 T2 =>
+      closed 0 (length GH) (length env) T1 /\ closed 0 (length GH) (length env) T2 /\
+      interpTMem n
+                 (fun n p => val_type2 T1 n)
+                 (fun n p => val_type2 T2 n)
+                 (fun T j p => val_type2 T j)
+                 n (le_n _) v env GH
+    | TTop => True
+    | _ =>
+      False
+    end.
+Proof.
+  intros. unfold val_type2 at 1; unfold val_type2_func;
+  unfold_sub val_type2 (val_type2 T n v env GH);
+  program_simplify;
+  repeat (norepeat_match_case_analysis_goal; try reflexivity).
+Qed.
 
 (*
 Again:
