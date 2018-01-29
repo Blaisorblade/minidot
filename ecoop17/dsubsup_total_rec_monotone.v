@@ -239,7 +239,6 @@ Program Fixpoint val_type2 (T: ty) (n : nat)
       closed 1 (length GH) (length env) T1 /\
       @val_type2 (open (varH (length GH)) T1) n _ v env (v::GH)
   end.
-Print val_type2_func.
 
 Axiom prop_extensionality:
   forall (P Q: Prop), (P <-> Q) -> P = Q.

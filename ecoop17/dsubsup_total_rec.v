@@ -1297,22 +1297,28 @@ Lemma invert_var : forall x tenv T,
   has_type tenv (tvar x) T -> forall venv renv, R_env venv renv tenv ->
   exists (d: vseta) v, tevaln venv (tvar x) v /\ indexr x venv = Some v /\ indexr x renv = Some d /\ forall k, vtp renv [] T k (d k) v.
 Proof.
-  intros ? ? ? W. remember (tvar x) as e.
-  induction W; intros ? ? WFE; inversion Heqe; try subst x0.
+  intros * W. remember (tvar x) as e.
+  induction W; intros * WFE; inversion Heqe; try subst x0.
 
   - Case "Var".
-    destruct (indexr_safe_ex venv renv env T1 x) as [d [v [I [D V]]]]. eauto. eauto.
+    destruct (indexr_safe_ex venv renv env T1 x) as [d [v [I [D V]]]]; eauto.
 
-    exists d. exists v. split. exists 0. intros. destruct n. omega. simpl. rewrite I. eauto. split. apply I. split. apply D. eapply V.
+    exists d. exists v.
+    repeat split_conj; try assumption.
+    + exists 0. intros. destruct n. omega. simpl. rewrite I. trivial.
 
   - Case "VarPack".
     unfold R_env in WFE. ev. destruct (H4 _ _ H) as [d [v [I ?]]]. ev.
-    exists d. exists v. split. exists 0. intros. destruct n. omega. simpl. rewrite I. reflexivity.
-    intros.
+    exists d. exists v.
+
+    repeat split_conj; try assumption.
+    + exists 0. intros. destruct n. omega. simpl. rewrite I. reflexivity.
+    +
     assert (forall n, vtp renv [d] (open (varH 0) T1) n (d n) v). {
-      intros. eapply vtp_subst2_general. rewrite H3. assumption. eassumption. eapply H6. }
-    split. assumption. split. assumption. intros. rewrite val_type_unfold. rewrite H3.
-    destruct v; split; try assumption; exists d; (split; [reflexivity| assumption]).
+      intros. eapply vtp_subst2_general; eauto.
+      rewrite H3. assumption. }
+    intros. rewrite val_type_unfold. rewrite H3.
+    destruct v; eauto.
 
   - Case "And".
     destruct (IHW1 eq_refl venv renv WFE) as [d1 [v1 [E1 [I1 [D1 HVF]]]]].
@@ -1320,12 +1326,17 @@ Proof.
     rewrite I1 in I2. inversion I2. subst v2.
     rewrite D1 in D2. inversion D2. subst d2.
     exists d1. exists v1.
-    split. assumption. split. assumption. split. assumption.
-    intros. rewrite val_type_unfold. destruct v1; (split; [apply HVF|apply HVX]).
+
+    repeat split_conj; try assumption.
+    intros. rewrite val_type_unfold.
+    destruct v1; auto.
 
   - Case "Sub".
-    specialize (IHW Heqe venv renv WFE). ev. exists x0. exists x1. split. subst e. eassumption. split. assumption. split. assumption.
-    intros. eapply valtp_widen. eapply H4. eapply H. eapply WFE.
+    specialize (IHW Heqe venv renv WFE). ev. exists x0. exists x1.
+    subst e.
+    repeat split_conj; try assumption.
+    (* split.  eassumption. split. assumption. split. assumption. *)
+    intros. eauto using valtp_widen.
 Qed.
 
 
@@ -1334,15 +1345,17 @@ Theorem full_total_safety : forall e tenv T,
   has_type tenv e T -> forall venv renv, R_env venv renv tenv ->
   exists (d: vseta) v, tevaln venv e v /\ forall k, vtp renv [] T k (d k) v.
 Proof.
-  intros ? ? ? W.
-  induction W; intros ? ? WFE.
+  intros * W.
+  induction W; intros * WFE.
 
   - Case "Var".
     destruct (invert_var x env T1 (t_var x env T1 H H0) venv renv WFE) as [d [v [E [I [D V]]]]].
-    exists d. exists v. split. apply E. apply V.
+    (* exists d. exists v. *)
+    eauto.
   - Case "VarPack".
     destruct (invert_var x G1 (TBind T1) (t_var_pack _ x T1 T1' H H0 H1) venv renv WFE) as [d [v [E [I [D V]]]]].
-    exists d. exists v. split. apply E. apply V.
+    (* exists d. exists v. *)
+    eauto.
 
 
   - Case "unpack".
@@ -1352,13 +1365,19 @@ Proof.
     rewrite val_type_unfold in HVX.
     assert (exists jj : vseta,
               (forall n : nat,
-                 vtp renv [jj] (open (varH 0) T1) n (jj n) vx)) as E.
-    destruct vx; ev; exists x0; assumption.
+                 vtp renv [jj] (open (varH 0) T1) n (jj n) vx)) as E. {
+      destruct vx; ev; exists x0; assumption.
+    }
     destruct E as [jj VXH].
     assert (forall n, vtp (jj::renv) [] (open (varF (length renv)) T1) n (jj n) vx) as VXF. {
-      assert (closed 1 0 (S (length renv)) T1). { destruct vx; ev; eapply closed_upgrade_freef; try eassumption; auto. }
-      intros. eapply vtp_subst2. assumption. eapply valtp_extend. eapply VXH.
-      eapply indexr_hit2. reflexivity. reflexivity. }
+      assert (closed 1 0 (S (length renv)) T1). { destruct vx; ev; eauto_bind.
+                                                    (* eapply closed_upgrade_freef; try eassumption; auto. *)
+                                                }
+      intros.
+      eauto using vtp_subst2, valtp_extend, indexr_hit2.
+      (* eapply vtp_subst2. assumption. eapply valtp_extend. eapply VXH. *)
+      (* eapply indexr_hit2. reflexivity. reflexivity. *)
+    }
 
     assert (R_env (vx::venv) (jj::renv) (T1'::env)) as WFE1.
     eapply wf_env_extend. assumption. rewrite H. assumption.
