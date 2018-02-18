@@ -37,7 +37,7 @@ Inductive ty : Set :=
 (* (z: T) -> T^z *)
 | TAll : ty -> ty -> ty
 (* x.Type *)
-| TSel : var -> ty
+| TSel : ovl -> ty
 (* | TSel : var -> typ_label -> ty *)
 | TMem : ty(*S*) -> ty(*U*) -> ty
 | TBind  : ty -> ty (* Recursive binder: { z => T^z },
@@ -51,9 +51,7 @@ Inductive ty : Set :=
 (* | dec_trm : trm_label -> ty -> dec *)
 (* (* (* { Type: S..U } *) *) *)
 (* (* | TMem : ty(*S*) -> ty(*U*) -> ty *) *)
-.
-
-Inductive tm : Type :=
+with tm : Set :=
 (* x -- free variable, matching concrete environment *)
 | tvar : id -> tm
 (* { Type = T } *)
@@ -62,16 +60,24 @@ Inductive tm : Type :=
 | tabs : ty -> tm -> tm
 (* t t *)
 | tapp : tm -> tm -> tm
+(* we can keep it in, but still have typing lemmas for TVarUnpack not just TUnpack. *)
 (* unpack(e) { x => ... } *)
 | tunpack : tm -> tm -> tm                       
-.
-
-Inductive vl : Type :=
+with vl : Set :=
 (* a closure for a lambda abstraction *)
 | vabs : list vl (*H*) -> ty -> tm -> vl
 (* a closure for a first-class type *)
 | vty : list vl (*H*) -> ty -> vl
+with ovl : Set :=
+| cvl : vl -> ovl
+| varVl : var -> ovl
 .
+
+Scheme ty_mut  := Induction for ty  Sort Prop
+with   tm_mut  := Induction for tm Sort Prop
+with   vl_mut  := Induction for vl Sort Prop
+with   ovl_mut  := Induction for ovl  Sort Prop.
+Combined Scheme ty_mutind from ty_mut, tm_mut, vl_mut, ovl_mut.
 
 Definition tenv := list ty. (* Gamma environment: static *)
 Definition venv := list vl. (* H environment: run-time *)
@@ -91,6 +97,12 @@ Fixpoint indexr {X : Type} (n : id) (l : list X) : option X :=
 Hint Unfold indexr.
 Hint Unfold length.
 
+Inductive closed_var: nat(*B*) -> nat(*F*) -> var -> Prop :=
+| closed_varB : forall i j x,
+    j > x -> closed_var i j (varF x)
+| closed_varF : forall i j x,
+    i > x -> closed_var i j (varB x).
+
 Inductive closed: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 | cl_top: forall i j,
     closed i j TTop
@@ -101,11 +113,8 @@ Inductive closed: nat(*B*) -> nat(*F*) -> ty -> Prop :=
     closed (S i) j T2 ->
     closed i j (TAll T1 T2)
 | cl_sel: forall i j x,
-    j > x ->
-    closed i j (TSel (varF x))
-| cl_selb: forall i j x,
-    i > x ->
-    closed i j (TSel (varB x))
+    closed_var i j x ->
+    closed i j (TSel (varVl x))
 | cl_mem: forall i j T1 T2,
     closed i j T1 ->
     closed i j T2 ->
@@ -117,6 +126,15 @@ Inductive closed: nat(*B*) -> nat(*F*) -> ty -> Prop :=
     closed i j T1 ->
     closed i j T2 ->
     closed i j (TAnd T1 T2)
+.
+Inductive closed_ovl i (*B*) j (*F*): ovl -> Prop :=
+| cl_varVl : forall x,
+    closed_var i j x ->
+    closed_ovl i j (varVl x)
+| cl_cvl : forall v,
+    closed_vl i j v ->
+    closed_ovl i j (cvl v)
+with closed_vl i j : vl -> Prop :=
 .
 
 (* open define a locally-nameless encoding wrt to varB type variables. *)
