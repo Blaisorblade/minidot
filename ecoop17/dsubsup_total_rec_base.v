@@ -18,7 +18,6 @@ Definition id := nat.
 (* term variables occurring in types *)
 Inductive var : Type :=
 | varF : id -> var (* free, in concrete environment *)
-| varH : id -> var (* free, in abstract environment  *)
 | varB : id -> var (* locally-bound variable *)
 .
 
@@ -86,9 +85,6 @@ Inductive closed: nat(*B*) -> nat(*H*) -> nat(*F*) -> ty -> Prop :=
 | cl_sel: forall i j k x,
     k > x ->
     closed i j k (TSel (varF x))
-| cl_selh: forall i j k x,
-    j > x ->
-    closed i j k (TSel (varH x))
 | cl_selb: forall i j k x,
     i > x ->
     closed i j k (TSel (varB x))
@@ -113,7 +109,6 @@ Fixpoint open_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
     | TBot        => TBot
     | TAll T1 T2  => TAll (open_rec k u T1) (open_rec (S k) u T2)
     | TSel (varF x) => TSel (varF x)
-    | TSel (varH i) => TSel (varH i)
     | TSel (varB i) => if beq_nat k i then TSel u else TSel (varB i)
     | TMem T1 T2  => TMem (open_rec k u T1) (open_rec k u T2)
     | TBind T => TBind (open_rec (S k) u T)
