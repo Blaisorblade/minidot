@@ -11,7 +11,7 @@ Some (Some v))   means result v
 Could use do-notation to clean up syntax.
 *)
 (* TODO: Step-index this semantics, following the step-indexing by Rompf. *)
-Fixpoint teval(n: nat)(env: venv)(t: tm): option (option vl) :=
+Fixpoint teval (t: tm) (n: nat) (env: venv): option (option vl) :=
   match n with
     | 0 => None
     | S n =>
@@ -20,29 +20,29 @@ Fixpoint teval(n: nat)(env: venv)(t: tm): option (option vl) :=
         | ttyp T       => Some (Some (vty env T))
         | tabs T y     => Some (Some (vabs env T y))
         | tapp ef ex   =>
-          match teval n env ex with
+          match teval ex n env with
             | None => None
             | Some None => Some None
             | Some (Some vx) =>
-              match teval n env ef with
+              match teval ef n env with
                 | None => None
                 | Some None => Some None
                 | Some (Some (vty _ _)) => Some None
                 | Some (Some (vabs env2 _ ey)) =>
-                  teval n (vx::env2) ey
+                  teval ey n (vx::env2)
               end
           end
         | tunpack ex ey =>
-          match teval n env ex with
+          match teval ex n env with
             | None => None
             | Some None => Some None
             | Some (Some vx) =>
-              teval n (vx::env) ey
+              teval ey n (vx::env)
           end
       end
   end.
 
-Fixpoint tevalM (t: tm)(n: nat)(env: venv): option (option vl) :=
+Fixpoint tevalM (t: tm) (n: nat) (env: venv): option (option vl) :=
   match n with
   | 0 => None
   | S n =>
@@ -73,7 +73,7 @@ Fixpoint tevalM (t: tm)(n: nat)(env: venv): option (option vl) :=
     end
   end.
 
-Theorem evals_equiv: forall n env t, tevalM t n env = teval n env t.
+Theorem evals_equiv: forall n env t, tevalM t n env = teval t n env.
 Proof.
   intros; revert env t; induction n; simpl_unfold_monad; try reflexivity;
     intros;
@@ -100,7 +100,7 @@ Definition step {A} (k : nat) (x: m A) : m A :=
 (*   forall (A B: Type) (f g: A -> B), *)
 (*     (forall x, f x = g x) -> f = g. *)
 
-Definition tevaln env e v := exists nm, forall n, n > nm -> teval n env e = Some (Some v).
+Definition tevaln env e v := exists nm, forall n, n > nm -> teval e n env = Some (Some v).
 
 
 (* Definition opt_bind {A B : Type} (a : option A) (f : A -> option B) : option B := *)
@@ -116,7 +116,7 @@ Definition tevaln env e v := exists nm, forall n, n > nm -> teval n env e = Some
 (*   | None => None *)
 (*   end. *)
 
-Fixpoint tevalM2 (t: tm)(n: nat)(env: venv): option (option vl * nat) :=
+Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
   match n with
   | 0 => None
   | S n =>
@@ -125,20 +125,20 @@ Fixpoint tevalM2 (t: tm)(n: nat)(env: venv): option (option vl * nat) :=
     | ttyp T       => ret (vty env T)
     | tabs T y     => ret (vabs env T y)
     | tapp tf ta   =>
-      va <- tevalM2 ta n env;
-      vf <- tevalM2 tf n env;
+      va <- tevalSM ta n env;
+      vf <- tevalSM tf n env;
       match vf with
       | vty _ _ => error
       | vabs env2 _ tbody =>
-        step 1 (tevalM2 tbody n (va :: env2))
+        step 1 (tevalSM tbody n (va :: env2))
       end
     | tunpack tx ty =>
-      vx <- tevalM2 tx n env;
-      step 1 (tevalM2 ty n (vx::env))
+      vx <- tevalSM tx n env;
+      step 1 (tevalSM ty n (vx::env))
     end
   end.
 
-Fixpoint teval' (t: tm)(n: nat)(env: venv){struct n}: option (option vl * nat) :=
+Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
   match n with
     | 0 => None
     | S n =>
@@ -147,30 +147,30 @@ Fixpoint teval' (t: tm)(n: nat)(env: venv){struct n}: option (option vl * nat) :
         | ttyp T       => Some (Some (vty env T), 0)
         | tabs T y     => Some (Some (vabs env T y), 0)
         | tapp ef ex   =>
-          match teval' ex n env with
+          match tevalS ex n env with
             | None => None
             | Some (None, k1) => Some (None, k1)
             | Some (Some vx, k1) =>
-              match teval' ef n env with
+              match tevalS ef n env with
                 | None => None
                 | Some (None, k2) => Some (None, k1 + k2)
                 | Some (Some (vty _ _), k2) => Some (None, k1 + k2)
                 | Some (Some (vabs env2 _ ey), k2) =>
-                  step (k1 + k2 + 1) (teval' ey n (vx::env2))
+                  step (k1 + k2 + 1) (tevalS ey n (vx::env2))
               end
           end
         | tunpack ex ey =>
-          match teval' ex n env with
+          match tevalS ex n env with
             | None => None
             | Some (None, k) => Some (None, k)
             | Some (Some vx, k1) =>
-              step (k1 + 1) (teval' ey n (vx::env))
+              step (k1 + 1) (tevalS ey n (vx::env))
             (* | res => res *)
           end
       end
   end.
 
-Theorem evalMs_equiv: forall n env t, tevalM2 t n env = teval' t n env.
+Theorem evalMs_equiv: forall n env t, tevalSM t n env = tevalS t n env.
 Proof.
   intros; revert env t; induction n; simpl_unfold_monad; unfold step; try reflexivity;
     intros;
@@ -181,3 +181,5 @@ Proof.
        repeat rewrite IHn in *;
        try (reflexivity || discriminate || omega)).
 Qed.
+
+Definition tevalSn env e v k := exists nm, forall n, n > nm -> tevalS e n env = Some (Some v, k).
