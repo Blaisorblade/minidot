@@ -64,3 +64,41 @@ Ltac split_conj :=
   end.
 (* stdpp name. *)
 Ltac split_and := split_conj.
+
+(* (* Try automatic inversion on hypotheses matching Some to Some, in a few variants. *)
+(*  * I use these variants depending on the scenario; they are needed because no *)
+(*  * inversion tactic is too robust. *)
+(*  *) *)
+(* Ltac inverse_some := *)
+(*   (* Below, using inversion instead of inversion_clear reduces the *)
+(*   danger of destroying information and producing false goals, but *)
+(*   means that repeat inverse_some will loop! *) *)
+(*   match goal with *)
+(*   | H : Some ?x = Some ?y |- _ => inversion_clear H; subst *)
+(*   end. *)
+(* Ltac inverts_some := *)
+(*   match goal with *)
+(*   | H : Some ?x = Some ?y |- _ => inversion H; subst; clear H *)
+(*   end. *)
+(* Ltac inversions_some := *)
+(*   match goal with *)
+(*   | H : Some ?x = Some ?y |- _ => inversion H; subst *)
+(*   end. *)
+
+(* From Chlipala's tactics. *)
+Ltac inject H := injection H; clear H; intros; try subst.
+
+(* More reliable (?) variant of inversions_some. *)
+Ltac injections_some :=
+  match goal with
+    [H : Some ?a = Some ?b |- _ ] => inject H
+  end.
+
+(* To use with repeat fequalSafe in automation.
+   Unlike f_equal, won't try to prove a = b = c + d by a = c and b = d --- such
+   equaities are omega's job. *)
+Ltac fequalSafe :=
+  match goal with
+  | [ |- Some _ = Some _ ] => f_equal
+  | [ |- (_, _) = (_, _) ] => f_equal
+  end.
