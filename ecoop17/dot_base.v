@@ -64,7 +64,7 @@ Inductive tm : Set :=
 | tapp : tm -> tm -> tm
 (* we can keep it in, but still have typing lemmas for TVarUnpack not just TUnpack. *)
 (* unpack(e) { x => ... } *)
-| tunpack : tm -> tm -> tm                       
+| tunpack : tm -> tm -> tm
 .
 Inductive vl : Set :=
 (* a closure for a lambda abstraction *)
@@ -268,7 +268,7 @@ Fixpoint tsize_flat(T: ty) :=
     | TMem T1 T2 => S (tsize_flat T1 + tsize_flat T2)	
     | TBind T => S (tsize_flat T)
     | TAnd T1 T2 => S (tsize_flat T1 + tsize_flat T2)
-  end. 
+  end.
 
 
 

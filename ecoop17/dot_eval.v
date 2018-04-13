@@ -37,7 +37,7 @@ Fixpoint teval(n: nat)(env: venv)(t: tm): option (option vl) :=
             | None => None
             | Some None => Some None
             | Some (Some vx) =>
-              teval n (vx::env) ey 
+              teval n (vx::env) ey
           end
       end
   end.
@@ -45,7 +45,7 @@ Fixpoint teval(n: nat)(env: venv)(t: tm): option (option vl) :=
 Fixpoint tevalM (t: tm)(n: nat)(env: venv): option (option vl) :=
   match n with
   | 0 => None
-  | S n => 
+  | S n =>
     match t with
     | tvar x       => ret (indexr x env)
     | ttyp T       => ret (vty env T)
@@ -76,7 +76,7 @@ Fixpoint tevalM (t: tm)(n: nat)(env: venv): option (option vl) :=
 Theorem evals_equiv: forall n env t, tevalM t n env = teval n env t.
 Proof.
   intros; revert env t; induction n; simpl_unfold_monad; try reflexivity;
-    intros; 
+    intros;
     repeat
       (try case_match;
        repeat rewrite IHn;
@@ -119,7 +119,7 @@ Definition tevaln env e v := exists nm, forall n, n > nm -> teval n env e = Some
 Fixpoint tevalM2 (t: tm)(n: nat)(env: venv): option (option vl * nat) :=
   match n with
   | 0 => None
-  | S n => 
+  | S n =>
     match t with
     | tvar x       => ret (indexr x env, 0)
     | ttyp T       => ret (vty env T)
