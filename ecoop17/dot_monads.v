@@ -29,8 +29,9 @@ Program Instance monadOption : MonadError option :=
               | Some a => f a
               end;
   }.
-Solve Obligations with
-    intros; simpl; repeat case_match; reflexivity.
+
+Solve Obligations with program_simplify;
+  repeat case_match; reflexivity.
 
 Ltac simpl_unfold_monad :=
   repeat (unfold ret, bind, error in *; simpl in *).
@@ -55,8 +56,8 @@ Program Instance monadOptionOption : MonadError (fun A => option (option A)) :=
   (*             end). *)
   (* This definition typechecks but fails! *)
   (* - refine (fun {A B} m f => bind m (fun m' => bind m' (fun a => f a))). *)
-Solve Obligations with
-    intros; simpl_unfold_monad; repeat case_match; reflexivity.
+Solve Obligations with program_simplify;
+  repeat case_match; reflexivity.
 
 Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((option A) * nat)) :=
   {
@@ -92,7 +93,18 @@ Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((op
   (*               end *)
   (*             end). *)
 
-Solve Obligations with
-    intros; simpl_unfold_monad; repeat case_match;
-    try injections_some; repeat fequalSafe;
-      try (reflexivity || omega || discriminate).
+(* Next Obligation. *)
+(*   intros; repeat case_match; reflexivity. *)
+(* Qed. *)
+(* Next Obligation. *)
+(*   intros. repeat case_match; try reflexivity; repeat fequalSafe; omega. *)
+(* Qed. *)
+(* Next Obligation. *)
+(*   intros; simpl_unfold_monad; repeat case_match; try reflexivity. *)
+(*   all: repeat fequalSafe; *)
+(*   repeat injections_some; try reflexivity || omega || discriminate. *)
+(* Qed. *)
+Solve Obligations with program_simplify;
+  repeat case_match; try reflexivity;
+    repeat fequalSafe; repeat injections_some;
+      reflexivity || omega || discriminate.
