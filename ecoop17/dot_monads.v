@@ -47,15 +47,6 @@ Program Instance monadOptionOption : MonadError (fun A => option (option A)) :=
               | Some (Some a) => f a
               end)
   }.
-  (* refine (fun {A} x => ret (ret x)). *)
-  (* refine (fun {A B} m f => *)
-  (*             match m with *)
-  (*             | None => None *)
-  (*             | Some None => Some None *)
-  (*             | Some (Some a) => f a *)
-  (*             end). *)
-  (* This definition typechecks but fails! *)
-  (* - refine (fun {A B} m f => bind m (fun m' => bind m' (fun a => f a))). *)
 Solve Obligations with program_simplify;
   repeat case_match; reflexivity.
 
@@ -63,7 +54,6 @@ Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((op
   {
     error := fun {A} => ret (None, 0);
     ret := fun {A} x => ret (ret x, 0);
-    (* ret := fun {A} x => Some (Some x); *)
     bind := fun {A B} m f =>
               match m with
               | None => None
@@ -93,17 +83,6 @@ Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((op
   (*               end *)
   (*             end). *)
 
-(* Next Obligation. *)
-(*   intros; repeat case_match; reflexivity. *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   intros. repeat case_match; try reflexivity; repeat fequalSafe; omega. *)
-(* Qed. *)
-(* Next Obligation. *)
-(*   intros; simpl_unfold_monad; repeat case_match; try reflexivity. *)
-(*   all: repeat fequalSafe; *)
-(*   repeat injections_some; try reflexivity || omega || discriminate. *)
-(* Qed. *)
 Solve Obligations with program_simplify;
   repeat case_match; try reflexivity;
     repeat fequalSafe; repeat injections_some;
