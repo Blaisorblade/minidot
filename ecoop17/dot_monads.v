@@ -95,4 +95,4 @@ Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((op
 Solve Obligations with
     intros; simpl_unfold_monad; repeat case_match;
     try injections_some; repeat fequalSafe;
-      try (reflexivity || omega || congruence).
+      try (reflexivity || omega || discriminate).
