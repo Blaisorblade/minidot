@@ -106,3 +106,8 @@ Ltac fequalSafe :=
   | [ |- Some _ = Some _ ] => f_equal
   | [ |- (_, _) = (_, _) ] => f_equal
   end.
+
+Hint Constructors option.
+Hint Constructors list.
+
+Hint Resolve ex_intro.

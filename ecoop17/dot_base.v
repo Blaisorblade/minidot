@@ -300,9 +300,3 @@ Hint Constructors tm.
 Hint Constructors vl.
 
 Hint Constructors closed_ty.
-
-Hint Constructors option.
-Hint Constructors list.
-
-Hint Resolve ex_intro.
-
