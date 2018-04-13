@@ -1,3 +1,7 @@
+Require Export Omega.
+Require Export Program.
+Unset Transparent Obligations.
+
 Ltac inverse H := (inversion H; subst).
 
 Ltac ev := repeat match goal with
