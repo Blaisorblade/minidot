@@ -37,7 +37,7 @@ Inductive ty : Set :=
 (* (z: T) -> T^z *)
 | TAll : ty -> ty -> ty
 (* x.Type *)
-| TSel : ovl -> ty
+| TSel : var -> ty
 (* | TSel : var -> typ_label -> ty *)
 | TMem : ty(*S*) -> ty(*U*) -> ty
 | TBind  : ty -> ty (* Recursive binder: { z => T^z },
@@ -51,7 +51,9 @@ Inductive ty : Set :=
 (* | dec_trm : trm_label -> ty -> dec *)
 (* (* (* { Type: S..U } *) *) *)
 (* (* | TMem : ty(*S*) -> ty(*U*) -> ty *) *)
-with tm : Set :=
+.
+
+Inductive tm : Set :=
 (* x -- free variable, matching concrete environment *)
 | tvar : id -> tm
 (* { Type = T } *)
@@ -63,21 +65,45 @@ with tm : Set :=
 (* we can keep it in, but still have typing lemmas for TVarUnpack not just TUnpack. *)
 (* unpack(e) { x => ... } *)
 | tunpack : tm -> tm -> tm                       
-with vl : Set :=
+.
+Inductive vl : Set :=
 (* a closure for a lambda abstraction *)
 | vabs : list vl (*H*) -> ty -> tm -> vl
 (* a closure for a first-class type *)
 | vty : list vl (*H*) -> ty -> vl
-with ovl : Set :=
+.
+Inductive ovl : Set :=
 | cvl : vl -> ovl
 | varVl : var -> ovl
 .
 
-Scheme ty_mut  := Induction for ty  Sort Prop
-with   tm_mut  := Induction for tm Sort Prop
-with   vl_mut  := Induction for vl Sort Prop
-with   ovl_mut  := Induction for ovl  Sort Prop.
-Combined Scheme ty_mutind from ty_mut, tm_mut, vl_mut, ovl_mut.
+Inductive ovl_ty : Set :=
+| VTTop : ovl_ty
+| VTBot : ovl_ty
+(* (z: T) -> T^z *)
+| VTAll : ovl_ty -> ovl_ty -> ovl_ty
+(* x.Type *)
+| VTSel : ovl -> ovl_ty
+(* | VTSel : var -> typ_label -> ovl_ty *)
+| VTMem : ovl_ty(*S*) -> ovl_ty(*U*) -> ovl_ty
+| VTBind  : ovl_ty -> ovl_ty (* Recursive binder: { z => T^z },
+                       where z is locally bound in T *)
+| VTAnd : ovl_ty -> ovl_ty -> ovl_ty (* Intersection Type: T1 /\ T2 *)
+(* | VTOr : ovl_ty -> ovl_ty -> ovl_ty (* Union Type: T1 \/ T2 *) *)
+(*                                  . *)
+(* | VTRcd : dec -> ovl_ty (* { d } *) *)
+(* with dec : Set :=  *)
+(* | dec_typ : typ_label -> ovl_ty (* S *) -> ovl_ty (* U *) -> dec *)
+(* | dec_trm : trm_label -> ovl_ty -> dec *)
+(* (* (* { Type: S..U } *) *) *)
+(* (* | VTMem : ovl_ty(*S*) -> ovl_ty(*U*) -> ovl_ty *) *)
+.
+
+(* Scheme ty_mut  := Induction for ty  Sort Prop. *)
+(* Scheme tm_mut  := Induction for tm Sort Prop *)
+(* with   vl_mut  := Induction for vl Sort Prop *)
+(* with   ovl_mut  := Induction for ovl  Sort Prop. *)
+(* Combined Scheme tm_mutind from tm_mut, vl_mut, ovl_mut. *)
 
 Definition tenv := list ty. (* Gamma environment: static *)
 Definition venv := list vl. (* H environment: run-time *)
@@ -103,38 +129,90 @@ Inductive closed_var: nat(*B*) -> nat(*F*) -> var -> Prop :=
 | closed_varF : forall i j x,
     i > x -> closed_var i j (varB x).
 
-Inductive closed: nat(*B*) -> nat(*F*) -> ty -> Prop :=
+Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 | cl_top: forall i j,
-    closed i j TTop
+    closed_ty i j TTop
 | cl_bot: forall i j,
-    closed i j TBot
+    closed_ty i j TBot
 | cl_all: forall i j T1 T2,
-    closed i j T1 ->
-    closed (S i) j T2 ->
-    closed i j (TAll T1 T2)
+    closed_ty i j T1 ->
+    closed_ty (S i) j T2 ->
+    closed_ty i j (TAll T1 T2)
 | cl_sel: forall i j x,
     closed_var i j x ->
-    closed i j (TSel (varVl x))
+    closed_ty i j (TSel x)
+    (* closed_ty i j (TSel (varVl x)) *)
 | cl_mem: forall i j T1 T2,
-    closed i j T1 ->
-    closed i j T2 ->
-    closed i j (TMem T1 T2)
+    closed_ty i j T1 ->
+    closed_ty i j T2 ->
+    closed_ty i j (TMem T1 T2)
 | cl_bind: forall i j T,
-    closed (S i) j T ->
-    closed i j (TBind T)
+    closed_ty (S i) j T ->
+    closed_ty i j (TBind T)
 | cl_and: forall i j T1 T2,
-    closed i j T1 ->
-    closed i j T2 ->
-    closed i j (TAnd T1 T2)
+    closed_ty i j T1 ->
+    closed_ty i j T2 ->
+    closed_ty i j (TAnd T1 T2)
 .
+Inductive closed_tm : nat -> nat -> tm -> Prop :=
+| cl_tvar : forall i j x,
+    i > x ->
+    closed_tm i j (tvar x)
+.
+
+Inductive closed_vl i j : vl -> Prop :=
+| cl_vabs : forall H T t,
+    closed_listvl i j H ->
+    closed_ty i j T ->
+    (* closed_tm (S i) j t -> *)
+    closed_vl i j (vabs H T t)
+| cl_vty : forall H T,
+    closed_ty i j T ->
+    closed_listvl i j H ->
+    closed_vl i j (vty H T)
+with
+closed_listvl i j : list vl -> Prop :=
+| closed_vnil :
+    closed_listvl i j nil
+| closed_vcons : forall v vs,
+    closed_vl i j v ->
+    closed_listvl i j vs ->
+    closed_listvl i j (cons v vs)
+.
+
 Inductive closed_ovl i (*B*) j (*F*): ovl -> Prop :=
 | cl_varVl : forall x,
     closed_var i j x ->
     closed_ovl i j (varVl x)
 | cl_cvl : forall v,
-    closed_vl i j v ->
+    (* closed_vl i j v -> *) (*XXX*)
     closed_ovl i j (cvl v)
-with closed_vl i j : vl -> Prop :=
+.
+
+Inductive closed_ovl_ty: nat(*B*) -> nat(*F*) -> ovl_ty -> Prop :=
+| cl_vtop: forall i j,
+    closed_ovl_ty i j VTTop
+| cl_vbot: forall i j,
+    closed_ovl_ty i j VTBot
+| cl_vall: forall i j T1 T2,
+    closed_ovl_ty i j T1 ->
+    closed_ovl_ty (S i) j T2 ->
+    closed_ovl_ty i j (VTAll T1 T2)
+| cl_vsel: forall i j x,
+    closed_ovl i j x ->
+    closed_ovl_ty i j (VTSel x)
+    (* closed_ovl_ty i j (TSel (varVl x)) *)
+| cl_vmem: forall i j T1 T2,
+    closed_ovl_ty i j T1 ->
+    closed_ovl_ty i j T2 ->
+    closed_ovl_ty i j (VTMem T1 T2)
+| cl_vbind: forall i j T,
+    closed_ovl_ty (S i) j T ->
+    closed_ovl_ty i j (VTBind T)
+| cl_vand: forall i j T1 T2,
+    closed_ovl_ty i j T1 ->
+    closed_ovl_ty i j T2 ->
+    closed_ovl_ty i j (VTAnd T1 T2)
 .
 
 (* open define a locally-nameless encoding wrt to varB type variables. *)
@@ -169,17 +247,18 @@ Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
     | TAnd T1 T2    => TAnd (subst U T1)(subst U T2)
   end.
 
-Fixpoint nosubst (T : ty) {struct T} : Prop :=
-  match T with
-    | TTop         => True
-    | TBot         => True
-    | TAll T1 T2   => nosubst T1 /\ nosubst T2
-    | TSel (varB i) => True
-    | TSel (varF i) => i <> 0
-    | TMem T1 T2    => nosubst T1 /\ nosubst T2
-    | TBind T       => nosubst T
-    | TAnd T1 T2    => nosubst T1 /\ nosubst T2
-  end.
+(* Fixpoint nosubst (T : ty) {struct T} : Prop := *)
+(*   match T with *)
+(*     | TTop         => True *)
+(*     | TBot         => True *)
+(*     | TAll T1 T2   => nosubst T1 /\ nosubst T2 *)
+(*     | TSel (varB i) => True *)
+(*     | TSel (varF i) => i <> 0 *)
+(*     | TMem T1 T2    => nosubst T1 /\ nosubst T2 *)
+(*     | TBind T       => nosubst T *)
+(*     | TAnd T1 T2    => nosubst T1 /\ nosubst T2 *)
+(*   end. *)
+
 Fixpoint tsize_flat(T: ty) :=
   match T with
     | TTop => 1
@@ -208,19 +287,19 @@ Hint Rewrite open_preserves_size'.
 (* Proof. *)
 (*   intros; autorewrite with core; trivial. *)
 (* Qed. *)
-Ltac inv_mem := match goal with
-                  | H: closed 0 (length ?GH) (length ?G) (TMem ?T1 ?T2) |-
-                    closed 0 (length ?GH) (length ?G) ?T2 => inversion H; subst; eauto
-                  | H: closed 0 (length ?GH) (length ?G) (TMem ?T1 ?T2) |-
-                    closed 0 (length ?GH) (length ?G) ?T1 => inversion H; subst; eauto
-                end.
+(* Ltac inv_mem := match goal with *)
+(*                   | H: closed 0 (length ?GH) (length ?G) (TMem ?T1 ?T2) |- *)
+(*                     closed 0 (length ?GH) (length ?G) ?T2 => inversion H; subst; eauto *)
+(*                   | H: closed 0 (length ?GH) (length ?G) (TMem ?T1 ?T2) |- *)
+(*                     closed 0 (length ?GH) (length ?G) ?T1 => inversion H; subst; eauto *)
+(*                 end. *)
 
 
 Hint Constructors ty.
 Hint Constructors tm.
 Hint Constructors vl.
 
-Hint Constructors closed.
+Hint Constructors closed_ty.
 
 Hint Constructors option.
 Hint Constructors list.
