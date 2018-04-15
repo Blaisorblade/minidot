@@ -56,55 +56,17 @@ Qed.
 (*   split; intros; assumption. *)
 (* Qed. *)
 
+(* Simplify vtp when applied to a partially-known argument. *)
+Ltac simpl_vtp :=
+  match goal with
+  | H : context [ vtp ?T _ _ _ ] |- _ =>
+    tryif is_var T then fail else rewrite (vtp_unfold T) in H
+  | |- context [ vtp ?T _ _ _ ] =>
+    tryif is_var T then fail else rewrite (vtp_unfold T)
+  end.
+
 Example ex3: forall env T n, vtp (TMem TBot TTop) n (vty env T) [].
 Proof.
-  intros. rewrite vtp_unfold.
-  repeat split_and. constructor. constructor.
-  induction n.
-  - intros j Hj. inversion Hj.
-  - 
-    intros. split. intros. rewrite vtp_unfold in H. destruct vy; inversion H.
-    intros. rewrite vtp_unfold. destruct vy; trivial.
-
-  Restart.
-  intros. rewrite vtp_unfold.
-  split_and. constructor.
-  split_and. constructor.
-  unfold interpTMem.
-  intros.
-  rewrite (vtp_unfold TBot);
-  rewrite (vtp_unfold TTop).
-  split_and;
-  tauto.
-  Restart.
-
-  intros; rewrite vtp_unfold;
-  repeat split_and; try constructor;
-  try rewrite (vtp_unfold TBot);
-  try rewrite (vtp_unfold TTop); tauto.
-  Restart.
-
-  Ltac simpl_vtp :=
-    match goal with
-    | H : context [ vtp ?T _ _ _ ] |- _ =>
-      tryif is_var T then fail else rewrite (vtp_unfold T) in H
-    | |- context [ vtp ?T _ _ _ ] =>
-      tryif is_var T then fail else rewrite (vtp_unfold T)
-    end.
-    (* (is_var T; idtac T; idtac H) || rewrite (vtp_unfold T) *)
-    (* tryif is_var T then idtac else *)
-    (* (is_var T; idtac T) *)
-    (* || *)
-    (* rewrite (vtp_unfold T) *)
-
   intros; rewrite vtp_unfold;
     repeat split_and; try constructor; repeat simpl_vtp; tauto.
 Qed.
-  (* match goal with *)
-  (* | H : context [ vtp ?T ] |- _ => is_var T;  rewrite (vtp_unfold T) *)
-
-  (* - omega. *)
-  (* - *)
-  (*   rewrite vtp_unfold. *)
-  (*   intros. rewrite vtp_unfold in H0. destruct vy; inversion H0. *)
-  (*   intros. rewrite vtp_unfold. destruct vy; trivial. *)
