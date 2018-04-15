@@ -216,7 +216,6 @@ Program Fixpoint val_type (T: ty) (n : nat)
                  (fun n p => val_type T1 n _)
                  (fun n p => val_type T2 n _)
                  n _ v env
-    (* Placeholders. Avoiding wildcards produces a much better Program output. *)
     | TBind T1 =>
       closed_ty 1 (length env) T1 /\
       @val_type (open (varF (length env)) T1) n _ v (v::env)
