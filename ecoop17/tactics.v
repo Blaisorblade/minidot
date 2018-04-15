@@ -1,6 +1,7 @@
 Require Export Omega.
 Require Export Program.
-Unset Transparent Obligations.
+
+Global Unset Transparent Obligations.
 
 Ltac inverse H := (inversion H; subst).
 
