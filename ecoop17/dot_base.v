@@ -270,16 +270,26 @@ Fixpoint tsize_flat(T: ty) :=
     | TAnd T1 T2 => S (tsize_flat T1 + tsize_flat T2)
   end.
 
+Fixpoint tsize_flat_ovl_ty (T: ovl_ty) :=
+  match T with
+    | VTTop => 1
+    | VTBot => 1
+    | VTAll T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
+    | VTSel _ => 1
+    | VTMem T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
+    | VTBind T => S (tsize_flat_ovl_ty T)
+    | VTAnd T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
+  end.
 
 
-Lemma open_preserves_size': forall T x j,
+Lemma open_preserves_size: forall T x j,
   tsize_flat (open_rec j (varF x) T) =
   tsize_flat T.
 Proof.
   induction T; intros; simpl; repeat case_match; eauto.
 Qed.
 
-Hint Rewrite open_preserves_size'.
+Hint Rewrite open_preserves_size.
 
 (* Lemma open_preserves_size: forall T x j, *)
 (*   tsize_flat T = *)
