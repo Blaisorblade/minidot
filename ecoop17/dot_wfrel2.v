@@ -157,9 +157,12 @@ Proof. intros; vtp_simpl_unfold; tauto. Qed.
 Lemma t_forall_i : forall env T1 T2 n t,
     closed_ty 0 (length env) T1 ->
     closed_ty 1 (length env) T2 ->
-    (forall v, vtp T1 n v'
+    (forall v, vtp T1 n v env ->
         expr_sem (fun n' (p: n' <= n) v' => vtp T2 n v') n (le_refl n) (v :: env) t (v :: env)) ->
     vtp (TAll T1 T2) n (vabs env T1 t) env.
 Proof.
   intros.
   vtp_simpl_unfold. repeat split_conj; try assumption.
+
+  Abort.
+  (* XXX Should prove closure assumptions from the hypothesis? *)
