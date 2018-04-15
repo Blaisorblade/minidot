@@ -70,3 +70,62 @@ Proof.
   intros; rewrite vtp_unfold;
     repeat split_and; try constructor; repeat simpl_vtp; tauto.
 Qed.
+
+(* Infrastructure for well-founded induction for properties of vtp. *)
+Lemma ind_args : forall (P: ty -> nat -> Prop),
+    (forall T n,
+        (forall T' n', val_type_termRel (T', n') (T, n) -> P T' n') -> P T n) ->
+    forall T n, P T n.
+Proof.
+  intros * Hind *.
+  pose (p := (T, n)).
+  replace T with (fst p) by reflexivity.
+  replace n with (snd p) by reflexivity.
+  generalize dependent p.
+  clear T n.
+  eapply well_founded_ind; eauto.
+  intros p1 Hless.
+  destruct p1 as [T n]; simpl in *.
+  apply Hind.
+  intros *.
+  apply Hless.
+Qed.
+
+Ltac vtp_induction T n :=
+  apply ind_args with (T := T) (n := n);
+  clear T n.
+
+Lemma vtp_mon: forall env T n v, vtp T n v env -> forall m, m < n -> vtp T m v env.
+Proof.
+  intros *.
+  revert env v.
+
+  (* The proof is by well-founded induction on type T and count n, because monotonicity on intersection types follows by induction. *)
+  vtp_induction T n.
+  (* apply ind_args with (T := T) (n := n). *)
+  (* clear T n. *)
+
+  intros * Hind * Hvtpn1 * Hmn.
+
+  (* We proceed by case analysis on types and values. *)
+  destruct T;
+    destruct v;
+    rewrite vtp_unfold in *;
+    unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd in *;
+    ev; repeat split_conj;
+      repeat case_match.
+  (* We could finish the proof by a single line combining the next tactics. *)
+  (* But let's look how our cases (24 right now!) are solved. *)
+  (* Most cases (12) follow trivially, or by using the induction hypothesis. *)
+  all: trivial.
+  (* Many other cases (6) have hypothesis for all j < n and have a conclusion for
+     all j < m (with m < n). So we assert that j < n, and then Coq can finish
+     the proof automatically. *)
+
+  all: intros; try assert (Hjn: j < n) by omega; try assert (j <= n) by omega; auto 2.
+
+  (* A couple (6) follow just by using induction on smaller types. *)
+  all: try (apply Hind with (n' := n); try smaller_types; assumption).
+
+  - apply H1; assumption || omega.
+Qed.
