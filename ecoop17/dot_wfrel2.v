@@ -97,8 +97,15 @@ Ltac vtp_induction T n :=
 
 Hint Unfold interpTAll interpTSel interpTMem interpTSel0 interpTAnd.
 Ltac vtp_unfold_pieces :=
-  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd in *.
+  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, expr_sem in *.
 Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
+
+(* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
+Ltac ineq_solver := autorewrite with core; simpl in *; omega.
+Hint Extern 5 (_ > _) => ineq_solver.
+Hint Extern 5 (_ >= _) => ineq_solver.
+Hint Extern 5 (_ < _) => ineq_solver.
+Hint Extern 5 (_ <= _) => ineq_solver.
 
 Lemma vtp_mon: forall env T n v, vtp T n v env -> forall m, m < n -> vtp T m v env.
 Proof.
@@ -132,7 +139,14 @@ Proof.
   (* A couple (6) follow just by using induction on smaller types. *)
   all: try (apply Hind with (n' := n); try smaller_types; assumption).
 
-  - apply H1; assumption || omega.
+  (* - unfold expr_sem in *. *)
+  (*   auto. *)
+  (*   (* debug auto. H1. auto. *) *)
+  (*   (* revert dependent m. *) *)
+  (*   (* simple apply H1. *) *)
+  (*   (* debug auto. *) *)
+  (*   (* apply H1. *) *)
+  (*   (* Info 2 auto. *) *)
 Qed.
 
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
