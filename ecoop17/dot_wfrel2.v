@@ -138,15 +138,6 @@ Proof.
 
   (* A couple (6) follow just by using induction on smaller types. *)
   all: try (apply Hind with (n' := n); try smaller_types; assumption).
-
-  (* - unfold expr_sem in *. *)
-  (*   auto. *)
-  (*   (* debug auto. H1. auto. *) *)
-  (*   (* revert dependent m. *) *)
-  (*   (* simple apply H1. *) *)
-  (*   (* debug auto. *) *)
-  (*   (* apply H1. *) *)
-  (*   (* Info 2 auto. *) *)
 Qed.
 
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
