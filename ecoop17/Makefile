@@ -94,6 +94,7 @@ VFILES:=SfLib.v\
   dsubsup_total_rec_monotone.v \
   dsubsup_total_rec_monotone_part2.v\
 	tactics.v\
+	dot_infrastructure_lemmas.v \
   dot_base.v dot_typing.v \
   dot_eval.v dot_monads.v \
 	dot_wfrel.v dot_wfrel2.v

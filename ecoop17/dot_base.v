@@ -11,10 +11,9 @@ Require Export Arith.EqNat.
 Require Export Arith.Le.
 Require Export Omega.
 Require Import tactics.
+Require Export dot_infrastructure_lemmas.
 
 (* ### Syntax ### *)
-
-Definition id := nat.
 
 (* term variables occurring in types *)
 Inductive var : Type :=
@@ -112,16 +111,6 @@ Definition venv := list vl. (* H environment: run-time *)
 (* ### Representation of Bindings ### *)
 
 (* An environment is a list of values, indexed by decrementing ids. *)
-
-Fixpoint indexr {X : Type} (n : id) (l : list X) : option X :=
-  match l with
-    | [] => None
-    | a :: l' =>
-      if (beq_nat n (length l')) then Some a else indexr n l'
-  end.
-
-Hint Unfold indexr.
-Hint Unfold length.
 
 Inductive closed_var: nat(*B*) -> nat(*F*) -> var -> Prop :=
 | closed_varB : forall i j x,

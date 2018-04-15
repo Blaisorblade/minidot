@@ -182,31 +182,6 @@ Proof.
   intros * H; induction H; simpl; congruence.
 Qed.
 
-Ltac beq_nat :=
-  match goal with
-  | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
-  | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
-  end.
-
-Lemma indexr_max : forall X vs i (T: X),
-                       indexr i vs = Some T ->
-                       i < length vs.
-Proof.
-  induction vs; intros * H; inversion H.
-  case_eq (beq_nat i (length vs)); intros E2.
-    + SCase "hit".
-      eapply beq_nat_true in E2. subst. simpl. auto.
-    + SCase "miss".
-      rewrite E2 in H1.
-      assert (i < length vs) by eauto 2.
-      simpl. eauto.
-Restart.
-  induction vs; intros * H; inverse H; simpl; repeat case_match;
-    beq_nat; subst;
-      try assert (i < length vs) by eauto 2; eauto.
-Qed.
-Hint Resolve indexr_max.
-
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
