@@ -88,8 +88,6 @@ Definition m A := (option (option A * nat)).
 
 Definition timeout {A} : m A := None.
 
-Check @bind.
-
 Definition step {A} (k : nat) (x: m A) : m A :=
   match x with
   | None => None
