@@ -102,6 +102,8 @@ Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
 
 (* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
 Ltac ineq_solver := autorewrite with core; simpl in *; omega.
+Hint Unfold gt. (* Using gt or lt other shouldn't affect proof search! *)
+Hint Unfold ge. (* Ditto *)
 Hint Extern 5 (_ > _) => ineq_solver.
 Hint Extern 5 (_ >= _) => ineq_solver.
 Hint Extern 5 (_ < _) => ineq_solver.
@@ -140,6 +142,71 @@ Proof.
   all: try (apply Hind with (n' := n); try smaller_types; assumption).
 Qed.
 
+(* XXX Beware: here TAll is non-expansive rather than contractive, I guess by mistake. *)
+
+(* Next step: define valid environments, then semantic typing! *)
+Definition R_env_all k env G :=
+  length env = length G /\
+  forall x TX, indexr x G = Some TX ->
+    (exists vx,
+       indexr x env = Some vx /\ vtp TX k vx env).
+
+Inductive R_env (k : nat) : venv -> tenv -> Set :=
+  (* (env: venv) (G: tenv) : Set := *)
+| R_nil :
+    R_env k [] []
+| R_cons : forall T v env G,
+    R_env k env G ->
+    vtp T k v (v :: env) ->
+    R_env k (v :: env) (T :: G)
+.
+
+(* automation *)
+Hint Unfold venv.
+Hint Unfold tenv.
+
+(* Hint Unfold R. *)
+Hint Unfold R_env_all.
+Hint Constructors R_env.
+
+Lemma wf_length_all : forall k vs ts,
+                    R_env_all k vs ts ->
+                    (length vs = length ts).
+Proof.
+  intros * H. induction H. auto.
+Qed.
+Lemma wf_length : forall k vs ts,
+                    R_env k vs ts ->
+                    (length vs = length ts).
+Proof.
+  intros * H; induction H; simpl; congruence.
+Qed.
+
+Ltac beq_nat :=
+  match goal with
+  | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
+  | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
+  end.
+
+Lemma indexr_max : forall X vs i (T: X),
+                       indexr i vs = Some T ->
+                       i < length vs.
+Proof.
+  induction vs; intros * H; inversion H.
+  case_eq (beq_nat i (length vs)); intros E2.
+    + SCase "hit".
+      eapply beq_nat_true in E2. subst. simpl. auto.
+    + SCase "miss".
+      rewrite E2 in H1.
+      assert (i < length vs) by eauto 2.
+      simpl. eauto.
+Restart.
+  induction vs; intros * H; inverse H; simpl; repeat case_match;
+    beq_nat; subst;
+      try assert (i < length vs) by eauto 2; eauto.
+Qed.
+Hint Resolve indexr_max.
+
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
@@ -149,20 +216,24 @@ Proof. intros; vtp_simpl_unfold; tauto. Qed.
 Lemma stp_and : forall env T1 T2 n v, vtp T1 n v env -> vtp T2 n v env -> vtp (TAnd T1 T2) n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
-(* XXX Beware: here TAll is non-expansive rather than contractive, I guess by mistake. *)
-
-(* Next step: define valid environments, then semantic typing! *)
-
-(* XXX Too hard to state, because we didn't! *)
-Lemma t_forall_i : forall env T1 T2 n t,
-    closed_ty 0 (length env) T1 ->
-    closed_ty 1 (length env) T2 ->
-    (forall v, vtp T1 n v env ->
-        expr_sem (fun n' (p: n' <= n) v' => vtp T2 n v') n (le_refl n) (v :: env) t (v :: env)) ->
-    vtp (TAll T1 T2) n (vabs env T1 t) env.
+Lemma vtp_closed: forall T k v env,
+    vtp T k v env -> closed_ty 0 (length env) T.
 Proof.
-  intros.
-  vtp_simpl_unfold. repeat split_conj; try assumption.
+  induction T; intros; destruct v; rewrite vtp_unfold in *; vtp_unfold_pieces; ev; try eauto;
+  repeat case_match; repeat constructor; try contradiction; eauto.
+Qed.
+Hint Resolve vtp_closed.
 
-  Abort.
-  (* XXX Should prove closure assumptions from the hypothesis? *)
+(* (* XXX Too hard to state, because we didn't define semantic typing yet! *) *)
+(* Lemma t_forall_i : forall env T1 T2 n t, *)
+(*     closed_ty 0 (length env) T1 -> *)
+(*     closed_ty 1 (length env) T2 -> *)
+(*     (forall v, vtp T1 n v env -> *)
+(*         expr_sem (fun n' (p: n' <= n) v' => vtp T2 n v') n (le_refl n) (v :: env) t (v :: env)) -> *)
+(*     vtp (TAll T1 T2) n (vabs env T1 t) env. *)
+(* Proof. *)
+(*   intros. *)
+(*   vtp_simpl_unfold. repeat split_conj; try assumption. *)
+
+(*   Abort. *)
+(*   (* XXX Should prove closure assumptions from the hypothesis? *) *)
