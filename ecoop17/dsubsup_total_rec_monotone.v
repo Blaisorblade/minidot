@@ -91,7 +91,7 @@ Qed.
 
 Lemma termRelShowOpen: forall j n x T1 T2,
   j <= n -> tsize_flat T2 < tsize_flat T1 ->
-  val_type_termRel (open (varH x) T2, j) (T1, n).
+  val_type_termRel (open (varF x) T2, j) (T1, n).
 Proof.
   intros * Hj Ht.
   unfold val_type_termRel, MR, termRel, argMeasure, val_type_measure.

@@ -125,8 +125,7 @@ Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
     | TBot         => TBot
     | TAll T1 T2   => TAll (subst U T1) (subst U T2)
     | TSel (varB i) => TSel (varB i)
-    | TSel (varF i) => TSel (varF i)
-    | TSel (varH i) => if beq_nat i 0 then TSel U else TSel (varH (i-1))
+    | TSel (varF i) => if beq_nat i 0 then TSel U else TSel (varF (i-1))
     | TMem T1 T2     => TMem (subst U T1) (subst U T2)
     | TBind T       => TBind (subst U T)
     | TAnd T1 T2    => TAnd (subst U T1)(subst U T2)
@@ -138,8 +137,7 @@ Fixpoint nosubst (T : ty) {struct T} : Prop :=
     | TBot         => True
     | TAll T1 T2   => nosubst T1 /\ nosubst T2
     | TSel (varB i) => True
-    | TSel (varF i) => True
-    | TSel (varH i) => i <> 0
+    | TSel (varF i) => i <> 0
     | TMem T1 T2    => nosubst T1 /\ nosubst T2
     | TBind T       => nosubst T
     | TAnd T1 T2    => nosubst T1 /\ nosubst T2
@@ -186,25 +184,25 @@ Inductive stp: tenv -> tenv -> ty -> ty -> Prop :=
 | stp_selx: forall G1 GH v x,
     indexr x G1 = Some v ->
     stp G1 GH (TSel (varF x)) (TSel (varF x))
-| stp_sela1: forall G1 GH TX T2 x,
-    indexr x GH = Some TX ->
-    closed 0 x (length G1) TX ->
-    stp G1 GH TX (TMem TBot T2) ->
-    stp G1 GH (TSel (varH x)) T2
-| stp_sela2: forall G1 GH TX T1 x,
-    indexr x GH = Some TX ->
-    closed 0 x (length G1) TX ->
-    stp G1 GH TX (TMem T1 TTop) ->
-    stp G1 GH T1 (TSel (varH x)) 
-| stp_selax: forall G1 GH v x,
-    indexr x GH = Some v  ->
-    stp G1 GH (TSel (varH x)) (TSel (varH x))
+(* | stp_sela1: forall G1 GH TX T2 x, *)
+(*     indexr x GH = Some TX -> *)
+(*     closed 0 x (length G1) TX -> *)
+(*     stp G1 GH TX (TMem TBot T2) -> *)
+(*     stp G1 GH (TSel (varH x)) T2 *)
+(* | stp_sela2: forall G1 GH TX T1 x, *)
+(*     indexr x GH = Some TX -> *)
+(*     closed 0 x (length G1) TX -> *)
+(*     stp G1 GH TX (TMem T1 TTop) -> *)
+(*     stp G1 GH T1 (TSel (varH x))  *)
+(* | stp_selax: forall G1 GH v x, *)
+(*     indexr x GH = Some v  -> *)
+(*     stp G1 GH (TSel (varH x)) (TSel (varH x)) *)
 
 (* stp for recursive types and intersection types *)
 | stp_bindx: forall GH G1 T1 T1' T2 T2',
     stp G1 (T1'::GH) T1' T2' ->
-    T1' = (open (varH (length GH)) T1) ->
-    T2' = (open (varH (length GH)) T2) ->
+    T1' = (open (varF (length GH)) T1) ->
+    T2' = (open (varF (length GH)) T2) ->
     closed 1 (length GH) (length G1) T1 ->
     closed 1 (length GH) (length G1) T2 ->
     stp G1 GH (TBind T1) (TBind T2)
@@ -230,7 +228,7 @@ Inductive stp: tenv -> tenv -> ty -> ty -> Prop :=
     x = length GH ->
     closed 1 (length GH) (length G1) T2 ->
     closed 1 (length GH) (length G1) T4 ->
-    stp G1 (T3::GH) (open (varH x) T2) (open (varH x) T4) ->
+    stp G1 (T3::GH) (open (varF x) T2) (open (varF x) T4) ->
     stp G1 GH (TAll T1 T2) (TAll T3 T4)
 | stp_trans: forall G1 GH T1 T2 T3,
     stp G1 GH T1 T2 ->
@@ -399,7 +397,7 @@ Ltac split_conj :=
 
 
 Lemma open_preserves_size': forall T x j,
-  tsize_flat (open_rec j (varH x) T) =
+  tsize_flat (open_rec j (varF x) T) =
   tsize_flat T.
 Proof.
   induction T; intros; simpl; match_case_analysis_goal; simpl; match_case_analysis_goal; eauto.
@@ -409,7 +407,7 @@ Hint Rewrite open_preserves_size'.
 
 Lemma open_preserves_size: forall T x j,
   tsize_flat T =
-  tsize_flat (open_rec j (varH x) T).
+  tsize_flat (open_rec j (varF x) T).
 Proof.
   intros; autorewrite with core; trivial.
 Qed.
