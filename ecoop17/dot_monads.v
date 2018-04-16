@@ -50,6 +50,17 @@ Program Instance monadOptionOption : MonadError (fun A => option (option A)) :=
 Solve Obligations with program_simplify;
   repeat case_match; reflexivity.
 
+(* XXX rename *)
+Definition m A := (option (option A * nat)).
+
+Definition timeout {A} : m A := None.
+
+Definition step {A} (k : nat) (x: m A) : m A :=
+  match x with
+  | None => None
+  | Some (v, k') => Some (v, k + k')
+  end.
+
 Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((option A) * nat)) :=
   {
     error := fun {A} => ret (None, 0);

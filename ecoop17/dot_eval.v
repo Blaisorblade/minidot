@@ -83,36 +83,7 @@ Proof.
        try reflexivity).
 Qed.
 
-(* XXX rename *)
-Definition m A := (option (option A * nat)).
-
-Definition timeout {A} : m A := None.
-
-Definition step {A} (k : nat) (x: m A) : m A :=
-  match x with
-  | None => None
-  | Some (v, k') => Some (v, k + k')
-  end.
-
-(* Axiom fun_extensionality: *)
-(*   forall (A B: Type) (f g: A -> B), *)
-(*     (forall x, f x = g x) -> f = g. *)
-
 Definition tevaln env e v := exists nm, forall n, n > nm -> teval e n env = Some (Some v).
-
-
-(* Definition opt_bind {A B : Type} (a : option A) (f : A -> option B) : option B := *)
-(*   match a with *)
-(*     | Some x => f x *)
-(*     | None => None *)
-(*   end. *)
-
-(* Definition mbind {A B} (x: m A) (f: A -> m B) : m B := *)
-(*   match x with *)
-(*   | Some (v, n) => *)
-(*     step n (opt_bind v f) *)
-(*   | None => None *)
-(*   end. *)
 
 Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
   match n with
