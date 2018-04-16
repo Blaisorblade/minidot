@@ -181,3 +181,5 @@ Proof.
 Qed.
 
 Definition tevalSn env e v k := exists nm, forall n, n > nm -> tevalS e n env = Some (Some v, k).
+
+Definition tevalSnOpt env e optV k := exists nm, forall n, n > nm -> tevalS e n env = Some (optV, k).

@@ -129,6 +129,10 @@ Hint Unfold smaller_args.
 
 Require Import dot_eval.
 
+(* XXX incorrect, this is just a semantic _pre_type.
+
+   That is, it incorporates _half of_ monotonicity: it allows calling the type
+   on smaller values, but doesn't guarantee that the value is gonna be. *)
 Definition type_dom n :=
   forall (n0: nat) (H: n0 <= n), vl_prop.
 Hint Unfold type_dom.
@@ -136,14 +140,11 @@ Hint Unfold type_dom.
 Program Definition expr_sem {n} (A : type_dom n) k (p : k <= n) env1 e
   : env_prop :=
   fun env =>
-    exists v j, tevalSn env1 e v j /\
-              A (k - j) _ v env.
-
-(* Definition type_dom2 T n := *)
-(*   forall (T0 : ty), *)
-(*     forall (n0: nat) (Hle : smaller_args T0 n0 T n), *)
-(*       vl_prop. *)
-(* Hint Unfold type_dom2. *)
+    (* If evaluation terminates in at most k steps without running out of fuel, *)
+    forall optV j,
+      j <= k -> tevalSnOpt env1 e optV j ->
+      (* then evaluation did not get stuck and the result satisfies A. *)
+      exists v, optV = Some v /\ A (k - j) _ v env.
 
 Program Definition interpTAll n (A1 : type_dom n) (A2 : type_dom n) : type_dom n :=
   fun n0 p v env =>
