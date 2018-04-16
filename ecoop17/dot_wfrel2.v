@@ -109,7 +109,7 @@ Hint Extern 5 (_ >= _) => ineq_solver.
 Hint Extern 5 (_ < _) => ineq_solver.
 Hint Extern 5 (_ <= _) => ineq_solver.
 
-Lemma vtp_mon: forall env T n v, vtp T n v env -> forall m, m < n -> vtp T m v env.
+Lemma vtp_mon: forall T env v m n, m <= n -> vtp T n v env -> vtp T m v env.
 Proof.
   intros *.
   revert env v.
@@ -141,6 +141,27 @@ Proof.
   (* A couple (6) follow just by using induction on smaller types. *)
   all: try (apply Hind with (n' := n); try smaller_types; assumption).
 Qed.
+
+(* XXX questionable, why take env? But that comes from how vtp's defined internally. *)
+Record vset := mkVset
+  {
+    pred : nat -> vl_prop;
+    mon : forall env v m n, m <= n -> pred n v env -> pred m v env
+  }.
+Definition vtp_as_vset (T : ty) : vset :=
+  {| pred := vtp T;
+     mon := vtp_mon T
+  |}.
+
+Record vset' := mkVset'
+  {
+    pred' : nat -> vl -> Prop;
+    mon' : forall v m n, m <= n -> pred' n v -> pred' m v
+  }.
+Definition vtp_as_vset' (T : ty) (env : list vl): vset' :=
+  {| pred' := fun n v => vtp T n v env;
+     mon' := vtp_mon T env
+  |}.
 
 (* XXX Beware: here TAll is non-expansive rather than contractive, I guess by mistake. *)
 
