@@ -133,11 +133,11 @@ Require Import dot_eval.
 
    That is, it incorporates _half of_ monotonicity: it allows calling the type
    on smaller values, but doesn't guarantee that the value is gonna be. *)
-Definition type_dom n :=
+Definition pretype_dom n :=
   forall (n0: nat) (H: n0 <= n), vl_prop.
-Hint Unfold type_dom.
+Hint Unfold pretype_dom.
 
-Program Definition expr_sem {n} (A : type_dom n) k (p : k <= n) env1 e
+Program Definition expr_sem {n} (A : pretype_dom n) k (p : k <= n) env1 e
   : env_prop :=
   fun env =>
     (* If evaluation terminates in at most k steps without running out of fuel, *)
@@ -146,7 +146,7 @@ Program Definition expr_sem {n} (A : type_dom n) k (p : k <= n) env1 e
       (* then evaluation did not get stuck and the result satisfies A. *)
       exists v, optV = Some v /\ A (k - j) _ v env.
 
-Program Definition interpTAll n (A1 : type_dom n) (A2 : type_dom n) : type_dom n :=
+Program Definition interpTAll n (A1 : pretype_dom n) (A2 : pretype_dom n) : pretype_dom n :=
   fun n0 p v env =>
     match v with
     | vabs env1 T0 t =>
@@ -156,7 +156,7 @@ Program Definition interpTAll n (A1 : type_dom n) (A2 : type_dom n) : type_dom n
     | _ => False
     end.
 
-Program Definition interpTMem n (A1 : type_dom n) (A2 : type_dom n)
+Program Definition interpTMem n (A1 : pretype_dom n) (A2 : pretype_dom n)
         (val_type : ty -> forall j, j < n -> vl_prop) :=
   fun n0 (p : n0 <= n) v env =>
     match v with
@@ -169,7 +169,7 @@ Program Definition interpTMem n (A1 : type_dom n) (A2 : type_dom n)
     end.
 
 Program Definition interpTSel0 n i (env0: list vl)
-        (val_type : ty -> forall j, j < n -> vl_prop): type_dom n :=
+        (val_type : ty -> forall j, j < n -> vl_prop): pretype_dom n :=
   fun n0 (p : n0 <= n) v env =>
     match indexr i env0 with
     | Some (vty env1 TX) =>
@@ -185,7 +185,7 @@ Program Definition interpTSel n x
     | varB _ => False
      end.
 
-Program Definition interpTAnd n (A1 : type_dom n) (A2 : type_dom n) : type_dom n :=
+Program Definition interpTAnd n (A1 : pretype_dom n) (A2 : pretype_dom n) : pretype_dom n :=
   fun n0 p v env =>
     A1 n0 _ v env /\
     A2 n0 _ v env.
