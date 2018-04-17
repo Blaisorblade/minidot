@@ -283,109 +283,109 @@ Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | forall n, forall 
   end.
 Solve Obligations with program_simplify; destruct n; solve [inverse Hfuel] || reflexivity.
 
-Require Import dot_monads.
-Lemma inv_success_mbind2:
-  forall {A B} {f : A -> option B} {c} {x},
-    bind c f = Some x ->
-    exists y, c = Some y /\ f y = Some x.
-Proof.
-  intros * H.
-  destruct c; simpl in * |-; try congruence.
-  exists a. auto.
-Qed.
+(* Require Import dot_monads. *)
+(* Lemma inv_success_mbind2: *)
+(*   forall {A B} {f : A -> option B} {c} {x}, *)
+(*     bind c f = Some x -> *)
+(*     exists y, c = Some y /\ f y = Some x. *)
+(* Proof. *)
+(*   intros * H. *)
+(*   destruct c; simpl in * |-; try congruence. *)
+(*   exists a. auto. *)
+(* Qed. *)
 
-Ltac inv_mbind :=
-  match goal with
-    H : bind _ _ = Some _ |- _ =>
-    let x := fresh "x" in
-    let Ha := fresh "Ha" in
-    let Hb := fresh "Hb" in
-    apply inv_success_mbind2 in H;
-    (* invert, in one go, H into its pieces *)
-    inversion H as [x [Ha Hb] ]
-  end.
+(* Ltac inv_mbind := *)
+(*   match goal with *)
+(*     H : bind _ _ = Some _ |- _ => *)
+(*     let x := fresh "x" in *)
+(*     let Ha := fresh "Ha" in *)
+(*     let Hb := fresh "Hb" in *)
+(*     apply inv_success_mbind2 in H; *)
+(*     (* invert, in one go, H into its pieces *) *)
+(*     inversion H as [x [Ha Hb] ] *)
+(*   end. *)
 
-Ltac inv_mbind_some :=
-  repeat inv_mbind; repeat injections_some.
+(* Ltac inv_mbind_some := *)
+(*   repeat inv_mbind; repeat injections_some. *)
+
+(* (* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *) *)
+(* (*   induction e; *) *)
+(* (*   induction n; intros * Heval * Hmn; try solve [inverse Heval]; *) *)
+(* (*   destruct m; inversion Hmn; clear Hmn; subst; auto. *) *)
+(* (*   simpl in Heval. simpl. *) *)
+(* (*   eapply inv_success_mbind2 in Heval. *) *)
+
+(* (* Lemma tevalSM_mono: forall e n env optV, tevalSM e n env = Some optV -> forall m, m >= n -> tevalSM e m env = Some optV. *) *)
+(* (*   induction e; *) *)
+(* (*   induction n; intros * Heval * Hmn; try solve [inverse Heval]; *) *)
+(* (*   destruct m; inversion Hmn; clear Hmn; subst; auto. *) *)
+(* (*   unfold tevalSM in Heval. *) *)
+(* (*   eapply inv_success_mbind2 in Heval. *) *)
+(* (*   fold tevalSM in *. *) *)
+(* (*   unfold tevalSM. inv_mbind_some. *) *)
+(* (*             inv_mbind_some; auto. *) *)
+(* (*   - repeat inv_mbind_some. *) *)
+(* (*     inversion Heval; subst; auto. *) *)
+
 
 (* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *)
-(*   induction e; *)
-(*   induction n; intros * Heval * Hmn; try solve [inverse Heval]; *)
-(*   destruct m; inversion Hmn; clear Hmn; subst; auto. *)
-(*   simpl in Heval. simpl. *)
-(*   eapply inv_success_mbind2 in Heval. *)
+(* Proof. *)
+(*   destruct n; intros * Heval * Hmn; try solve [inverse Heval]. *)
+(*   assert (Hm: exists m', m = S m') by ( *)
+(*     destruct m; inversion Hmn; subst; eexists; auto *)
+(*   ); destruct Hm as [m' ?]; subst. *)
+(*   generalize dependent optV. *)
+(*   generalize dependent n. *)
+(*   induction e; auto; intros. *)
+(*   - *)
+(*     assert (Hevaln1 : exists optV1, tevalS e1 n env = Some optV1) by admit. *)
+(*     assert (Hevaln2 : exists optV2, tevalS e2 n env = Some optV2) by admit. *)
+(*     assert (Hevalm1 : tevalS e1 m' env = tevalS e1 n env) by admit. *)
+(*     assert (Hevalm2 : tevalS e2 m' env = tevalS e2 n env) by admit. *)
+(*     simpl in *. *)
+(*     rewrite Hevalm1 in *; clear Hevalm1. *)
+(*     rewrite Hevalm2 in *; clear Hevalm2. *)
+(*     destruct Hevaln1 as [[optV1 j1] Hevaln1]. rewrite Hevaln1 in *. *)
+(*     destruct Hevaln2 as [[optV2 j2] Hevaln2]. rewrite Hevaln2 in *. *)
+(*     (* Missing: induction hypothesis on the nested evaluation. *) *)
+(*     (* assumption. *) *)
 
-(* Lemma tevalSM_mono: forall e n env optV, tevalSM e n env = Some optV -> forall m, m >= n -> tevalSM e m env = Some optV. *)
-(*   induction e; *)
-(*   induction n; intros * Heval * Hmn; try solve [inverse Heval]; *)
-(*   destruct m; inversion Hmn; clear Hmn; subst; auto. *)
-(*   unfold tevalSM in Heval. *)
-(*   eapply inv_success_mbind2 in Heval. *)
-(*   fold tevalSM in *. *)
-(*   unfold tevalSM. inv_mbind_some. *)
-(*             inv_mbind_some; auto. *)
-(*   - repeat inv_mbind_some. *)
-(*     inversion Heval; subst; auto. *)
+(*     Restart. *)
 
-
-Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
-Proof.
-  destruct n; intros * Heval * Hmn; try solve [inverse Heval].
-  assert (Hm: exists m', m = S m') by (
-    destruct m; inversion Hmn; subst; eexists; auto
-  ); destruct Hm as [m' ?]; subst.
-  generalize dependent optV.
-  generalize dependent n.
-  induction e; auto; intros.
-  -
-    assert (Hevaln1 : exists optV1, tevalS e1 n env = Some optV1) by admit.
-    assert (Hevaln2 : exists optV2, tevalS e2 n env = Some optV2) by admit.
-    assert (Hevalm1 : tevalS e1 m' env = tevalS e1 n env) by admit.
-    assert (Hevalm2 : tevalS e2 m' env = tevalS e2 n env) by admit.
-    simpl in *.
-    rewrite Hevalm1 in *; clear Hevalm1.
-    rewrite Hevalm2 in *; clear Hevalm2.
-    destruct Hevaln1 as [[optV1 j1] Hevaln1]. rewrite Hevaln1 in *.
-    destruct Hevaln2 as [[optV2 j2] Hevaln2]. rewrite Hevaln2 in *.
-    (* Missing: induction hypothesis on the nested evaluation. *)
-    (* assumption. *)
-
-    Restart.
-
-  induction n; intros * Heval * Hmn; try solve [inverse Heval].
-  assert (Hm: exists m', m = S m') by (
-    destruct m; inversion Hmn; subst; eexists; auto
-  ); destruct Hm as [m' ?]; subst.
-  generalize dependent optV.
-  generalize dependent n.
-  induction e; auto; intros.
-  -
-    (* This is the job of inv_mbind or similar. *)
-    assert (Hevaln1 : exists optV1, tevalS e1 n env = Some optV1) by admit.
-    assert (Hevaln2 : exists optV2, tevalS e2 n env = Some optV2) by admit.
-    destruct Hevaln1 as [[optV1 j1] Hevaln1].
-    destruct Hevaln2 as [[optV2 j2] Hevaln2].
-    (* Here auto uses the induction hypothesis! *)
-    assert (Hevalm1 : tevalS e1 m' env = tevalS e1 n env) by (rewrite Hevaln1; auto).
-    assert (Hevalm2 : tevalS e2 m' env = tevalS e2 n env) by (rewrite Hevaln2; auto).
-    simpl in *.
-    rewrite Hevalm1 in *; clear Hevalm1.
-    rewrite Hevalm2 in *; clear Hevalm2.
-    rewrite Hevaln1 in *.
-    rewrite Hevaln2 in *.
-    do 3 case_match; auto.
-    unfold step in *.
-    assert (Hevaln0 : exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) by admit.
-    destruct Hevaln0 as [optV0 [j0 Hevaln0]].
-    rewrite Hevaln0 in *. injections_some.
-    assert (Hevalm0: tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) by (rewrite Hevaln0; auto).
-    rewrite Hevalm0 in *.
-    rewrite Hevaln0.
-    auto.
-  - admit.
-Admitted.
-(* TODO: prove as exercise that if `eval (tapp e1 e2)` succeeds, evaluating e1
-and e2 succeeds. That should be an exercise on some tactic like inv_mbind. *)
+(*   induction n; intros * Heval * Hmn; try solve [inverse Heval]. *)
+(*   assert (Hm: exists m', m = S m') by ( *)
+(*     destruct m; inversion Hmn; subst; eexists; auto *)
+(*   ); destruct Hm as [m' ?]; subst. *)
+(*   generalize dependent optV. *)
+(*   generalize dependent n. *)
+(*   induction e; auto; intros. *)
+(*   - *)
+(*     (* This is the job of inv_mbind or similar. *) *)
+(*     assert (Hevaln1 : exists optV1, tevalS e1 n env = Some optV1) by admit. *)
+(*     assert (Hevaln2 : exists optV2, tevalS e2 n env = Some optV2) by admit. *)
+(*     destruct Hevaln1 as [[optV1 j1] Hevaln1]. *)
+(*     destruct Hevaln2 as [[optV2 j2] Hevaln2]. *)
+(*     (* Here auto uses the induction hypothesis! *) *)
+(*     assert (Hevalm1 : tevalS e1 m' env = tevalS e1 n env) by (rewrite Hevaln1; auto). *)
+(*     assert (Hevalm2 : tevalS e2 m' env = tevalS e2 n env) by (rewrite Hevaln2; auto). *)
+(*     simpl in *. *)
+(*     rewrite Hevalm1 in *; clear Hevalm1. *)
+(*     rewrite Hevalm2 in *; clear Hevalm2. *)
+(*     rewrite Hevaln1 in *. *)
+(*     rewrite Hevaln2 in *. *)
+(*     do 3 case_match; auto. *)
+(*     unfold step in *. *)
+(*     assert (Hevaln0 : exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) by admit. *)
+(*     destruct Hevaln0 as [optV0 [j0 Hevaln0]]. *)
+(*     rewrite Hevaln0 in *. injections_some. *)
+(*     assert (Hevalm0: tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) by (rewrite Hevaln0; auto). *)
+(*     rewrite Hevalm0 in *. *)
+(*     rewrite Hevaln0. *)
+(*     auto. *)
+(*   - admit. *)
+(* Admitted. *)
+(* (* TODO: prove as exercise that if `eval (tapp e1 e2)` succeeds, evaluating e1 *)
+(* and e2 succeeds. That should be an exercise on some tactic like inv_mbind. *) *)
 
 (* We want to relate etp and vtp. *)
 Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalS e n env = Some (optV, k).
