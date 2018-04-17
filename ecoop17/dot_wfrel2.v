@@ -109,7 +109,10 @@ Hint Extern 5 (_ >= _) => ineq_solver.
 Hint Extern 5 (_ < _) => ineq_solver.
 Hint Extern 5 (_ <= _) => ineq_solver.
 
-Lemma vtp_mon: forall T env v m n, m <= n -> vtp T n v env -> vtp T m v env.
+Lemma vtp_mon: forall T env v m n,
+    vtp T n v env ->
+    m <= n ->
+    vtp T m v env.
 Proof.
   intros *.
   revert env v.
@@ -146,7 +149,7 @@ Qed.
 Record vset := mkVset
   {
     pred : nat -> vl_prop;
-    mon : forall env v m n, m <= n -> pred n v env -> pred m v env
+    mon : forall env v m n, pred n v env -> m <= n -> pred m v env
   }.
 Definition vtp_as_vset (T : ty) : vset :=
   {| pred := vtp T;
@@ -156,9 +159,9 @@ Definition vtp_as_vset (T : ty) : vset :=
 Record vset' := mkVset'
   {
     pred' : nat -> vl -> Prop;
-    mon' : forall v m n, m <= n -> pred' n v -> pred' m v
+    mon' : forall v m n, pred' n v -> m <= n -> pred' m v
   }.
-Definition vtp_as_vset' (T : ty) (env : list vl): vset' :=
+Definition vtp_as_vset' (T : ty) (env : venv): vset' :=
   {| pred' := fun n v => vtp T n v env;
      mon' := vtp_mon T env
   |}.
