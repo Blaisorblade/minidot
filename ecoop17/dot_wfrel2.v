@@ -350,39 +350,45 @@ Ltac step_eval := n_is_succ; simpl in *.
 (* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *)
 (* Proof. *)
 (*   induction n; intros * Heval * Hmn; try solve [inverse Heval]. *)
-(*   assert (Hm: exists m', m = S m') by ( *)
+(*   assert (exists m', m = S m') as [m' ->] by ( *)
 (*     destruct m; inversion Hmn; subst; eexists; auto *)
-(*   ); destruct Hm as [m' ?]; subst. *)
+(*   ). *)
+(*   (* destruct Hm as [m' ?]; subst. *) *)
 (*   generalize dependent optV. *)
 (*   generalize dependent n. *)
 (*   induction e; auto; intros. *)
 (*   - *)
 (*     (* This is the job of inv_mbind or similar. *) *)
-(*     assert (Hevaln1 : exists optV1, tevalS e1 n env = Some optV1) by admit. *)
-(*     assert (Hevaln2 : exists optV2, tevalS e2 n env = Some optV2) by admit. *)
-(*     destruct Hevaln1 as [[optV1 j1] Hevaln1]. *)
-(*     destruct Hevaln2 as [[optV2 j2] Hevaln2]. *)
+(*     assert (exists optV1, tevalS e1 n env = Some optV1) as [[optV1 j1] Hevaln1] by admit. *)
+(*     assert (exists optV2, tevalS e2 n env = Some optV2) as [[optV2 j2] Hevaln2] by admit. *)
 (*     (* Here auto uses the induction hypothesis! *) *)
-(*     assert (Hevalm1 : tevalS e1 m' env = tevalS e1 n env) by (rewrite Hevaln1; auto). *)
-(*     assert (Hevalm2 : tevalS e2 m' env = tevalS e2 n env) by (rewrite Hevaln2; auto). *)
 (*     simpl in *. *)
-(*     rewrite Hevalm1 in *; clear Hevalm1. *)
-(*     rewrite Hevalm2 in *; clear Hevalm2. *)
+(*     assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto). *)
+(*     assert (tevalS e2 m' env = tevalS e2 n env) as -> by (rewrite Hevaln2; auto). *)
 (*     rewrite Hevaln1 in *. *)
 (*     rewrite Hevaln2 in *. *)
+
 (*     do 3 case_match; auto. *)
 (*     unfold step in *. *)
-(*     assert (Hevaln0 : exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) by admit. *)
-(*     destruct Hevaln0 as [optV0 [j0 Hevaln0]]. *)
-(*     rewrite Hevaln0 in *. injections_some. *)
-(*     assert (Hevalm0: tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) by (rewrite Hevaln0; auto). *)
-(*     rewrite Hevalm0 in *. *)
-(*     rewrite Hevaln0. *)
-(*     auto. *)
-(*   - admit. *)
+
+(*     assert (exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]] by admit. *)
+(*     assert (tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) as -> by (rewrite Hevaln0; auto). *)
+(*     rewrite Hevaln0 in *; injections_some; auto. *)
+(*   -  *)
+(*     assert (exists optV1, tevalS e1 n env = Some optV1) as [[optV1 j1] Hevaln1] by admit. *)
+(*     simpl in *. *)
+(*     assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto). *)
+(*     rewrite Hevaln1 in *. *)
+
+(*     case_match; auto. *)
+(*     unfold step in *. *)
+
+(*     assert (exists optV2, tevalS e2 n (v::env) = Some optV2) as [[optV2 j2] Hevaln2] by admit. *)
+(*     assert (tevalS e2 m' (v::env) = tevalS e2 n (v::env)) as -> by (rewrite Hevaln2; auto). *)
+(*     rewrite Hevaln2 in *; injections_some; auto. *)
 (* Admitted. *)
-(* (* TODO: prove as exercise that if `eval (tapp e1 e2)` succeeds, evaluating e1 *)
-(* and e2 succeeds. That should be an exercise on some tactic like inv_mbind. *) *)
+(* TODO: prove as exercise that if `eval (tapp e1 e2)` succeeds, evaluating e1 *)
+(* and e2 succeeds. That should be an exercise on some tactic like inv_mbind. *)
 
 (* We want to relate etp and vtp. *)
 Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalS e n env = Some (optV, k).
@@ -412,12 +418,12 @@ Proof.
   intros * Hvtp Heval Hkj.
   unfold etp; vtp_unfold_pieces; unfold tevalSnOpt, tevalSnm in *.
   intros * Hkj0 [nm' Heval'].
-  assert (optV = Some v /\ j = j0) by (
+  assert (optV = Some v /\ j = j0) as [-> ->] by (
     pose (N := nm + nm' + 1);
     assert (tevalS e N env1 = Some (Some v, j)) by (subst N; auto);
     assert (tevalS e N env1 = Some (optV, j0)) by (subst N; auto);
     split_conj; congruence);
-  ev; subst; eexists; split_conj; eauto.
+  eexists; split_conj; eauto.
 Qed.
 Hint Resolve vtp_etp_j.
 
