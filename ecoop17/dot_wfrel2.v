@@ -301,24 +301,6 @@ Proof.
 
   (* case_match; eauto. *)
 Admitted.
-(* XXX: For this context: *)
-(*
- 1 subgoal (ID 776)
-
-  G : tenv
-  T1, T2 : ty
-  k : nat
-  env : venv
-  e : tm
-  env1 : venv
-  H : etp T1 k env1 e env -> etp T2 k env1 e env
-  Henv : R_env k env G
-  v : vl
-  HvT1 : vtp T1 k v env
-  Heval : forall n : nat, n > 0 -> tevalS e n env1 = Some (Some v, 0)
-  ============================
-  vtp T2 k v env
-*)
 
 (* We want to relate etp and vtp. *)
 Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalS e n env = Some (optV, k).
@@ -326,30 +308,20 @@ Definition tevalSnm env e v k nm := forall n, n > nm -> tevalS e n env = Some (S
 
 Hint Unfold tevalSnm tevalSn tevalSnmOpt tevalSnOpt.
 Lemma etp_vtp_j: forall e v k j nm T env env1,
-  tevalSnm env1 e v j nm -> etp T k env1 e env -> j <= k -> vtp T (k - j) v env.
+    tevalSnm env1 e v j nm -> etp T k env1 e env -> j <= k -> vtp T (k - j) v env.
 Proof.
   intros;
   assert (exists v0 : vl, Some v = Some v0 /\ vtp T (k - j) v0 env) by eauto;
   ev; injections_some; eauto.
 Qed.
 Hint Resolve etp_vtp_j.
-  (* specialize (HT (Some v) j Hjk (ex_intro _ _ Heval)). *)
-  (* assert (Heval': tevalSnOpt env1 e (Some v) j) by eauto. *)
-  (* unfold tevalSnOpt in *. *)
-  (* destruct HT as [v0 [? ?]]. *)
-  (* assert (tevalSnOpt env1 e (Some v) j). { *)
-  (* (* unfold tevalSnOpt; unfold tevalSnm in Heval. *) *)
-  (* exact (ex_intro _ nm Heval). } *)
 
-
-Lemma etp_vtp:
-  forall e v k nm T env env1,
+Lemma etp_vtp: forall e v k nm T env env1,
     tevalSnm env1 e v 0 nm -> etp T k env1 e env -> vtp T k v env.
 Proof. eauto. Qed.
 Hint Resolve etp_vtp.
 
-Lemma vtp_etp_j:
-  forall e v T env env1 k j nm,
+Lemma vtp_etp_j: forall e v T env env1 k j nm,
     vtp T (k - j) v env ->
     tevalSnm env1 e v j nm ->
     j <= k ->
@@ -358,67 +330,36 @@ Proof.
   intros * Hvtp Heval Hkj.
   unfold etp; vtp_unfold_pieces; unfold tevalSnOpt, tevalSnm in *.
   intros * Hkj0 [nm' Heval'].
-  assert (optV = Some v /\ j = j0). {
-    pose (N := nm + nm' + 1).
-    assert (tevalS e N env1 = Some (Some v, j)) by (subst N; auto).
-    assert (tevalS e N env1 = Some (optV, j0)) by (subst N; auto).
-    split_conj; congruence.
-  }
+  assert (optV = Some v /\ j = j0) by (
+    pose (N := nm + nm' + 1);
+    assert (tevalS e N env1 = Some (Some v, j)) by (subst N; auto);
+    assert (tevalS e N env1 = Some (optV, j0)) by (subst N; auto);
+    split_conj; congruence);
   ev; subst; eexists; split_conj; eauto.
 Qed.
-(* Hint Resolve vtp_etp_j. *)
+Hint Resolve vtp_etp_j.
 
-(* Lemma vtp_etp: *)
-(*   forall e v T env env1 k nm, *)
-(*     vtp T k v env -> *)
-(*     tevalSnm env1 e v 0 nm -> *)
-(*     etp T k env1 e env. *)
-(* Proof. eauto. Qed. *)
-(* Hint Resolve vtp_etp. *)
+Lemma vtp_etp:
+  forall e v T env env1 k nm,
+    vtp T k v env ->
+    tevalSnm env1 e v 0 nm ->
+    etp T k env1 e env.
+Proof. eauto. Qed.
+Hint Resolve vtp_etp.
 
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
 Proof.
   unfold sem_subtype, sem_vl_subtype.
   intros * H * Henv * HvT1.
-  pose (He := vl_to_tm v); destruct He as [[e env1] Heval].
-  specialize (H k env env1 Henv e).
-
-  assert (HT1: etp T1 k env1 e env). {
-    unfold etp; vtp_unfold_pieces; unfold tevalSnOpt, tevalSn in *.
-    intros * Hjk [nm Heval'].
-    assert (Hnm1: S nm > nm) by auto.
-    assert (Hnm2: S nm > 0) by auto.
-    specialize (Heval' (S nm) Hnm1). clear Hnm1.
-    specialize (Heval (S nm) Hnm2). clear Hnm2.
-    assert (optV = Some v) by congruence; assert (j = 0) by congruence; subst.
-    eexists; split_conj; eauto; eauto.
-  }
-  assert (HT2: etp T2 k env1 e env) by auto. clear H HT1.
-  unfold etp in *; vtp_unfold_pieces; unfold tevalSnOpt, tevalSn in *.
-  assert (Hk: 0 <= k) by auto.
-  specialize (HT2 (Some v) 0 Hk).
-  replace (k - 0) with k in * by omega.
-
-  assert (Hconcl: exists v0, Some v = Some v0 /\ vtp T2 k v0 env) by eauto.
-  ev; injections_some; auto.
+  pose (He := vl_to_tm v); destruct He as [[e env1] Heval];
+  eauto.
 Qed.
-
-(* Lemma vtp_is_val; vtp T n v env -> eval. *)
-  (* eapply H. *)
-  (* intros * ? * ? * HeT1. *)
-  (* intros * Hjk Heval. *)
-  (* specialize (HeT1 optV j Hjk Heval). *)
-(* Admitted. *)
-
 Hint Resolve subtype_to_vl_subtype.
 
-Print sem_subtype.
-(* Join these two lemmas to show sem_subtype = sem_vl_subtype. *)
 Lemma vl_sub_equiv: sem_subtype = sem_vl_subtype.
 Proof.
-  repeat (apply functional_extensionality; intro);
-    apply prop_extensionality;
+  repeat (apply functional_extensionality; intro); apply prop_extensionality;
     split; eauto.
 Qed.
 Hint Rewrite vl_sub_equiv.
