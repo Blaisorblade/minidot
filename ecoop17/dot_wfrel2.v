@@ -227,7 +227,7 @@ Definition sem_type (G : tenv) (T : ty) (e: tm) :=
     etp T k env e env.
 
 Definition sem_subtype (G : tenv) (T1 T2: ty) :=
-  forall k env env1, 
+  forall k env env1,
     R_env k env G ->
     forall e, etp T1 k env1 e env -> etp T2 k env1 e env.
 
@@ -262,7 +262,7 @@ Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
 Lemma sem_and_stp2 : forall G T1 T2, sem_subtype G (TAnd T1 T2) T2.
 Proof. eauto using and_stp2. Qed.
- 
+
 Lemma stp_and' : forall env T1 T2 n v, vtp T1 n v env -> vtp T2 n v env -> vtp (TAnd T1 T2) n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
@@ -276,9 +276,9 @@ Proof. intros; vtp_simpl_unfold; tauto. Qed.
 Require Import dot_eval.
 Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | forall n, forall Hfuel : n > 0, tevalS e n env = Some (Some v, 0) } :=
   match v with
-  | vabs env T body => 
+  | vabs env T body =>
     (tabs T body, env)
-  | vty env T => 
+  | vty env T =>
     (ttyp T, env)
   end.
 Solve Obligations with program_simplify; destruct n; solve [inverse Hfuel] || reflexivity.
