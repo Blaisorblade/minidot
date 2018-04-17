@@ -203,6 +203,27 @@ Proof.
   intros * H; induction H; simpl; congruence.
 Qed.
 
+Program Definition etp T k env1 e env :=
+  @expr_sem k (fun k _ => vtp T k) k _ env1 e env.
+
+(* Semantic typing *)
+Definition sem_type (G : tenv) (T : ty) (e: tm) :=
+  forall k env,
+    R_env k env G ->
+    etp T k env e env.
+
+Definition sem_subtype (G : tenv) (T1 T2: ty) :=
+  forall k env,
+    R_env k env G ->
+    forall e, etp T1 k env e env -> etp T2 k env e env.
+
+Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
+  forall k env,
+    R_env k env G ->
+    forall e, vtp T1 k e env -> vtp T2 k e env.
+
+Hint Unfold sem_subtype sem_vl_subtype etp.
+
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
