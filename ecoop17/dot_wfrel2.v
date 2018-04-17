@@ -468,16 +468,45 @@ Proof.
 Qed.
 Hint Resolve vtp_closed.
 
-(* (* XXX Too hard to state, because we didn't define semantic typing yet! *) *)
-(* Lemma t_forall_i : forall env T1 T2 n t, *)
-(*     closed_ty 0 (length env) T1 -> *)
-(*     closed_ty 1 (length env) T2 -> *)
-(*     (forall v, vtp T1 n v env -> *)
-(*         expr_sem (fun n' (p: n' <= n) v' => vtp T2 n v') n (le_refl n) (v :: env) t (v :: env)) -> *)
-(*     vtp (TAll T1 T2) n (vabs env T1 t) env. *)
-(* Proof. *)
-(*   intros. *)
-(*   vtp_simpl_unfold. repeat split_conj; try assumption. *)
+Lemma vtp_extend : forall vx v k env T,
+  vtp T k v env ->
+  vtp T k v (vx::env).
+Proof.
+Admitted.
+Hint Immediate vtp_extend.
 
-(*   Abort. *)
-(*   (* XXX Should prove closure assumptions from the hypothesis? *) *)
+Lemma vtp_etp_rev:
+  forall e v T env env1 k nm,
+    tevalSnm env1 e v 0 nm ->
+    vtp T k v env ->
+    etp T k env1 e env.
+  eauto. Qed.
+
+Lemma t_forall_i: forall G T1 T2 t,
+  (* sem_type (T1 :: G) T2 t -> *)
+  sem_type (T1 :: G) (open (varF (length G)) T2) t ->
+  sem_type G (TAll T1 T2) (tabs T2 t).
+Proof.
+  unfold sem_type. intros.
+  (* XXX needed: Lemma for syntactic values. *)
+  (* Also needed: a way to swap goals that actually works! *)
+  eapply vtp_etp_rev with (nm := 0).
+  - unfold tevalSnm; intros; step_eval; trivial.
+  -
+    unfold etp in *; vtp_simpl_unfold;
+    split_conj.
+    + admit.
+    + admit.
+      (* assert (closed_ty 0 (length env) (open (varF (length G)) T2)). { *)
+      (*   eapply vtp_closed. *)
+        (* Can't work unless we know that the body terminates. We need to change
+        defs and prove *etp_closed* or expr_sem_closed. That wasn't a problem
+        for strong normalization because there we _do_ know the body terminates. *)
+      (* } *)
+    +
+    intros.
+    (* assert (exists v : vl, optV = Some v /\ vtp T2 (k0 - j) v (vx :: env)) by eauto. *)
+    assert (exists v : vl, optV = Some v /\ vtp (open (varF (length G)) T2) (k0 - j) v (vx :: env)) by eauto.
+    assert (length env = length G) as -> by eauto using wf_length.
+    solve [ev; eexists; split_conj; eauto].
+Admitted.
