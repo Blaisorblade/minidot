@@ -145,6 +145,8 @@ Proof.
   all: try (apply Hind with (n' := n); try smaller_types; assumption).
 Qed.
 
+Hint Resolve vtp_mon.
+
 (* XXX questionable, why take env? But that comes from how vtp's defined internally. *)
 Record vset := mkVset
   {
@@ -193,6 +195,15 @@ Hint Unfold tenv.
 Hint Unfold R_env_all.
 Hint Constructors R_env.
 
+Lemma R_env_mon: forall G env m n,
+    R_env n env G ->
+    m <= n ->
+    R_env m env G.
+Proof.
+  intros * Henv; induction Henv; eauto.
+Qed.
+Hint Resolve R_env_mon.
+
 Lemma wf_length_all : forall k vs ts,
                     R_env_all k vs ts ->
                     (length vs = length ts).
@@ -226,6 +237,19 @@ Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
     forall e, vtp T1 k e env -> vtp T2 k e env.
 
 Hint Unfold sem_subtype sem_vl_subtype etp.
+
+Lemma vl_subtype_to_subtype : forall G T1 T2,
+    sem_vl_subtype G T1 T2 -> sem_subtype G T1 T2.
+Proof.
+  unfold sem_subtype, sem_vl_subtype, etp.
+  intros * ? * ? * HeT1.
+  vtp_unfold_pieces.
+  intros * Hjk Heval.
+  specialize (HeT1 optV j Hjk Heval).
+  ev.
+  eexists; split_conj; eauto.
+Qed.
+Hint Resolve vl_subtype_to_subtype.
 
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
