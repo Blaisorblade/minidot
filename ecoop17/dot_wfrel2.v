@@ -327,6 +327,25 @@ Solve Obligations with program_simplify; destruct n; solve [inverse Hfuel] || re
 (* (*   - repeat inv_mbind_some. *) *)
 (* (*     inversion Heval; subst; auto. *) *)
 
+Lemma n_to_Sn: forall n m, n > m -> exists n', n = S n'.
+  intros; destruct n; [ exfalso; omega | eauto].
+Qed.
+Hint Unfold gt ge lt.
+Ltac n_is_succ :=
+  unfold gt, ge, lt in *;
+  match goal with
+  | [H : S ?m <= ?n |- _] =>
+    (* idtac *)
+    apply n_to_Sn in H; let n' := fresh n in destruct H as [n' ->]
+  end.
+Tactic Notation "n_is_succ'" simple_intropattern(P) :=
+  unfold gt, ge, lt in *;
+  match goal with
+  | [H : S ?m <= ?n |- _] =>
+    apply n_to_Sn in H; destruct H as P
+  end.
+
+Ltac step_eval := n_is_succ; simpl in *.
 
 (* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *)
 (* Proof. *)
