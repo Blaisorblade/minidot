@@ -272,6 +272,49 @@ Lemma stp_and : forall env S T1 T2 n v,
     vtp S n v env -> vtp (TAnd T1 T2) n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
+(* Can't do the version with sem_subtype until we add later as a type constructor. *)
+(* First attempt. *)
+Lemma mem_stp' : forall env x L U n v vx,
+    vtp (TMem L U) (S n) v env ->
+    vtp L n vx env ->
+    indexr x env = Some v ->
+    vtp (TSel (varF x)) n vx env.
+Proof.
+  intros *; vtp_simpl_unfold; intros (? & ? & Hv) Hvx ->.
+  case_match; ev; intros; try tauto.
+  assert (Hj: j < S n) by auto.
+  (* specialize (Hv j Hj vx). *)
+  solve [firstorder eauto].
+Restart.
+  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
+    solve [tauto | discriminate | assert (j < S n) by auto; firstorder eauto].
+Qed.
+
+(* Better attempt, where I only use "later" L, as expected. Note the proof is simpler! *)
+Lemma mem_stp : forall env x L U n v vx,
+    vtp (TMem L U) (S n) v env ->
+    vtp L n vx env ->
+    indexr x env = Some v ->
+    vtp (TSel (varF x)) (S n) vx env.
+Proof.
+  intros *; vtp_simpl_unfold; intros (? & ? & Hv) Hvx ->.
+  case_match; ev; intros; try tauto.
+  solve [firstorder eauto].
+Restart.
+  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
+    solve [tauto | discriminate | firstorder eauto].
+Qed.
+
+(* Annoying: proof search by firstorder can't instantiate j < S n with j := n, unless we add a hint. *)
+Lemma stp_mem : forall env x L U n v vx,
+    vtp (TMem L U) (S n) v env ->
+    vtp (TSel (varF x)) (S n) vx env ->
+    indexr x env = Some v ->
+    vtp U n vx env.
+Proof.
+  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
+    solve [tauto | discriminate | assert (n < S n) by auto; firstorder eauto].
+Qed.
 
 Require Import dot_eval.
 Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | forall n, forall Hfuel : n > 0, tevalS e n env = Some (Some v, 0) } :=
