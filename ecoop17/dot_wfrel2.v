@@ -1,6 +1,7 @@
 Require Import tactics.
 Require Import dot_wfrel.
 Require Import dot_base.
+Require Import dot_eval.
 
 Lemma vtp_unfold : forall T n v env,
     vtp T n v env =
@@ -307,7 +308,6 @@ Proof.
     solve [tauto | discriminate | assert (n < S n) by auto; firstorder eauto].
 Qed.
 
-Require Import dot_eval.
 Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | forall n, forall Hfuel : n > 0, tevalS e n env = Some (Some v, 0) } :=
   match v with
   | vabs env T body =>
@@ -425,10 +425,6 @@ Ltac step_eval := n_is_succ; simpl in *.
 (* and e2 succeeds. That should be an exercise on some tactic like inv_mbind. *)
 
 (* We want to relate etp and vtp. *)
-Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalS e n env = Some (optV, k).
-Definition tevalSnm env e v k nm := forall n, n > nm -> tevalS e n env = Some (Some v, k).
-
-Hint Unfold tevalSnm tevalSn tevalSnmOpt tevalSnOpt.
 Lemma etp_vtp_j: forall e v k j nm T env env1,
     tevalSnm env1 e v j nm -> etp T k env1 e env -> j <= k -> vtp T (k - j) v env.
 Proof.
@@ -525,7 +521,7 @@ Proof.
   (* XXX needed: Lemma for syntactic values. *)
   (* Also needed: a way to swap goals that actually works! *)
   eapply vtp_etp_rev with (nm := 0).
-  - unfold tevalSnm; intros; step_eval; trivial.
+  - unfold tevalSnm, tevalSnmOpt; intros; step_eval; trivial.
   -
     unfold etp in *; vtp_simpl_unfold;
     split_conj.
@@ -548,7 +544,7 @@ Admitted.
 Lemma teval_var: forall env x,
   exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV.
 Proof.
-  unfold tevalSnOpt;
+  unfold tevalSnOpt, tevalSnmOpt;
     eexists;
     split_conj; [exists 1 (* For nm *); intros; step_eval|idtac]; eauto.
 Qed.

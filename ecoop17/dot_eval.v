@@ -151,6 +151,12 @@ Proof.
        try (reflexivity || discriminate || omega)).
 Qed.
 
-Definition tevalSn env e v k := exists nm, forall n, n > nm -> tevalS e n env = Some (Some v, k).
+Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalS e n env = Some (optV, k).
+Definition tevalSnOpt env e optV k := exists nm, tevalSnmOpt env e optV k nm.
+Definition tevalSnm env e v k nm := tevalSnmOpt env e (Some v) k nm.
+Definition tevalSn env e v k := tevalSnOpt env e (Some v) k.
+Definition tevalSn' env e v k := exists nm, tevalSnm env e v k nm.
+Hint Unfold tevalSnmOpt tevalSnOpt tevalSnm tevalSn tevalSn'.
 
-Definition tevalSnOpt env e optV k := exists nm, forall n, n > nm -> tevalS e n env = Some (optV, k).
+Lemma tevalSnEqv: forall env e v k, tevalSn env e v k = tevalSn' env e v k.
+Proof. reflexivity. Qed.
