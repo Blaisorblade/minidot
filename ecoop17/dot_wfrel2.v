@@ -542,7 +542,7 @@ Proof.
     + admit.
       (* assert (closed_ty 0 (length env) (open (varF (length G)) T2)). { *)
       (*   eapply vtp_closed. *)
-        (* Can't work unless we know that the body terminates. We need to change
+        (* XXX Can't work unless we know that the body terminates. We need to change
         defs and prove *etp_closed* or expr_sem_closed. That wasn't a problem
         for strong normalization because there we _do_ know the body terminates. *)
       (* } *)
@@ -553,3 +553,64 @@ Proof.
     assert (length env = length G) as -> by eauto using wf_length.
     solve [ev; eexists; split_conj; eauto].
 Admitted.
+
+Lemma teval_var: forall env x,
+  exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV.
+Proof.
+  unfold tevalSnOpt;
+    eexists;
+    split_conj; [exists 1 (* For nm *); intros; step_eval|idtac]; eauto.
+Qed.
+Hint Resolve teval_var.
+
+Require Import LibTactics.
+Lemma etp_var: forall env x T n,
+  etp T n env (tvar x) env ->
+  exists v,
+    indexr x env = Some v /\
+    vtp T n v env.
+Proof.
+  unfold etp, expr_sem.
+  intros * Hetp.
+  simpl in *.
+  (* Tactic *)
+  assert (0 <= n) by auto.
+  assert (exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV) by auto.
+    (* as (optV & Heval & Hx) by auto. *)
+  (* lets ? : Hetp optV Heval ___; auto. *)
+  firstorder (ev; subst; eauto).
+  (* ev; subst; eauto. *)
+  (* lets (v & -> & Hvtp) : Hetp optV Heval ___; auto. *)
+  (* firstorder eauto. *)
+  (* subst. *)
+  (* eexists; *)
+  (* firstorder eauto. *)
+  (* lets (v & -> & Hvtp) : Hetp optV Heval ___; auto. *)
+  (* eexists; split_conj; eauto. *)
+Qed.
+
+(* Better version of mem_stp. *)
+Lemma mem_stp_etp : forall env x L U n vx,
+    etp (TMem L U) (S n) env (tvar x) env ->
+    vtp L n vx env ->
+    vtp (TSel (varF x)) (S n) vx env.
+Proof.
+  intros * H ?;
+    apply etp_var in H;
+    (* Either: *)
+    ev; eauto using mem_stp.
+    (* Or: *)
+    (* firstorder (eauto using mem_stp). *)
+  (* Apparently firstorder can't destruct existentials? *)
+Qed.
+
+Lemma stp_mem_etp : forall env x L U n vx,
+    etp (TMem L U) (S n) env (tvar x) env ->
+    vtp (TSel (varF x)) (S n) vx env ->
+    vtp U n vx env.
+Proof.
+  intros * H ?;
+    apply etp_var in H;
+    (* Either: *)
+    ev; eauto using stp_mem.
+Qed.
