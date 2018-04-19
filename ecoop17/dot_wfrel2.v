@@ -2,6 +2,7 @@ Require Import tactics.
 Require Import dot_wfrel.
 Require Import dot_base.
 Require Import dot_eval.
+Require Import LibTactics.
 
 Lemma vtp_unfold : forall T n v env,
     vtp T n v env =
@@ -429,7 +430,7 @@ Lemma etp_vtp_j: forall e v k j nm T env env1,
     tevalSnm env1 e v j nm -> etp T k env1 e env -> j <= k -> vtp T (k - j) v env.
 Proof.
   intros;
-  assert (exists v0 : vl, Some v = Some v0 /\ vtp T (k - j) v0 env) by eauto;
+  assert (exists v0, Some v = Some v0 /\ vtp T (k - j) v0 env) by eauto;
   ev; injections_some; eauto.
 Qed.
 Hint Resolve etp_vtp_j.
@@ -536,7 +537,7 @@ Proof.
     +
     intros.
     (* assert (exists v : vl, optV = Some v /\ vtp T2 (k0 - j) v (vx :: env)) by eauto. *)
-    assert (exists v : vl, optV = Some v /\ vtp (open (varF (length G)) T2) (k0 - j) v (vx :: env)) by eauto.
+    assert (exists v, optV = Some v /\ vtp (open (varF (length G)) T2) (k0 - j) v (vx :: env)) by eauto.
     assert (length env = length G) as -> by eauto using wf_length.
     solve [ev; eexists; split_conj; eauto].
 Admitted.
@@ -550,7 +551,6 @@ Proof.
 Qed.
 Hint Resolve teval_var.
 
-Require Import LibTactics.
 Lemma etp_var: forall env x T n,
   etp T n env (tvar x) env ->
   exists v,
