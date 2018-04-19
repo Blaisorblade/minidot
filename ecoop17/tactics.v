@@ -112,3 +112,25 @@ Hint Constructors option.
 Hint Constructors list.
 
 Hint Resolve ex_intro.
+
+(* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
+Ltac ineq_solver := autorewrite with core; simpl in *; omega.
+Hint Unfold gt. (* Using gt or lt other shouldn't affect proof search! *)
+Hint Unfold ge. (* Ditto *)
+Hint Extern 5 (_ > _) => ineq_solver.
+Hint Extern 5 (_ >= _) => ineq_solver.
+Hint Extern 5 (_ < _) => ineq_solver.
+Hint Extern 5 (_ <= _) => ineq_solver.
+(* Hint Extern 5 (_ <> _) => ineq_solver. *)
+Hint Extern 5 (_ <> _ :> nat) => ineq_solver.
+
+Lemma inj_S: forall n, (n = S n) -> False.
+  intros * H; induction n; discriminate || injection H; auto.
+Qed.
+
+Hint Resolve inj_S.
+
+Require Export SfLib.
+Hint Resolve beq_nat_false.
+Hint Resolve false_beq_nat.
+Hint Resolve beq_nat_true.

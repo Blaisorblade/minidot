@@ -100,15 +100,6 @@ Ltac vtp_unfold_pieces :=
   unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, expr_sem in *.
 Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
 
-(* Hint Extern 1 (tsize_flat (open_rec _ _ _)) => autorewrite with core. *)
-Ltac ineq_solver := autorewrite with core; simpl in *; omega.
-Hint Unfold gt. (* Using gt or lt other shouldn't affect proof search! *)
-Hint Unfold ge. (* Ditto *)
-Hint Extern 5 (_ > _) => ineq_solver.
-Hint Extern 5 (_ >= _) => ineq_solver.
-Hint Extern 5 (_ < _) => ineq_solver.
-Hint Extern 5 (_ <= _) => ineq_solver.
-
 Lemma vtp_mon: forall T env v m n,
     vtp T n v env ->
     m <= n ->
