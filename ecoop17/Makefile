@@ -97,7 +97,8 @@ VFILES:=SfLib.v\
 	dot_infrastructure_lemmas.v \
   dot_base.v dot_typing.v \
   dot_eval.v dot_monads.v \
-	dot_wfrel.v dot_wfrel2.v
+	dot_wfrel.v dot_wfrel2.v \
+	LibTactics.v
 
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
