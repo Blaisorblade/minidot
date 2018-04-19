@@ -460,7 +460,7 @@ Lemma vtp_etp_j: forall e v T env env1 k j nm,
 Proof.
   intros * Hvtp Heval Hkj.
   unfold etp; vtp_unfold_pieces; unfold tevalSnOpt, tevalSnm in *.
-  intros * Hkj0 [nm' Heval'].
+  intros * [nm' Heval'] Hkj0.
   assert (optV = Some v /\ j = j0) as [-> ->] by (
     pose (N := nm + nm' + 1);
     assert (tevalS e N env1 = Some (Some v, j)) by (subst N; auto);

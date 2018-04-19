@@ -142,7 +142,8 @@ Program Definition expr_sem {n} (A : pretype_dom n) k (p : k <= n) env1 e
   fun env =>
     (* If evaluation terminates in at most k steps without running out of fuel, *)
     forall optV j,
-      j <= k -> tevalSnOpt env1 e optV j ->
+      tevalSnOpt env1 e optV j ->
+      j <= k ->
       (* then evaluation did not get stuck and the result satisfies A. *)
       exists v, optV = Some v /\ A (k - j) _ v env.
 
