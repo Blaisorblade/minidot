@@ -269,12 +269,6 @@ Lemma mem_stp' : forall env x L U n v vx,
     indexr x env = Some v ->
     vtp (TSel (varF x)) n vx env.
 Proof.
-  intros *; vtp_simpl_unfold; intros (? & ? & Hv) Hvx ->.
-  case_match; ev; intros; try tauto.
-  assert (Hj: j < S n) by auto.
-  (* specialize (Hv j Hj vx). *)
-  solve [firstorder eauto].
-Restart.
   intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
     solve [tauto | discriminate | assert (j < S n) by auto; firstorder eauto].
 Qed.
@@ -286,10 +280,6 @@ Lemma mem_stp : forall env x L U n v vx,
     indexr x env = Some v ->
     vtp (TSel (varF x)) (S n) vx env.
 Proof.
-  intros *; vtp_simpl_unfold; intros (? & ? & Hv) Hvx ->.
-  case_match; ev; intros; try tauto.
-  solve [firstorder eauto].
-Restart.
   intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
     solve [tauto | discriminate | firstorder eauto].
 Qed.
