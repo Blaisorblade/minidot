@@ -41,7 +41,7 @@ $(call includecmdwithout@,$(COQBIN)coqtop -config)
 
 TIMED?=
 TIMECMD?=
-STDTIME?=/usr/bin/time -f "$* (user: %U mem: %M ko)"
+STDTIME?=$(shell which gtime || which time) -f "$* (user: %U mem: %M ko)"
 TIMER=$(if $(TIMED), $(STDTIME), $(TIMECMD))
 
 vo_to_obj = $(addsuffix .o,\
