@@ -227,7 +227,7 @@ Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
     R_env k env G ->
     forall v, vtp T1 k v env -> vtp T2 k v env.
 
-Hint Unfold sem_subtype sem_vl_subtype etp.
+Hint Unfold sem_type sem_subtype sem_vl_subtype etp.
 
 Lemma vl_subtype_to_subtype : forall G T1 T2,
     sem_vl_subtype G T1 T2 -> sem_subtype G T1 T2.
@@ -605,3 +605,41 @@ Proof.
     (* Either: *)
     ev; eauto using stp_mem.
 Qed.
+
+Lemma stp_refl : forall G T,
+    sem_subtype G T T.
+Proof. intros; eauto. Qed.
+
+Lemma stp_trans : forall G T1 T2 T3,
+    sem_subtype G T1 T2 ->
+    sem_subtype G T2 T3 ->
+    sem_subtype G T1 T3.
+Proof. intros; auto. Qed.
+
+Lemma t_sub: forall G T1 T2 e,
+    sem_subtype G T1 T2 ->
+    sem_type G T1 e ->
+    sem_type G T2 e.
+Proof. intros; eauto. Qed.
+
+(* Variant of vtp_extend. *)
+Lemma stp_weak : forall G T1 T2 T,
+    sem_subtype G T1 T2 ->
+    sem_subtype (T :: G) T1 T2.
+Proof.
+  unfold sem_subtype.
+  intros * Hsub * Henv * HT1.
+  dependent destruction Henv.
+  (* etp, expr_sem. *)
+  eapply Hsub; eauto.
+Admitted.
+(*   (* eexists; ev. *) *)
+(*   eauto. *)
+(*   eauto using vtp_extend. *)
+(*   indexr_extend. *)
+(* Qed. *)
+
+Lemma t_weak : forall G T1 T2 T,
+    sem_type G T1 T2 ->
+    sem_type (T :: G) T1 T2.
+Admitted.
