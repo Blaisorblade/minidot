@@ -471,8 +471,7 @@ Lemma subtype_to_vl_subtype : forall G T1 T2,
 Proof.
   unfold sem_subtype, sem_vl_subtype.
   intros * H * Henv * HvT1.
-  pose (He := vl_to_tm v); destruct He as [[e env1] Heval];
-  eauto.
+  destruct (vl_to_tm v) as [[e env1] Heval]; eauto.
 Qed.
 Hint Resolve subtype_to_vl_subtype.
 
@@ -503,6 +502,7 @@ Lemma vtp_extend : forall vx v k env T,
   vtp T k v env ->
   vtp T k v (vx::env).
 Proof.
+  intros; vtp_simpl_unfold.
 Admitted.
 Hint Immediate vtp_extend.
 
@@ -638,4 +638,8 @@ Admitted.
 Lemma t_weak : forall G T1 T2 T,
     sem_type G T1 T2 ->
     sem_type (T :: G) T1 T2.
+Proof.
+  unfold sem_type.
+  intros ? * Htp * Henv.
+  eapply Htp.
 Admitted.
