@@ -33,3 +33,29 @@ Proof.
     beq_nat; subst; eauto 3.
 Qed.
 Hint Resolve indexr_max.
+
+Lemma indexr_extend : forall X vs n x (T: X),
+                       indexr n vs = Some T ->
+                       indexr n (x::vs) = Some T.
+Proof.
+  intros * H; assert (n < length vs) by eauto;
+    unfold indexr in *; rewrite H;
+    assert (beq_nat n (length vs) = false) as -> by eauto;
+    reflexivity.
+Qed.
+
+  (* induction vs; intros * H. *)
+  (* - inverse H. *)
+  (* - simpl in *. *)
+
+  (* (* induction vs; intros * H; inverse H; simpl. repeat case_match; try injections_some; repeat beq_nat; subst. *) *)
+  (* induction vs; intros * H; try solve [inverse H]; *)
+  (* repeat (simpl in *; case_match; simpl in *; try beq_nat; try injections_some); simpl in *; try solve [exfalso; eauto]; trivial. *)
+  (* lets ?: IHvs (S (length vs)) x T ___. subst; eauto. *)
+  (* case_match; beq_nat; try solve [exfalso; eauto]. subst. *)
+
+  (* + exfalso; eauto. *)
+  (*   replace (length vs) by x in S. *)
+  (*   exfalso. simpl in *. *)
+  (*   repeat (case_match; try beq_nat; try injections_some). *)
+  (*   repeat case_match; try injections_some; repeat beq_nat; subst. *)
