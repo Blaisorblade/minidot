@@ -235,11 +235,8 @@ Lemma vl_subtype_to_subtype : forall G T1 T2,
     sem_vl_subtype G T1 T2 -> sem_subtype G T1 T2.
 Proof.
   unfold sem_subtype, sem_vl_subtype, etp;
-  intros * ? * ? * HeT1;
   vtp_unfold_pieces;
-  intros;
-  lets ? : HeT1 optV j ___; eauto;
-  ev; eexists; split_conj; eauto.
+  firstorder eauto.
 Qed.
 Hint Resolve vl_subtype_to_subtype.
 
