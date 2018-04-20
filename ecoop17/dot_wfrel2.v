@@ -101,6 +101,14 @@ Ltac vtp_unfold_pieces :=
   unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, expr_sem in *.
 Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
 
+Lemma vtp_closed: forall T k v env,
+    vtp T k v env -> closed_ty 0 (length env) T.
+Proof.
+  induction T; intros; destruct v; rewrite vtp_unfold in *; vtp_unfold_pieces; ev; try eauto;
+  repeat case_match; repeat constructor; try contradiction; eauto.
+Qed.
+Hint Resolve vtp_closed.
+
 Lemma vtp_mon: forall T env v m n,
     vtp T n v env ->
     m <= n ->
@@ -475,14 +483,6 @@ Lemma sem_stp_and : forall G S T1 T2,
 Proof.
   rewrite vl_sub_equiv; intros; eauto using stp_and.
 Qed.
-
-Lemma vtp_closed: forall T k v env,
-    vtp T k v env -> closed_ty 0 (length env) T.
-Proof.
-  induction T; intros; destruct v; rewrite vtp_unfold in *; vtp_unfold_pieces; ev; try eauto;
-  repeat case_match; repeat constructor; try contradiction; eauto.
-Qed.
-Hint Resolve vtp_closed.
 
 Lemma vtp_extend : forall vx v k env T,
   vtp T k v env ->
