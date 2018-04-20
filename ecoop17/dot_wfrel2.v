@@ -210,19 +210,19 @@ Proof.
   intros * H; induction H; simpl; congruence.
 Qed.
 
-Program Definition etp T k env1 e env :=
-  @expr_sem k (fun k _ => vtp T k) k _ env1 e env.
+Program Definition etp T k e env :=
+  @expr_sem k (fun k _ => vtp T k) k _ env e env.
 
 (* Semantic typing *)
 Definition sem_type (G : tenv) (T : ty) (e: tm) :=
   forall k env,
     R_env k env G ->
-    etp T k env e env.
+    etp T k e env.
 
 Definition sem_subtype (G : tenv) (T1 T2: ty) :=
-  forall k env env1,
+  forall k env,
     R_env k env G ->
-    forall e, etp T1 k env1 e env -> etp T2 k env1 e env.
+    forall e, etp T1 k e env -> etp T2 k e env.
 
 Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
   forall k env,
@@ -412,8 +412,8 @@ Ltac step_eval := n_is_succ; simpl in *.
 (* and e2 succeeds. That should be an exercise on some tactic like inv_mbind. *)
 
 (* We want to relate etp and vtp. *)
-Lemma etp_vtp_j: forall e v k j nm T env env1,
-    tevalSnm env1 e v j nm -> etp T k env1 e env -> j <= k -> vtp T (k - j) v env.
+Lemma etp_vtp_j: forall e v k j nm T env,
+    tevalSnm env e v j nm -> etp T k e env -> j <= k -> vtp T (k - j) v env.
 Proof.
   intros;
   assert (exists v0, Some v = Some v0 /\ vtp T (k - j) v0 env) by eauto;
@@ -421,34 +421,34 @@ Proof.
 Qed.
 Hint Resolve etp_vtp_j.
 
-Lemma etp_vtp: forall e v k nm T env env1,
-    tevalSnm env1 e v 0 nm -> etp T k env1 e env -> vtp T k v env.
+Lemma etp_vtp: forall e v k nm T env,
+    tevalSnm env e v 0 nm -> etp T k e env -> vtp T k v env.
 Proof. eauto. Qed.
 Hint Resolve etp_vtp.
 
-Lemma vtp_etp_j: forall e v T env env1 k j nm,
+Lemma vtp_etp_j: forall e v T env k j nm,
     vtp T (k - j) v env ->
-    tevalSnm env1 e v j nm ->
+    tevalSnm env e v j nm ->
     j <= k ->
-    etp T k env1 e env.
+    etp T k e env.
 Proof.
   intros * Hvtp Heval Hkj.
   unfold etp; vtp_unfold_pieces; unfold tevalSnOpt, tevalSnm in *.
   intros * [nm' Heval'] Hkj0.
   assert (optV = Some v /\ j = j0) as [-> ->] by (
     pose (N := nm + nm' + 1);
-    assert (tevalS e N env1 = Some (Some v, j)) by (subst N; auto);
-    assert (tevalS e N env1 = Some (optV, j0)) by (subst N; auto);
+    assert (tevalS e N env = Some (Some v, j)) by (subst N; auto);
+    assert (tevalS e N env = Some (optV, j0)) by (subst N; auto);
     split_conj; congruence);
   eexists; split_conj; eauto.
 Qed.
 Hint Resolve vtp_etp_j.
 
 Lemma vtp_etp:
-  forall e v T env env1 k nm,
+  forall e v T env k nm,
     vtp T k v env ->
-    tevalSnm env1 e v 0 nm ->
-    etp T k env1 e env.
+    tevalSnm env e v 0 nm ->
+    etp T k e env.
 Proof. eauto. Qed.
 Hint Resolve vtp_etp.
 
@@ -458,7 +458,8 @@ Proof.
   unfold sem_subtype, sem_vl_subtype.
   intros * H * Henv * HvT1.
   destruct (vl_to_tm v) as [[e env1] Heval]; eauto.
-Qed.
+Admitted.
+(* Qed. *)
 Hint Resolve subtype_to_vl_subtype.
 
 Lemma vl_sub_equiv: sem_subtype = sem_vl_subtype.
@@ -493,10 +494,10 @@ Admitted.
 Hint Immediate vtp_extend.
 
 Lemma vtp_etp_rev:
-  forall e v T env env1 k nm,
-    tevalSnm env1 e v 0 nm ->
+  forall e v T env k nm,
+    tevalSnm env e v 0 nm ->
     vtp T k v env ->
-    etp T k env1 e env.
+    etp T k e env.
   eauto. Qed.
 
 Lemma t_forall_i: forall G T1 T2 t,
@@ -538,7 +539,7 @@ Qed.
 Hint Resolve teval_var.
 
 Lemma etp_var: forall env x T n,
-  etp T n env (tvar x) env ->
+  etp T n (tvar x) env ->
   exists v,
     indexr x env = Some v /\
     vtp T n v env.
@@ -564,7 +565,7 @@ Qed.
 
 (* Better version of mem_stp. *)
 Lemma mem_stp_etp : forall env x L U n vx,
-    etp (TMem L U) (S n) env (tvar x) env ->
+    etp (TMem L U) (S n) (tvar x) env ->
     vtp L n vx env ->
     vtp (TSel (varF x)) (S n) vx env.
 Proof.
@@ -578,7 +579,7 @@ Proof.
 Qed.
 
 Lemma stp_mem_etp : forall env x L U n vx,
-    etp (TMem L U) (S n) env (tvar x) env ->
+    etp (TMem L U) (S n) (tvar x) env ->
     vtp (TSel (varF x)) (S n) vx env ->
     vtp U n vx env.
 Proof.
