@@ -270,7 +270,6 @@ Fixpoint tsize_flat_ovl_ty (T: ovl_ty) :=
     | VTAnd T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
   end.
 
-
 Lemma open_preserves_size: forall T x j,
   tsize_flat (open_rec j (varF x) T) =
   tsize_flat T.

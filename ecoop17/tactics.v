@@ -2,6 +2,7 @@ Require Export Omega.
 Require Export Program.
 
 Global Unset Transparent Obligations.
+Remove Hints Bool.trans_eq_bool.
 
 Ltac inverse H := (inversion H; subst).
 
