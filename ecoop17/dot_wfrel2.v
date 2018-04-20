@@ -21,6 +21,7 @@ Lemma vtp_unfold : forall T n v env,
                  (fun T j p => vtp T j)
                  n (le_n _) v env
     | TTop => True
+    | TBot => False
     | TSel x =>
       interpTSel n x (fun T j p => vtp T j)
                 n (le_n _) v env
@@ -32,8 +33,6 @@ Lemma vtp_unfold : forall T n v env,
     | TBind T1 =>
       closed_ty 1 (length env) T1 /\
       vtp (open (varF (length env)) T1) n v (v::env)
-    | _ =>
-      False
     end.
 Proof.
   intros;

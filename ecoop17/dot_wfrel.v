@@ -278,6 +278,7 @@ Lemma val_type_unfold : forall T n v env,
                  (fun T j p => val_type T j)
                  n (le_n _) v env
     | TTop => True
+    | TBot => False
     | TSel x =>
       interpTSel n x (fun T j p => val_type T j)
                 n (le_n _) v env
@@ -289,8 +290,6 @@ Lemma val_type_unfold : forall T n v env,
     | TBind T1 =>
       closed_ty 1 (length env) T1 /\
       val_type (open (varF (length env)) T1) n v (v::env)
-    | _ =>
-      False
     end.
 Proof.
   Import WfExtensionality.
