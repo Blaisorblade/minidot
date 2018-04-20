@@ -33,6 +33,11 @@ Lemma vtp_unfold : forall T n v env,
     | TBind T1 =>
       closed_ty 1 (length env) T1 /\
       vtp (open (varF (length env)) T1) n v (v::env)
+    | TLater T =>
+      interpTLater n
+                 (fun n p => vtp T n)
+                 (closed_ty 0 (length env) T)
+                 n (le_n _) v env
     end.
 Proof.
   intros;
@@ -96,9 +101,9 @@ Ltac vtp_induction T n :=
   apply ind_args with (T := T) (n := n);
   clear T n.
 
-Hint Unfold interpTAll interpTSel interpTMem interpTSel0 interpTAnd.
+Hint Unfold interpTAll interpTSel interpTMem interpTSel0 interpTAnd interpTLater.
 Ltac vtp_unfold_pieces :=
-  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, expr_sem in *.
+  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, interpTLater, expr_sem in *.
 Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
 
 Lemma vtp_closed: forall T k v env,
@@ -115,7 +120,7 @@ Lemma vtp_mon: forall T env v m n,
     vtp T m v env.
 Proof.
   intros *.
-  revert env v.
+  revert env v m.
 
   (* The proof is by well-founded induction on type T and count n, because monotonicity on intersection types follows by induction. *)
   vtp_induction T n.
@@ -143,6 +148,31 @@ Proof.
 
   (* A couple (6) follow just by using induction on smaller types. *)
   all: try (apply Hind with (n' := n); try smaller_types; assumption).
+
+  (* handle TLater, for when m is less than 0 *)
+  all: try omega.
+  (* If m = 0 we must show that the produced type is closed. *)
+  all: eauto using vtp_closed.
+
+  (* handle TLater, for when m isn't 0.
+     XXX: this assumes we have n = S n0 and m = S n1. *)
+  all: assert (n1 <= n0) by auto;
+    eapply Hind with (T' := T) (n' := n0) (m := n1);
+    try smaller_n; assumption.
+
+  (* XXX Sort-of-working alternative to avoid relying on generated names. Must
+     be pasted twice, because Coq rejects this under all, as it doesn't believe
+     that n is available in both branches.
+   *)
+    (* match goal with *)
+    (* | [H : n = S ?n0 |- _ ] => rename n0 into n' *)
+    (* end; *)
+    (* match goal with *)
+    (* | [H : m = S ?m0 |- _ ] => rename m0 into m' *)
+    (* end; *)
+    (* assert (m' <= n') by auto; *)
+    (* eapply Hind with (T' := T) (n'0 := n') (m := m'); *)
+    (* try smaller_n; assumption. *)
 Qed.
 
 Hint Resolve vtp_mon.

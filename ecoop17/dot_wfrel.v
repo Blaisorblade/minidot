@@ -191,6 +191,13 @@ Program Definition interpTAnd n (A1 : pretype_dom n) (A2 : pretype_dom n) : pret
     A1 n0 _ v env /\
     A2 n0 _ v env.
 
+Program Definition interpTLater n (A : pretype_dom n) (fallback: Prop) : pretype_dom n :=
+  fun n0 p v env =>
+    match n0 with
+    | O => fallback
+    | S n1 => A n1 _ v env
+    end.
+
 Program Fixpoint val_type (T: ty) (n : nat)
         {measure (val_type_measure T n) (termRel)}: vl_prop :=
   fun v env =>
@@ -221,6 +228,12 @@ Program Fixpoint val_type (T: ty) (n : nat)
     | TBind T1 =>
       closed_ty 1 (length env) T1 /\
       @val_type (open (varF (length env)) T1) n _ v (v::env)
+    | TLater T =>
+      interpTLater n
+                 (fun n p => val_type T n _)
+                 (* This fallback ensures that vtp_closed holds. *)
+                 (closed_ty 0 (length env) T)
+                 n _ v env
   end.
 
 Axiom prop_extensionality:
@@ -290,6 +303,11 @@ Lemma val_type_unfold : forall T n v env,
     | TBind T1 =>
       closed_ty 1 (length env) T1 /\
       val_type (open (varF (length env)) T1) n v (v::env)
+    | TLater T =>
+      interpTLater n
+                 (fun n p => val_type T n)
+                 (closed_ty 0 (length env) T)
+                 n (le_n _) v env
     end.
 Proof.
   Import WfExtensionality.

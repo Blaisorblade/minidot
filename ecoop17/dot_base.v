@@ -50,6 +50,7 @@ Inductive ty : Set :=
 (* | dec_trm : trm_label -> ty -> dec *)
 (* (* (* { Type: S..U } *) *) *)
 (* (* | TMem : ty(*S*) -> ty(*U*) -> ty *) *)
+| TLater : ty -> ty
 .
 
 Inductive tm : Set :=
@@ -96,6 +97,7 @@ Inductive ovl_ty : Set :=
 (* | dec_trm : trm_label -> ovl_ty -> dec *)
 (* (* (* { Type: S..U } *) *) *)
 (* (* | VTMem : ovl_ty(*S*) -> ovl_ty(*U*) -> ovl_ty *) *)
+| VTLater : ovl_ty -> ovl_ty
 .
 
 (* Scheme ty_mut  := Induction for ty  Sort Prop. *)
@@ -142,6 +144,9 @@ Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
     closed_ty i j T1 ->
     closed_ty i j T2 ->
     closed_ty i j (TAnd T1 T2)
+| cl_later: forall i j T,
+    closed_ty i j T ->
+    closed_ty i j (TLater T)
 .
 Inductive closed_tm : nat -> nat -> tm -> Prop :=
 | cl_tvar : forall i j x,
@@ -202,6 +207,9 @@ Inductive closed_ovl_ty: nat(*B*) -> nat(*F*) -> ovl_ty -> Prop :=
     closed_ovl_ty i j T1 ->
     closed_ovl_ty i j T2 ->
     closed_ovl_ty i j (VTAnd T1 T2)
+| cl_vlater: forall i j T,
+    closed_ovl_ty i j T ->
+    closed_ovl_ty i j (VTLater T)
 .
 
 (* open define a locally-nameless encoding wrt to varB type variables. *)
@@ -216,6 +224,7 @@ Fixpoint open_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
     | TMem T1 T2  => TMem (open_rec k u T1) (open_rec k u T2)
     | TBind T => TBind (open_rec (S k) u T)
     | TAnd T1 T2 => TAnd (open_rec k u T1) (open_rec k u T2)
+    | TLater T => TLater (open_rec k u T)
   end.
 
 Notation open := (open_rec 0).
@@ -234,6 +243,7 @@ Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
     | TMem T1 T2     => TMem (subst U T1) (subst U T2)
     | TBind T       => TBind (subst U T)
     | TAnd T1 T2    => TAnd (subst U T1)(subst U T2)
+    | TLater T     => TLater (subst U T)
   end.
 
 (* Fixpoint nosubst (T : ty) {struct T} : Prop := *)
@@ -257,6 +267,7 @@ Fixpoint tsize_flat(T: ty) :=
     | TMem T1 T2 => S (tsize_flat T1 + tsize_flat T2)	
     | TBind T => S (tsize_flat T)
     | TAnd T1 T2 => S (tsize_flat T1 + tsize_flat T2)
+    | TLater T => S (tsize_flat T)
   end.
 
 Fixpoint tsize_flat_ovl_ty (T: ovl_ty) :=
@@ -268,6 +279,7 @@ Fixpoint tsize_flat_ovl_ty (T: ovl_ty) :=
     | VTMem T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
     | VTBind T => S (tsize_flat_ovl_ty T)
     | VTAnd T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
+    | VTLater T => S (tsize_flat_ovl_ty T)
   end.
 
 Lemma open_preserves_size: forall T x j,
