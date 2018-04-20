@@ -129,9 +129,9 @@ Lemma inj_S: forall n, (n = S n) -> False.
   intros * H; induction n; discriminate || injection H; auto.
 Qed.
 
-Hint Resolve inj_S.
+Hint Resolve inj_S: eq.
 
 Require Export SfLib.
-Hint Resolve beq_nat_false.
-Hint Resolve false_beq_nat.
-Hint Resolve beq_nat_true.
+Hint Resolve beq_nat_false: eq.
+Hint Resolve false_beq_nat: eq.
+Hint Resolve beq_nat_true: eq.

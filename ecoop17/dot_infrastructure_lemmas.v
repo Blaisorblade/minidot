@@ -40,7 +40,7 @@ Lemma indexr_extend : forall X vs n x (T: X),
 Proof.
   intros * H; assert (n < length vs) by eauto;
     unfold indexr in *; rewrite H;
-    assert (beq_nat n (length vs) = false) as -> by eauto;
+    assert (beq_nat n (length vs) = false) as -> by eauto with eq;
     reflexivity.
 Qed.
 
