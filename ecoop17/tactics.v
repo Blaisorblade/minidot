@@ -94,10 +94,11 @@ Ltac split_and := split_conj.
 (* From Chlipala's tactics. *)
 Ltac inject H := injection H; clear H; intros; try subst.
 
-(* More reliable (?) variant of inversions_some. *)
+(* More reliable (?) variant of inversions_some; also handle S. *)
 Ltac injections_some :=
   match goal with
-    [H : Some ?a = Some ?b |- _ ] => inject H
+  | [H : Some ?a = Some ?b |- _ ] => inject H
+  | [H : S ?a = S ?b |- _ ] => inject H
   end.
 
 (* To use with repeat fequalSafe in automation.
