@@ -242,12 +242,6 @@ Ltac eval_det :=
 (*   repeat inv_mbind; repeat injections_some. *)
 
 (* First try *)
-(* (* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *) *)
-(* (*   induction e; *) *)
-(* (*   induction n; intros * Heval * Hmn; try solve [inverse Heval]; *) *)
-(* (*   destruct m; inversion Hmn; clear Hmn; subst; auto. *) *)
-(* (*   simpl in Heval. simpl. *) *)
-(* (*   eapply inv_success_mbind2 in Heval. *) *)
 
 (* (* Lemma tevalSM_mono: forall e n env optV, tevalSM e n env = Some optV -> forall m, m >= n -> tevalSM e m env = Some optV. *) *)
 (* (*   induction e; *) *)
