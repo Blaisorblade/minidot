@@ -110,7 +110,8 @@ Lemma vtp_closed: forall T k v env,
     vtp T k v env -> closed_ty 0 (length env) T.
 Proof.
   induction T; intros; destruct v; rewrite vtp_unfold in *; vtp_unfold_pieces; ev; try eauto;
-  repeat case_match; repeat constructor; try contradiction; eauto.
+    (* Either case_match or better_case_match works*)
+    repeat better_case_match; repeat constructor; eauto.
 Qed.
 Hint Resolve vtp_closed.
 
@@ -135,7 +136,8 @@ Proof.
     rewrite vtp_unfold in *;
     vtp_unfold_pieces;
     ev; repeat split_conj;
-      repeat case_match.
+      (* Either case_match or better_case_match works*)
+      repeat better_case_match.
   (* We could finish the proof by a single line combining the next tactics. *)
   (* But let's look how our cases (24 right now!) are solved. *)
   (* Most cases (12) follow trivially, or by using the induction hypothesis. *)
@@ -306,8 +308,9 @@ Lemma mem_stp' : forall env x L U n v vx,
     indexr x env = Some v ->
     vtp (TSel (varF x)) n vx env.
 Proof.
-  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
-    solve [tauto | discriminate | assert (j < S n) by auto; firstorder eauto].
+  (* Either case_match or better_case_match works. *)
+  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some;
+    try solve [tauto |  assert (j < S n) by auto; firstorder eauto].
 Qed.
 
 (* Better attempt, where I only use "later" L, as expected. Note the proof is simpler! *)
@@ -317,8 +320,9 @@ Lemma mem_stp : forall env x L U n v vx,
     indexr x env = Some v ->
     vtp (TSel (varF x)) (S n) vx env.
 Proof.
-  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
-    solve [tauto | discriminate | firstorder eauto].
+  (* This needs better_case_match (or discriminate later) *)
+  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some;
+    solve [tauto | firstorder eauto].
 Qed.
 
 (* Annoying: proof search by firstorder can't instantiate j < S n with j := n, unless we add a hint. *)
@@ -328,8 +332,9 @@ Lemma stp_mem : forall env x L U n v vx,
     indexr x env = Some v ->
     vtp U n vx env.
 Proof.
+  (* Either case_match or better_case_match works*)
   intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
-    solve [tauto | discriminate | assert (n < S n) by auto; firstorder eauto].
+    solve [tauto | assert (n < S n) by auto; firstorder eauto].
 Qed.
 
 Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | forall n, forall Hfuel : n > 0, tevalS e n env = Some (Some v, 0) } :=

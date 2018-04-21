@@ -21,6 +21,27 @@ Ltac case_match :=
     destruct x eqn:?
   end.
 
+(* Avoid case distinctions when we know the right case from the hypotheses.
+   Otherwise, we end up with branches where the context says that ?x = A and ?x
+   = B, with A and B incompatible, and must use discriminate to remove those
+   branches. *)
+Ltac better_case_match :=
+  match goal with
+  | H : context [ match ?x with _ => _ end ] , H1 : ?y = ?x |- _ =>
+    rewrite <- H1 in H
+  | H : context [ match ?x with _ => _ end ] , H1 : ?x = ?y |- _ =>
+    rewrite H1 in H
+  | H : context [ match ?x with _ => _ end ] |- _ =>
+    destruct x eqn:?
+
+  | H1 : ?y = ?x |- context [ match ?x with _ => _ end ] =>
+    rewrite <- H1
+  | H1 : ?x = ?y |- context [ match ?x with _ => _ end ] =>
+    rewrite H1
+  | |- context [ match ?x with _ => _ end ] =>
+    destruct x eqn:?
+  end.
+
 (* Homegrown variants. *)
 Ltac match_case_analysis :=
   repeat
