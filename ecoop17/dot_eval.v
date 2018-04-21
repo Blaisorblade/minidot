@@ -165,7 +165,7 @@ Proof.
   intros; revert env t; induction n; simpl_unfold_monad; unfold step; try reflexivity;
     intros;
     repeat
-      (try case_match;
+      (try better_case_match;
        try injections_some;
        repeat fequalSafe;
        repeat rewrite IHn in *;
@@ -265,10 +265,7 @@ Ltac eval_det :=
 (* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *)
 (* Proof. *)
 (*   induction n; intros * Heval * Hmn; try solve [inverse Heval]. *)
-(*   assert (exists m', m = S m') as [m' ->] by ( *)
-(*     destruct m; inversion Hmn; subst; eexists; auto *)
-(*   ). *)
-(*   (* destruct Hm as [m' ?]; subst. *) *)
+(*   lets [m' ->]: n_to_Sn Hmn. *)
 (*   generalize dependent optV. *)
 (*   generalize dependent n. *)
 (*   induction e; auto; intros. *)
@@ -283,13 +280,13 @@ Ltac eval_det :=
 (*     rewrite Hevaln1 in *. *)
 (*     rewrite Hevaln2 in *. *)
 
-(*     do 3 case_match; auto. *)
+(*     do 3 better_case_match; auto. *)
 (*     unfold step in *. *)
 
 (*     assert (exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]] by admit. *)
 (*     assert (tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) as -> by (rewrite Hevaln0; auto). *)
 (*     rewrite Hevaln0 in *; injections_some; auto. *)
-(*   -  *)
+(*   - *)
 (*     assert (exists optV1, tevalS e1 n env = Some optV1) as [[optV1 j1] Hevaln1] by admit. *)
 (*     simpl in *. *)
 (*     assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto). *)

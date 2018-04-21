@@ -311,5 +311,5 @@ Proof.
   unfold val_type at 1; unfold val_type_func;
   unfold_sub val_type (val_type T n v env);
   program_simplify;
-  repeat (case_match; try reflexivity).
+  repeat (better_case_match; try reflexivity).
 Qed.
