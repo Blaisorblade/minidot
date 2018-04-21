@@ -73,6 +73,27 @@ Fixpoint tevalM (t: tm) (n: nat) (env: venv): option (option vl) :=
     end
   end.
 
+(* Convince Coq that if n > m then n = S n' for some n', then there's enough
+   fuel to perform one evaluation step. *)
+Lemma n_to_Sn: forall n m, n > m -> exists n', n = S n'.
+  intros; destruct n; [ exfalso; omega | eauto].
+Qed.
+Hint Unfold gt ge lt.
+Ltac n_is_succ :=
+  unfold gt, ge, lt in *;
+  match goal with
+  | [H : S ?m <= ?n |- _] =>
+    apply n_to_Sn in H; let n' := fresh n in destruct H as [n' ->]
+  end.
+Tactic Notation "n_is_succ'" simple_intropattern(P) :=
+  unfold gt, ge, lt in *;
+  match goal with
+  | [H : S ?m <= ?n |- _] =>
+    apply n_to_Sn in H; destruct H as P
+  end.
+
+Ltac step_eval := n_is_succ; simpl in *.
+
 Theorem evals_equiv: forall n env t, tevalM t n env = teval t n env.
 Proof.
   intros; revert env t; induction n; simpl_unfold_monad; try reflexivity;
@@ -190,3 +211,98 @@ Ltac eval_det :=
     lets ? : tevalSnOpt_det H1 H2 ___
   end; ev.
 
+(* Currently unused tactics and proof sketches on evaluation and its monotonicity. *)
+
+(* Require Import dot_monads. *)
+
+(* XXX This tactic would belong in dot_monads.v, but it's only used here, and not working too well. *)
+
+(* Lemma inv_success_mbind2: *)
+(*   forall {A B} {f : A -> option B} {c} {x}, *)
+(*     bind c f = Some x -> *)
+(*     exists y, c = Some y /\ f y = Some x. *)
+(* Proof. *)
+(*   intros * H. *)
+(*   destruct c; simpl in * |-; try congruence. *)
+(*   exists a. auto. *)
+(* Qed. *)
+
+(* Ltac inv_mbind := *)
+(*   match goal with *)
+(*     H : bind _ _ = Some _ |- _ => *)
+(*     let x := fresh "x" in *)
+(*     let Ha := fresh "Ha" in *)
+(*     let Hb := fresh "Hb" in *)
+(*     apply inv_success_mbind2 in H; *)
+(*     (* invert, in one go, H into its pieces *) *)
+(*     inversion H as [x [Ha Hb] ] *)
+(*   end. *)
+
+(* Ltac inv_mbind_some := *)
+(*   repeat inv_mbind; repeat injections_some. *)
+
+(* First try *)
+(* (* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *) *)
+(* (*   induction e; *) *)
+(* (*   induction n; intros * Heval * Hmn; try solve [inverse Heval]; *) *)
+(* (*   destruct m; inversion Hmn; clear Hmn; subst; auto. *) *)
+(* (*   simpl in Heval. simpl. *) *)
+(* (*   eapply inv_success_mbind2 in Heval. *) *)
+
+(* (* Lemma tevalSM_mono: forall e n env optV, tevalSM e n env = Some optV -> forall m, m >= n -> tevalSM e m env = Some optV. *) *)
+(* (*   induction e; *) *)
+(* (*   induction n; intros * Heval * Hmn; try solve [inverse Heval]; *) *)
+(* (*   destruct m; inversion Hmn; clear Hmn; subst; auto. *) *)
+(* (*   unfold tevalSM in Heval. *) *)
+(* (*   eapply inv_success_mbind2 in Heval. *) *)
+(* (*   fold tevalSM in *. *) *)
+(* (*   unfold tevalSM. inv_mbind_some. *) *)
+(* (*             inv_mbind_some; auto. *) *)
+(* (*   - repeat inv_mbind_some. *) *)
+(* (*     inversion Heval; subst; auto. *) *)
+
+(* Second try *)
+(* Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV. *)
+(* Proof. *)
+(*   induction n; intros * Heval * Hmn; try solve [inverse Heval]. *)
+(*   assert (exists m', m = S m') as [m' ->] by ( *)
+(*     destruct m; inversion Hmn; subst; eexists; auto *)
+(*   ). *)
+(*   (* destruct Hm as [m' ?]; subst. *) *)
+(*   generalize dependent optV. *)
+(*   generalize dependent n. *)
+(*   induction e; auto; intros. *)
+(*   - *)
+(*     (* This is the job of inv_mbind or similar. *) *)
+(*     assert (exists optV1, tevalS e1 n env = Some optV1) as [[optV1 j1] Hevaln1] by admit. *)
+(*     assert (exists optV2, tevalS e2 n env = Some optV2) as [[optV2 j2] Hevaln2] by admit. *)
+(*     (* Here auto uses the induction hypothesis! *) *)
+(*     simpl in *. *)
+(*     assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto). *)
+(*     assert (tevalS e2 m' env = tevalS e2 n env) as -> by (rewrite Hevaln2; auto). *)
+(*     rewrite Hevaln1 in *. *)
+(*     rewrite Hevaln2 in *. *)
+
+(*     do 3 case_match; auto. *)
+(*     unfold step in *. *)
+
+(*     assert (exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]] by admit. *)
+(*     assert (tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) as -> by (rewrite Hevaln0; auto). *)
+(*     rewrite Hevaln0 in *; injections_some; auto. *)
+(*   -  *)
+(*     assert (exists optV1, tevalS e1 n env = Some optV1) as [[optV1 j1] Hevaln1] by admit. *)
+(*     simpl in *. *)
+(*     assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto). *)
+(*     rewrite Hevaln1 in *. *)
+
+(*     case_match; auto. *)
+(*     unfold step in *. *)
+
+(*     assert (exists optV2, tevalS e2 n (v::env) = Some optV2) as [[optV2 j2] Hevaln2] by admit. *)
+(*     assert (tevalS e2 m' (v::env) = tevalS e2 n (v::env)) as -> by (rewrite Hevaln2; auto). *)
+(*     rewrite Hevaln2 in *; injections_some; auto. *)
+(* Admitted. *)
+
+(* Possible TODO: if such lemmas ever become relevant: prove as exercise that if
+   `eval (tapp e1 e2)` succeeds, evaluating e1 and e2 succeeds. That should be
+   an exercise on some tactic like inv_mbind. *)
