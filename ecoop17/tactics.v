@@ -1,5 +1,7 @@
 Require Export Omega.
 Require Export Program.
+Require Export LibTactics.
+Require Export SfLib.
 
 Global Unset Transparent Obligations.
 Remove Hints Bool.trans_eq_bool.
@@ -113,13 +115,13 @@ Ltac split_and := split_conj.
 (*   end. *)
 
 (* From Chlipala's tactics. *)
-Ltac inject H := injection H; clear H; intros; try subst.
+Ltac cinject H := injection H; clear H; intros; try subst.
 
 (* More reliable (?) variant of inversions_some; also handle S. *)
 Ltac injections_some :=
   match goal with
-  | [H : Some ?a = Some ?b |- _ ] => inject H
-  | [H : S ?a = S ?b |- _ ] => inject H
+  | [H : Some ?a = Some ?b |- _ ] => cinject H
+  | [H : S ?a = S ?b |- _ ] => cinject H
   end.
 
 (* To use with repeat fequalSafe in automation.
@@ -153,7 +155,6 @@ Qed.
 
 Hint Resolve inj_S: eq.
 
-Require Export SfLib.
 Hint Resolve beq_nat_false: eq.
 Hint Resolve false_beq_nat: eq.
 Hint Resolve beq_nat_true: eq.
