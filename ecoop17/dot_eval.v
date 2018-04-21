@@ -160,3 +160,34 @@ Hint Unfold tevalSnmOpt tevalSnOpt tevalSnm tevalSn tevalSn'.
 
 Lemma tevalSnEqv: forall env e v k, tevalSn env e v k = tevalSn' env e v k.
 Proof. reflexivity. Qed.
+
+Require Import LibTactics.
+Lemma tevalSnmOpt_det: forall env t optV1 optV2 j1 j2 nm1 nm2,
+    tevalSnmOpt env t optV1 j1 nm1 ->
+    tevalSnmOpt env t optV2 j2 nm2 ->
+    optV1 = optV2 /\ j1 = j2.
+Proof.
+  unfold tevalSnmOpt; intros * H1 H2; ev;
+  remember (max (S nm1) (S nm2)) as nm;
+  assert (nm > nm1) by (subst; eauto using Nat.le_max_l, Nat.le_max_r);
+  assert (nm > nm2) by (subst; eauto using Nat.le_max_l, Nat.le_max_r).
+  lets Hopt1 : H1 nm ___; eauto.
+  lets Hopt2 : H2 nm ___; eauto.
+  rewrite Hopt2 in Hopt1.
+  injection Hopt1; intros; split_conj; eauto.
+Qed.
+
+Lemma tevalSnOpt_det: forall env t optV1 optV2 j1 j2,
+    tevalSnOpt env t optV1 j1 ->
+    tevalSnOpt env t optV2 j2 ->
+    optV1 = optV2 /\ j1 = j2.
+Proof.
+  unfold tevalSnOpt; intros; ev; eauto using tevalSnmOpt_det.
+Qed.
+
+Ltac eval_det :=
+  match goal with
+  | H1 : tevalSnOpt _ _ ?a 0, H2 : tevalSnOpt _ _ ?b 0 |- _ =>
+    lets ? : tevalSnOpt_det H1 H2 ___
+  end; ev.
+
