@@ -1,11 +1,9 @@
 Require Import tactics.
+Require Import dot_base.
+Require Import dot_eval.
 
-(* Require Import Arith.Wf_nat. *)
-(* Require Import Program. *)
-(* Import WfExtensionality. *)
 Require Import Coq.Relations.Relation_Operators.
 Require Import Coq.Wellfounded.Lexicographic_Product.
-Require Import dot_base.
 
 Hint Constructors lexprod.
 
@@ -126,8 +124,6 @@ Hint Unfold vl_prop.
 Definition smaller_args T0 n0 T n :=
   termRel (val_type_measure T0 n0) (val_type_measure T n).
 Hint Unfold smaller_args.
-
-Require Import dot_eval.
 
 (* XXX incorrect, this is just a semantic _pre_type.
 

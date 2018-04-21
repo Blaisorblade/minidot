@@ -1,3 +1,12 @@
+## WIP ##
+
+This is a WIP development. No it isn't clean code. Relevant code is in dot_*.v
+
+### Coding conventions
+
+Imports: first import tactics.v, which imports all the basic tactics for here, including SfLib, LibTactics and a few others. Then import other relevant modules.
+Then import any peculiar module needed from the Coq standard library.
+
 ## Towards Strong Normalization for Dependent Object Types (DOT) ##
 
 Paper (ECOOP 2017): [[pdf](https://www.cs.purdue.edu/homes/rompf/papers/wang-ecoop17.pdf)]

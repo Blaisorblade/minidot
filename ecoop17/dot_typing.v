@@ -1,3 +1,4 @@
+(* Define syntactic typing judgments. Currently unused. *)
 Require Import dot_base.
 
 (* ### Subtyping ### *)

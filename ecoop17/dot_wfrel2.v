@@ -2,7 +2,6 @@ Require Import tactics.
 Require Import dot_wfrel.
 Require Import dot_base.
 Require Import dot_eval.
-Require Import LibTactics.
 
 Lemma vtp_unfold : forall T n v env,
     vtp T n v env =

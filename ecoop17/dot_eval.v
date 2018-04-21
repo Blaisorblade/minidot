@@ -1,6 +1,6 @@
+Require Import tactics.
 Require Import dot_base.
 Require Import dot_monads.
-Require Import tactics.
 
 (* ### Evaluation (Big-Step Semantics) ### *)
 
@@ -161,7 +161,6 @@ Hint Unfold tevalSnmOpt tevalSnOpt tevalSnm tevalSn tevalSn'.
 Lemma tevalSnEqv: forall env e v k, tevalSn env e v k = tevalSn' env e v k.
 Proof. reflexivity. Qed.
 
-Require Import LibTactics.
 Lemma tevalSnmOpt_det: forall env t optV1 optV2 j1 j2 nm1 nm2,
     tevalSnmOpt env t optV1 j1 nm1 ->
     tevalSnmOpt env t optV2 j2 nm2 ->

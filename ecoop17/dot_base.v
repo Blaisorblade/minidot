@@ -5,13 +5,11 @@
  t ::= x | { Type = T } | lambda x:T.t | t t | unpack(t) { x => t }
  *)
 
-Require Export SfLib.
+Require Import tactics.
+Require Export dot_infrastructure_lemmas.
 
 Require Export Arith.EqNat.
 Require Export Arith.Le.
-Require Export Omega.
-Require Import tactics.
-Require Export dot_infrastructure_lemmas.
 
 (* ### Syntax ### *)
 

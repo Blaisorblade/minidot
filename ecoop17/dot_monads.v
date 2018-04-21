@@ -1,3 +1,4 @@
+(* Define simple monads that are useful for evaluation. w*)
 Require Import tactics.
 
 Class MonadError (M : Type -> Type) :=
