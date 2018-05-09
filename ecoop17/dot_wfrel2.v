@@ -29,6 +29,12 @@ Lemma vtp_unfold : forall T n v env,
                  (fun n p => vtp T1 n)
                  (fun n p => vtp T2 n)
                  n (le_n _) v env
+    | TOr T1 T2 =>
+      closed_ty 0 (length env) T1 /\ closed_ty 0 (length env) T2 /\
+      interpTOr n
+                 (fun n p => vtp T1 n)
+                 (fun n p => vtp T2 n)
+                 n (le_n _) v env
     | TBind T1 =>
       closed_ty 1 (length env) T1 /\
       vtp (open (varF (length env)) T1) n v (v::env)
@@ -69,6 +75,12 @@ Lemma vtp_unfold_underbinders :
                 n (le_n _) v env
     | TAnd T1 T2 =>
       interpTAnd n
+                 (fun n p => vtp T1 n)
+                 (fun n p => vtp T2 n)
+                 n (le_n _) v env
+    | TOr T1 T2 =>
+      closed_ty 0 (length env) T1 /\ closed_ty 0 (length env) T2 /\
+      interpTOr n
                  (fun n p => vtp T1 n)
                  (fun n p => vtp T2 n)
                  n (le_n _) v env
@@ -121,9 +133,9 @@ Ltac simpl_vtp_all :=
 
 (* Hint Rewrite vtp_unfold_underbinders. *)
 
-Hint Unfold interpTAll interpTSel interpTMem interpTSel0 interpTAnd interpTLater.
+Hint Unfold interpTAll interpTSel interpTMem interpTSel0 interpTAnd interpTOr interpTLater.
 Ltac vtp_unfold_pieces :=
-  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, interpTLater, expr_sem in *.
+  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, interpTOr, interpTLater, expr_sem in *.
 Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
 Ltac vtp_simpl_unfold_deep := repeat (simpl_vtp_all; vtp_unfold_pieces).
 (* Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces. *)
@@ -200,8 +212,19 @@ Proof.
 
   all: intros; try assert (Hjn: j < n) by omega; try assert (j <= n) by omega; auto 2.
 
+  Hint Constructors or.
+  Ltac case_or_vtp :=
+    match goal with
+    | [ H : vtp _ _ _ _ \/ vtp _ _ _ _ |- _ ] => destruct H
+    end.
+  Ltac mon_induct_step Hind n := (try (apply Hind with (n' := n); try smaller_types; assumption)).
   (* A couple (6) follow just by using induction on smaller types. *)
-  all: try (apply Hind with (n' := n); try smaller_types; assumption).
+  all: mon_induct_step Hind n.
+
+  (* For TOr, we must also case_split on the disjunction in the hypothesis,
+     and pick the right branch to prove in the conclusion. *)
+  all: try case_or_vtp;
+    intuition (mon_induct_step Hind n).
 
   (* handle TLater, for when m is less than 0 *)
   all: try omega.

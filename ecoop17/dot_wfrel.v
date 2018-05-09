@@ -187,6 +187,11 @@ Program Definition interpTAnd n (A1 : pretype_dom n) (A2 : pretype_dom n) : pret
     A1 n0 _ v env /\
     A2 n0 _ v env.
 
+Program Definition interpTOr n (A1 : pretype_dom n) (A2 : pretype_dom n) : pretype_dom n :=
+  fun n0 p v env =>
+    A1 n0 _ v env \/
+    A2 n0 _ v env.
+
 Program Definition interpTLater n (A : pretype_dom n) (fallback: Prop) : pretype_dom n :=
   fun n0 p v env =>
     match n0 with
@@ -218,6 +223,12 @@ Program Fixpoint val_type (T: ty) (n : nat)
                 n _ v env
     | TAnd T1 T2 =>
       interpTAnd n
+                 (fun n p => val_type T1 n _)
+                 (fun n p => val_type T2 n _)
+                 n _ v env
+    | TOr T1 T2 =>
+      closed_ty 0 (length env) T1 /\ closed_ty 0 (length env) T2 /\
+      interpTOr n
                  (fun n p => val_type T1 n _)
                  (fun n p => val_type T2 n _)
                  n _ v env
@@ -293,6 +304,12 @@ Lemma val_type_unfold : forall T n v env,
                 n (le_n _) v env
     | TAnd T1 T2 =>
       interpTAnd n
+                 (fun n p => val_type T1 n)
+                 (fun n p => val_type T2 n)
+                 n (le_n _) v env
+    | TOr T1 T2 =>
+      closed_ty 0 (length env) T1 /\ closed_ty 0 (length env) T2 /\
+      interpTOr n
                  (fun n p => val_type T1 n)
                  (fun n p => val_type T2 n)
                  n (le_n _) v env

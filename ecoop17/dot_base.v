@@ -40,7 +40,7 @@ Inductive ty : Set :=
 | TBind  : ty -> ty (* Recursive binder: { z => T^z },
                        where z is locally bound in T *)
 | TAnd : ty -> ty -> ty (* Intersection Type: T1 /\ T2 *)
-(* | TOr : ty -> ty -> ty (* Union Type: T1 \/ T2 *) *)
+| TOr : ty -> ty -> ty (* Union Type: T1 \/ T2 *)
 (*                                  . *)
 (* | TRcd : dec -> ty (* { d } *) *)
 (* with dec : Set :=  *)
@@ -87,8 +87,7 @@ Inductive ovl_ty : Set :=
 | VTBind  : ovl_ty -> ovl_ty (* Recursive binder: { z => T^z },
                        where z is locally bound in T *)
 | VTAnd : ovl_ty -> ovl_ty -> ovl_ty (* Intersection Type: T1 /\ T2 *)
-(* | VTOr : ovl_ty -> ovl_ty -> ovl_ty (* Union Type: T1 \/ T2 *) *)
-(*                                  . *)
+| VTOr : ovl_ty -> ovl_ty -> ovl_ty (* Union Type: T1 \/ T2 *)
 (* | VTRcd : dec -> ovl_ty (* { d } *) *)
 (* with dec : Set :=  *)
 (* | dec_typ : typ_label -> ovl_ty (* S *) -> ovl_ty (* U *) -> dec *)
@@ -138,6 +137,10 @@ Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 | cl_bind: forall i j T,
     closed_ty (S i) j T ->
     closed_ty i j (TBind T)
+| cl_or: forall i j T1 T2,
+    closed_ty i j T1 ->
+    closed_ty i j T2 ->
+    closed_ty i j (TOr T1 T2)
 | cl_and: forall i j T1 T2,
     closed_ty i j T1 ->
     closed_ty i j T2 ->
@@ -205,6 +208,10 @@ Inductive closed_ovl_ty: nat(*B*) -> nat(*F*) -> ovl_ty -> Prop :=
     closed_ovl_ty i j T1 ->
     closed_ovl_ty i j T2 ->
     closed_ovl_ty i j (VTAnd T1 T2)
+| cl_vor: forall i j T1 T2,
+    closed_ovl_ty i j T1 ->
+    closed_ovl_ty i j T2 ->
+    closed_ovl_ty i j (VTOr T1 T2)
 | cl_vlater: forall i j T,
     closed_ovl_ty i j T ->
     closed_ovl_ty i j (VTLater T)
@@ -222,6 +229,7 @@ Fixpoint open_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
     | TMem T1 T2  => TMem (open_rec k u T1) (open_rec k u T2)
     | TBind T => TBind (open_rec (S k) u T)
     | TAnd T1 T2 => TAnd (open_rec k u T1) (open_rec k u T2)
+    | TOr T1 T2 => TOr (open_rec k u T1) (open_rec k u T2)
     | TLater T => TLater (open_rec k u T)
   end.
 
@@ -241,6 +249,7 @@ Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
     | TMem T1 T2     => TMem (subst U T1) (subst U T2)
     | TBind T       => TBind (subst U T)
     | TAnd T1 T2    => TAnd (subst U T1)(subst U T2)
+    | TOr T1 T2    => TOr (subst U T1)(subst U T2)
     | TLater T     => TLater (subst U T)
   end.
 
@@ -254,6 +263,7 @@ Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
 (*     | TMem T1 T2    => nosubst T1 /\ nosubst T2 *)
 (*     | TBind T       => nosubst T *)
 (*     | TAnd T1 T2    => nosubst T1 /\ nosubst T2 *)
+(*     | TOr T1 T2    => nosubst T1 /\ nosubst T2 *)
 (*   end. *)
 
 Fixpoint tsize_flat(T: ty) :=
@@ -265,6 +275,7 @@ Fixpoint tsize_flat(T: ty) :=
     | TMem T1 T2 => S (tsize_flat T1 + tsize_flat T2)	
     | TBind T => S (tsize_flat T)
     | TAnd T1 T2 => S (tsize_flat T1 + tsize_flat T2)
+    | TOr T1 T2 => S (tsize_flat T1 + tsize_flat T2)
     | TLater T => S (tsize_flat T)
   end.
 
@@ -277,6 +288,7 @@ Fixpoint tsize_flat_ovl_ty (T: ovl_ty) :=
     | VTMem T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
     | VTBind T => S (tsize_flat_ovl_ty T)
     | VTAnd T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
+    | VTOr T1 T2 => S (tsize_flat_ovl_ty T1 + tsize_flat_ovl_ty T2)
     | VTLater T => S (tsize_flat_ovl_ty T)
   end.
 
