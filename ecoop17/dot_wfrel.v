@@ -258,8 +258,8 @@ Qed.
 Lemma vtp_to_val_type:
   vtp = val_type.
 Proof.
-  repeat (apply functional_extensionality; intro).
-  apply vtp_to_val_type_base.
+  repeat (apply functional_extensionality_dep; intro);
+    apply vtp_to_val_type_base.
 Qed.
 
 (*
