@@ -83,10 +83,10 @@ Lemma ind_args : forall (P: ty -> nat -> Prop),
     forall T n, P T n.
 Proof.
   intros * Hind *.
-  pose (p := (T, n)).
-  replace T with (fst p) by reflexivity.
-  replace n with (snd p) by reflexivity.
-  generalize dependent p.
+  pose (p := (T, n));
+  replace T with (fst p) by reflexivity;
+  replace n with (snd p) by reflexivity;
+  generalize dependent p;
   clear T n.
   eapply well_founded_ind; eauto.
   intros p1 Hless.
@@ -638,9 +638,9 @@ Admitted.
 (*   indexr_extend. *)
 (* Qed. *)
 
-Lemma t_weak : forall G T1 T2 T,
-    sem_type G T1 T2 ->
-    sem_type (T :: G) T1 T2.
+Lemma t_weak : forall G T T1 e,
+    sem_type G T e ->
+    sem_type (T1 :: G) T e.
 Proof.
   unfold sem_type.
   intros ? * Htp * Henv.
