@@ -307,4 +307,5 @@ Hint Constructors ty.
 Hint Constructors tm.
 Hint Constructors vl.
 
+Hint Constructors closed_var.
 Hint Constructors closed_ty.

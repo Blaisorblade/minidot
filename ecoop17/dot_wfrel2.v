@@ -110,7 +110,7 @@ Lemma vtp_closed: forall T k v env,
 Proof.
   induction T; intros; destruct v; rewrite vtp_unfold in *; vtp_unfold_pieces; ev; try eauto;
     (* Either case_match or better_case_match works*)
-    repeat better_case_match; repeat constructor; eauto.
+    repeat better_case_match; eauto.
 Qed.
 Hint Resolve vtp_closed.
 
