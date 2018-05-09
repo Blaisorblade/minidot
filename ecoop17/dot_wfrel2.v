@@ -427,6 +427,40 @@ Lemma vtp_etp_rev:
     etp T k e env.
   eauto. Qed.
 
+(* Lemma closed_open: forall T i j k u, *)
+(*     (* closed_ty i j (TSel u) -> *) *)
+(*     closed_ty i (S j) (open_rec k u T) -> *)
+(*     closed_ty (S i) j T. *)
+(* Proof. *)
+(*   (* unfold open_rec; fold open_rec. *) *)
+(*   induction T; intros; eauto; inversion H; subst; *)
+(*     simpl in *; *)
+(*     constructor; eauto; *)
+(*       repeat better_case_match; try discriminate. *)
+(*   - cinject H0. *)
+(*     inverse H. *)
+(*     inverse H3. *)
+(*     constructor. *)
+(*     admit. (* False! *) *)
+(*   - beq_nat. *)
+(*     cinject H0. clear H. inverse H3. *)
+(*     + constructor. *)
+(*       admit. (* False! *) *)
+(*     + constructor. *)
+(*       admit. (* False! *) *)
+(*   -  beq_nat. *)
+(*      cinject H0. *)
+
+(* Awkward to state with vtp? *)
+Lemma vtp_tbind_i: forall env v T n,
+    closed_ty 0 (length env) (TBind T) ->
+    (* Arguably shouldn't be needed, but I'll need some tricky binding lemma otherwise! *)
+    vtp (open (varF (length env)) T) n v (v :: env) ->
+    vtp (TBind T) n v env.
+Proof.
+  intros * Hc Hvtp; inverse Hc; rewrite vtp_unfold; eauto.
+Qed.
+
 Lemma t_forall_i: forall G T1 T2 t,
   (* sem_type (T1 :: G) T2 t -> *)
   sem_type (T1 :: G) (open (varF (length G)) T2) t ->
@@ -531,6 +565,61 @@ Lemma t_sub: forall G T1 T2 e,
     sem_type G T1 e ->
     sem_type G T2 e.
 Proof. intros; eauto. Qed.
+
+(* Oh, this isn't quite vtp_tbind_i. *)
+Lemma t_bind_i: forall G T t,
+  sem_type (TLater T :: G) (open (varF (length G)) T) t ->
+  sem_type G (TBind T) t.
+Proof.
+  unfold sem_type, etp, expr_sem.
+  intros * Hvtp * Henv * Heval Hjk *.
+  induction k.
+  - assert (j = 0) as -> by omega.
+    assert (v: vl) by admit.
+
+    assert (R_env 0 (v :: env) (TLater T :: G)). {
+      constructor.
+      - eauto.
+      - vtp_simpl_unfold.
+        assert (closed_ty 0 (length (v :: env)) T) by admit; eauto.
+    }
+    lets (v' & -> & Hvtp') : Hvtp 0 (v :: env) optV ___; eauto. {
+      assert (tevalSnOpt (v :: env) t optV 0) by admit; eauto.
+    }
+    simpl in *.
+    ev; subst.
+    assert (closed_ty 0 (length env) (TBind T)). {
+      constructor.
+      eapply vtp_closed in Hvtp'.
+      assert (closed_ty 1 (length env) T) by admit; eauto.
+    }
+    eexists; split_conj; eauto.
+    eapply vtp_tbind_i; eauto.
+    (* Uh, this almost works but not quite, but wouldn't be a problem in Iris.
+       We must show t's result is v' and is well-typed in environment (v' :: env).
+       We know that t's result is v' and is well-typed in environment (v :: env).
+
+       In the Iris model, the difference wouldn't matter because we can only see
+       the truncation of v and x, which are considered equal, but this isn't
+       reflected by the current definitions I'm using --- I don't even have
+       the "thunk" constructors `next` for values of TLater.
+     *)
+  assert (vtp (open (varF (length G)) T) 0 v' (v :: env)) by assumption.
+  assert (vtp (open (varF (length env)) T) 0 v' (v' :: env)) by admit; eauto.
+
+  (* Induction step. *)
+  -
+    (* Is j = S k?*)
+    inverse Hjk.
+    + clear IHk. (* Unapplicable *)
+      assert (Henv': R_env k env G) by eauto.
+      simpl. replace (k - k) with 0 by omega.
+      eexists.
+      vtp_simpl_unfold.
+      split_conj.
+      vtp_unfold_pieces.
+
+Admitted.
 
 (* Variant of vtp_extend. *)
 Lemma stp_weak : forall G T1 T2 T,
