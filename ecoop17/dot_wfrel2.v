@@ -45,6 +45,48 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma vtp_unfold_underbinders :
+    vtp =
+    fun T n v env =>
+    match T with
+    | TAll T1 T2 =>
+      closed_ty 0 (length env) T1 /\ closed_ty 1 (length env) T2 /\
+      interpTAll n
+                 (fun n p => vtp T1 n)
+                 (fun n p => vtp (open (varF (length env)) T2) n)
+                 n (le_n _) v env
+    | TMem T1 T2 =>
+      closed_ty 0 (length env) T1 /\ closed_ty 0 (length env) T2 /\
+      interpTMem n
+                 (fun n p => vtp T1 n)
+                 (fun n p => vtp T2 n)
+                 (fun T j p => vtp T j)
+                 n (le_n _) v env
+    | TTop => True
+    | TBot => False
+    | TSel x =>
+      interpTSel n x (fun T j p => vtp T j)
+                n (le_n _) v env
+    | TAnd T1 T2 =>
+      interpTAnd n
+                 (fun n p => vtp T1 n)
+                 (fun n p => vtp T2 n)
+                 n (le_n _) v env
+    | TBind T1 =>
+      closed_ty 1 (length env) T1 /\
+      vtp (open (varF (length env)) T1) n v (v::env)
+    | TLater T =>
+      interpTLater n
+                 (fun n p => vtp T n)
+                 (closed_ty 0 (length env) T)
+                 n (le_n _) v env
+    end.
+Proof.
+  repeat (apply functional_extensionality_dep; intro);
+    rewrite vtp_unfold;
+    reflexivity.
+Qed.
+
 (* Split it here *)
 Example ex0 : forall n v, vtp TTop n v [].
 Proof.
@@ -69,11 +111,27 @@ Ltac simpl_vtp :=
   | |- context [ vtp ?T _ _ _ ] =>
     tryif is_var T then fail else rewrite (vtp_unfold T)
   end.
+Ltac simpl_vtp_all :=
+  match goal with
+  | H : context [ vtp ?T _ _ _ ] |- _ =>
+    tryif is_var T then fail else rewrite vtp_unfold_underbinders in H
+  | |- context [ vtp ?T _ _ _ ] =>
+    tryif is_var T then fail else rewrite vtp_unfold_underbinders
+  end.
+
+(* Hint Rewrite vtp_unfold_underbinders. *)
+
+Hint Unfold interpTAll interpTSel interpTMem interpTSel0 interpTAnd interpTLater.
+Ltac vtp_unfold_pieces :=
+  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, interpTLater, expr_sem in *.
+Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
+Ltac vtp_simpl_unfold_deep := repeat (simpl_vtp_all; vtp_unfold_pieces).
+(* Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces. *)
+
 
 Example ex3: forall env T n, vtp (TMem TBot TTop) n (vty env T) [].
 Proof.
-  intros; rewrite vtp_unfold;
-    repeat split_and; try constructor; repeat simpl_vtp; tauto.
+  intros; vtp_simpl_unfold_deep; split_and; iauto.
 Qed.
 
 (* Infrastructure for well-founded induction for properties of vtp. *)
@@ -99,11 +157,6 @@ Qed.
 Ltac vtp_induction T n :=
   apply ind_args with (T := T) (n := n);
   clear T n.
-
-Hint Unfold interpTAll interpTSel interpTMem interpTSel0 interpTAnd interpTLater.
-Ltac vtp_unfold_pieces :=
-  unfold interpTAll, interpTSel, interpTMem, interpTSel0, interpTAnd, interpTLater, expr_sem in *.
-Ltac vtp_simpl_unfold := repeat simpl_vtp; vtp_unfold_pieces.
 
 Lemma vtp_closed: forall T k v env,
     vtp T k v env -> closed_ty 0 (length env) T.
@@ -646,3 +699,60 @@ Proof.
   intros ? * Htp * Henv.
   eapply Htp.
 Admitted.
+
+Definition realizable G T :=
+  forall k env, R_env k env G ->
+    exists v, vtp T k v env.
+Hint Unfold realizable.
+
+(* XXX Not sure if what I want, and split this in a lemma for vtp and a high-level one as before. *)
+Lemma realizable_int_wrong : forall G L1 L2 U1 U2,
+    realizable G (TMem L1 U1) ->
+    realizable G (TMem L2 U2) ->
+    realizable G (TAnd L1 L2) ->
+    realizable G (TMem (TAnd L1 L2) (TAnd U1 U2)).
+Proof.
+  unfold realizable; rewrite vtp_unfold_underbinders in *; vtp_unfold_pieces.
+
+  intros * Hm1 Hm2 HL * Henv; specialize (Hm1 k env Henv); specialize (Hm2 k env Henv); specialize (HL k env Henv).
+
+  ev; repeat case_match; iauto; subst.
+  (* assert (exists v, forall j, j < k -> vtp (TAnd L1 L2) j v env) as [v0 Hv] by *)
+  (*   (eexists; intros; vtp_simpl_unfold; firstorder eauto). *)
+
+  eexists (vty env (TAnd L1 L2)); vtp_simpl_unfold_deep; firstorder eauto.
+Qed.
+
+Lemma realizable_int_vtp: forall L1 L2 U1 U2 v1 v2 vA k env,
+    vtp (TMem L1 U1) k v1 env ->
+    vtp (TMem L2 U2) k v2 env ->
+    vtp (TAnd L1 L2) k vA env ->
+    exists v, vtp (TAnd (TMem L1 U1) (TMem L2 U2)) k v env.
+Proof.
+  (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
+  (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
+  intros; vtp_simpl_unfold_deep; ev.
+  (* rewrite vtp_unfold_underbinders in *; vtp_unfold_pieces. *)
+  (* simpl_vtp_all; vtp_unfold_pieces. *)
+  (* vtp_simpl_unfold. *)
+  (* rewrite vtp_unfold_underbinders; vtp_unfold_pieces. *)
+  (* rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
+  (* ev. *)
+  repeat case_match; iauto; subst.
+  (* TODO: add TOr. *)
+  (* exists (vty env (TOr L1 L2)). *)
+  (* split_conj; eauto. *)
+  (* (* autounfold with *. *) *)
+  (* (* do 2 rewrite vtp_unfold_underbinders; vtp_unfold_pieces. *) *)
+
+
+  (* (* forall k env, R_env k env G -> *) *)
+  (* (*   exists v, vtp T k v env. *) *)
+Abort.
+
+Lemma realizable_int : forall G L1 L2 U1 U2,
+    realizable G (TMem L1 U1) ->
+    realizable G (TMem L2 U2) ->
+    realizable G (TAnd L1 L2) ->
+    realizable G (TAnd (TMem L1 U1) (TMem L2 U2)).
+Abort.
