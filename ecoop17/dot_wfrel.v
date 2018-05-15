@@ -243,8 +243,8 @@ Program Fixpoint val_type (T: ty) (n : nat)
                  n _ v env
   end.
 
-Axiom prop_extensionality:
-  forall (P Q: Prop), (P <-> Q) -> P = Q.
+Require Import FunctionalExtensionality.
+Require Import PropExtensionality.
 
 (* this is just to accelerate Coq -- val_type in the goal is slooow *)
 Inductive vtp: ty -> nat -> vl_prop :=
@@ -253,17 +253,14 @@ Inductive vtp: ty -> nat -> vl_prop :=
 Lemma unvv: forall T n v env,
   vtp T n v env -> val_type T n v env.
 Proof.
-  intros * H0. destruct H0. assumption.
+  intros * [ * ]. assumption.
 Qed.
 
 Lemma vtp_to_val_type_base: forall T n v env,
   vtp T n v env = val_type T n v env.
 Proof.
-  intros.
-  apply prop_extensionality.
-  split; intros.
-  - apply unvv. assumption.
-  - constructor. assumption.
+  intros; apply propositional_extensionality;
+    split; intros; eauto using unvv, vv.
 Qed.
 
 Lemma vtp_to_val_type:

@@ -473,9 +473,10 @@ Admitted.
 (* Qed. *)
 Hint Resolve subtype_to_vl_subtype.
 
+Require Import PropExtensionality.
 Lemma vl_sub_equiv: sem_subtype = sem_vl_subtype.
 Proof.
-  repeat (apply functional_extensionality; intro); apply prop_extensionality;
+  repeat (apply functional_extensionality; intro); apply propositional_extensionality;
     split; eauto.
 Qed.
 Hint Rewrite vl_sub_equiv.
