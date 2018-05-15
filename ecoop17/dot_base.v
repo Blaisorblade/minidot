@@ -126,13 +126,18 @@ Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 
 (* open define a locally-nameless encoding wrt to varB type variables. *)
 (* substitute var u for all occurrences of (varB k) *)
+Definition open_rec_var (k: nat) (u: var) (v: var) : var :=
+  match v with
+  | varF x => varF x
+  | varB i => if beq_nat k i then u else (varB i)
+  end.
+
 Fixpoint open_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
   match T with
     | TTop        => TTop
     | TBot        => TBot
     | TAll T1 T2  => TAll (open_rec k u T1) (open_rec (S k) u T2)
-    | TSel (varF x) => TSel (varF x)
-    | TSel (varB i) => if beq_nat k i then TSel u else TSel (varB i)
+    | TSel v => TSel (open_rec_var k u v)
     | TMem T1 T2  => TMem (open_rec k u T1) (open_rec k u T2)
     | TBind T => TBind (open_rec (S k) u T)
     | TAnd T1 T2 => TAnd (open_rec k u T1) (open_rec k u T2)
@@ -146,13 +151,18 @@ Notation open := (open_rec 0).
 (* Hint Unfold open. *)
 
 (* Locally-nameless encoding with respect to varF variables. *)
+Definition subst_var (u: var) (v: var) : var :=
+  match v with
+  | varB i => varB i
+  | varF i => if beq_nat i 0 then u else varF (i - 1)
+  end.
+
 Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
   match T with
     | TTop         => TTop
     | TBot         => TBot
     | TAll T1 T2   => TAll (subst U T1) (subst U T2)
-    | TSel (varB i) => TSel (varB i)
-    | TSel (varF i) => if beq_nat i 0 then TSel U else TSel (varF (i-1))
+    | TSel v => TSel (subst_var U v)
     | TMem T1 T2     => TMem (subst U T1) (subst U T2)
     | TBind T       => TBind (subst U T)
     | TAnd T1 T2    => TAnd (subst U T1)(subst U T2)
