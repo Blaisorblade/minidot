@@ -750,30 +750,33 @@ Qed.
 Counterexample:
 L1 <: U1 <: L2 <: U2, where all inclusions are strict.
 *)
-(* Lemma realizable_int_vtp: forall L1 L2 U1 U2 v1 v2 vA k env, *)
-(*     vtp (TMem L1 U1) k v1 env -> *)
-(*     vtp (TMem L2 U2) k v2 env -> *)
-(*     vtp (TAnd L1 L2) k vA env -> *)
-(*     exists v, vtp (TAnd (TMem L1 U1) (TMem L2 U2)) k v env. *)
-(* Proof. *)
-(*   (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *) *)
-(*   (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *) *)
-(*   intros; vtp_simpl_unfold_deep; ev. *)
-(*   (* rewrite vtp_unfold_underbinders in *; vtp_unfold_pieces. *) *)
-(*   (* simpl_vtp_all; vtp_unfold_pieces. *) *)
-(*   (* vtp_simpl_unfold. *) *)
-(*   (* rewrite vtp_unfold_underbinders; vtp_unfold_pieces. *) *)
-(*   (* rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *) *)
-(*   (* ev. *) *)
-(*   repeat case_match; iauto; subst. *)
-(*   (* TODO: add TOr. *) *)
-(*   exists (vty env (TAnd (TOr L1 L2) (TAnd U1 U2))). *)
-(*   split_conj; auto. intros. repeat vtp_simpl_unfold. split_conj. *)
-(*   intros; iauto. split_conj. iauto. *)
-(*   firstorder eauto. *)
-(*   firstorder eauto. *)
-(*   (* (* autounfold with *. *) *) *)
-(*   (* (* do 2 rewrite vtp_unfold_underbinders; vtp_unfold_pieces. *) *) *)
+Lemma realizable_int_vtp: forall L1 L2 U1 U2 v1 v2 vA k env,
+    vtp (TMem L1 U1) k v1 env ->
+    vtp (TMem L2 U2) k v2 env ->
+    vtp (TAnd L1 L2) k vA env ->
+    (forall v j, j < k -> vtp (TOr L1 L2) j v env -> vtp (TAnd U1 U2) j v env) ->
+    exists v, vtp (TAnd (TMem L1 U1) (TMem L2 U2)) k v env.
+Proof.
+  (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
+  (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
+  intros; vtp_simpl_unfold_deep; ev.
+  (* rewrite vtp_unfold_underbinders in *; vtp_unfold_pieces. *)
+  (* simpl_vtp_all; vtp_unfold_pieces. *)
+  (* vtp_simpl_unfold. *)
+  (* rewrite vtp_unfold_underbinders; vtp_unfold_pieces. *)
+  (* rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
+  (* ev. *)
+
+  (* assert (forall v, vtp (TOr L1 L2) k v env -> vtp U1 k v env) *)
+  (*   by (intros; vtp_simpl_unfold; firstorder eauto). *)
+  (* assert (forall v, vtp (TOr L1 L2) k v env -> vtp U2 k v env) *)
+  (*   by (intros; vtp_simpl_unfold; firstorder eauto). *)
+
+  repeat case_match; iauto; subst.
+  (* exists (vty env (TAnd (TOr L1 L2) (TAnd U1 U2))). *)
+  exists (vty env (TAnd U1 U2)).
+  intuition idtac; repeat vtp_simpl_unfold; firstorder idtac.
+Qed.
 
 
 (*   (* (* forall k env, R_env k env G -> *) *) *)
