@@ -157,17 +157,17 @@ Definition subst_var (u: var) (v: var) : var :=
   | varF i => if beq_nat i 0 then u else varF (i - 1)
   end.
 
-Fixpoint subst (U : var) (T : ty) {struct T} : ty :=
+Fixpoint subst (u : var) (T : ty) {struct T} : ty :=
   match T with
     | TTop         => TTop
     | TBot         => TBot
-    | TAll T1 T2   => TAll (subst U T1) (subst U T2)
-    | TSel v => TSel (subst_var U v)
-    | TMem T1 T2     => TMem (subst U T1) (subst U T2)
-    | TBind T       => TBind (subst U T)
-    | TAnd T1 T2    => TAnd (subst U T1)(subst U T2)
-    | TOr T1 T2    => TOr (subst U T1)(subst U T2)
-    | TLater T     => TLater (subst U T)
+    | TAll T1 T2   => TAll (subst u T1) (subst u T2)
+    | TSel v       => TSel (subst_var u v)
+    | TMem T1 T2   => TMem (subst u T1) (subst u T2)
+    | TBind T      => TBind (subst u T)
+    | TAnd T1 T2   => TAnd (subst u T1)(subst u T2)
+    | TOr T1 T2    => TOr (subst u T1)(subst u T2)
+    | TLater T     => TLater (subst u T)
   end.
 
 Fixpoint tsize_flat(T: ty) :=
