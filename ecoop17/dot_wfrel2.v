@@ -757,35 +757,35 @@ Lemma realizable_int_vtp: forall L1 L2 U1 U2 v1 v2 vA k env,
     (forall v j, j < k -> vtp (TOr L1 L2) j v env -> vtp (TAnd U1 U2) j v env) ->
     exists v, vtp (TAnd (TMem L1 U1) (TMem L2 U2)) k v env.
 Proof.
-  (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
-  (* pattern vtp. rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
   intros; vtp_simpl_unfold_deep; ev.
-  (* rewrite vtp_unfold_underbinders in *; vtp_unfold_pieces. *)
-  (* simpl_vtp_all; vtp_unfold_pieces. *)
-  (* vtp_simpl_unfold. *)
-  (* rewrite vtp_unfold_underbinders; vtp_unfold_pieces. *)
-  (* rewrite vtp_unfold_underbinders. vtp_unfold_pieces. *)
-  (* ev. *)
-
-  (* assert (forall v, vtp (TOr L1 L2) k v env -> vtp U1 k v env) *)
-  (*   by (intros; vtp_simpl_unfold; firstorder eauto). *)
-  (* assert (forall v, vtp (TOr L1 L2) k v env -> vtp U2 k v env) *)
-  (*   by (intros; vtp_simpl_unfold; firstorder eauto). *)
-
   repeat case_match; iauto; subst.
-  (* exists (vty env (TAnd (TOr L1 L2) (TAnd U1 U2))). *)
   exists (vty env (TAnd U1 U2)).
   intuition idtac; repeat vtp_simpl_unfold; firstorder idtac.
 Qed.
 
+Lemma realizable_int : forall G L1 L2 U1 U2,
+    realizable G (TMem L1 U1) ->
+    realizable G (TMem L2 U2) ->
+    realizable G (TAnd L1 L2) ->
+    sem_vl_subtype G (TOr L1 L2) (TAnd U1 U2) ->
+    realizable G (TAnd (TMem L1 U1) (TMem L2 U2)).
+Proof.
+  unfold realizable, sem_subtype; intros * Hm1 Hm2 HL Hsub * Henv;
+    specialize (Hm1 k env Henv); specialize (Hm2 k env Henv); specialize (HL k env Henv);
+      (* ev; eauto using realizable_int_vtp. (* Or *) *)
+      firstorder eauto using realizable_int_vtp.
+Qed.
 
-(*   (* (* forall k env, R_env k env G -> *) *) *)
-(*   (* (*   exists v, vtp T k v env. *) *) *)
+(* Still wrong. We want the intersection of the inhabitant of (TMem L1 U1) and
+   (TMem L2 U2), which is TAnd (TSel x) (TSel y) for x and y pointing at those
+   inhabitants. That way, we'd account for the case where x and y have smaller
+   bounds, but without needing to explicitly incorporate narrowing.
+ *)
 
-
-(* Lemma realizable_int : forall G L1 L2 U1 U2, *)
-(*     realizable G (TMem L1 U1) -> *)
-(*     realizable G (TMem L2 U2) -> *)
-(*     realizable G (TAnd L1 L2) -> *)
-(*     realizable G (TAnd (TMem L1 U1) (TMem L2 U2)). *)
-(* Abort. *)
+(* What we'd want is closer to: *)
+(* Lemma realizable_int_vtp_real: forall L1 L2 U1 U2 v1 v2 vA k env, *)
+(*     vtp (TMem L1 U1) k v1 env -> *)
+(*     vtp (TMem L2 U2) k v2 env -> *)
+(*     vtp (TAnd L1 L2) k vA env -> *)
+(*     (forall v j, j < k -> vtp (TOr L1 L2) j v env -> vtp (TAnd U1 U2) j v env) -> *)
+(*     exists v, vtp (TAnd (TSel v1) (TSel v2)) k v env. *)
