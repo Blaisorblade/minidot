@@ -615,6 +615,42 @@ Proof.
   intros; eauto using mem_stp_etp.
 Qed.
 
+(* Let's pretend we have regularity for sem_vl_subtype. I should of course just add the needed assumptions, but don't want to go over all the existing proofs. *)
+Lemma sem_vl_subtype_closed: forall G T1 T2,
+    sem_vl_subtype G T1 T2 ->
+    closed_ty 0 (length G) T1 /\
+    closed_ty 0 (length G) T2.
+Proof.
+  unfold sem_vl_subtype; intros.
+  assert (env: venv) by admit.
+  assert (k: nat) by admit.
+  assert (R_env k env G) by admit.
+  assert (v: vl) by admit.
+  assert (vtp T1 k v env) by admit.
+  replace (length G) with (length env) by eauto using wf_length.
+  intuition eauto using vtp_closed.
+Admitted.
+
+Lemma sem_vl_subtype_c1: forall G T1 T2,
+    sem_vl_subtype G T1 T2 -> closed_ty 0 (length G) T1.
+Proof. intros; eapply sem_vl_subtype_closed with (T1 := T1) (T2 := T2); assumption. Qed.
+
+Lemma sem_vl_subtype_c2: forall G T1 T2,
+    sem_vl_subtype G T1 T2 -> closed_ty 0 (length G) T2.
+Proof. intros; eapply sem_vl_subtype_closed with (T1 := T1) (T2 := T2); assumption. Qed.
+
+Lemma mem_mem_stp: forall G L1 L2 U1 U2,
+    sem_subtype G L2 L1 ->
+    sem_subtype G U1 U2 ->
+    sem_subtype G (TMem L1 U1) (TMem L2 U2).
+Proof.
+  rewrite vl_sub_equiv; unfold sem_vl_subtype; intros; vtp_simpl_unfold.
+  rewrite wf_length with (ts := G) (k := k); eauto.
+  ev. better_case_match; try contradiction; subst; intuition idtac.
+  (* Binding :-| *)
+  all: firstorder eauto 6 using sem_vl_subtype_c1, sem_vl_subtype_c2.
+Qed.
+
 Lemma stp_mem_etp : forall env x L U n vx,
     etp (TMem L U) n (tvar x) env ->
     vtp (TSel (varF x) L U) n vx env ->
