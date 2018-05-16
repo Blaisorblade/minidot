@@ -21,9 +21,13 @@ Lemma vtp_unfold : forall T n v env,
                  n (le_n _) v env
     | TTop => True
     | TBot => False
-    | TSel x =>
-      interpTSel n x (fun T j p => vtp T j)
-                n (le_n _) v env
+    | TSel x L U =>
+      closed_ty 0 (length env) L /\
+      interpTSel n x
+                 (fun T j p => vtp T j)
+                 (fun n p => vtp L n)
+                 (fun n p => vtp U n)
+                 n (le_n _) v env
     | TAnd T1 T2 =>
       interpTAnd n
                  (fun n p => vtp T1 n)
@@ -70,9 +74,13 @@ Lemma vtp_unfold_underbinders :
                  n (le_n _) v env
     | TTop => True
     | TBot => False
-    | TSel x =>
-      interpTSel n x (fun T j p => vtp T j)
-                n (le_n _) v env
+    | TSel x L U =>
+      closed_ty 0 (length env) L /\
+      interpTSel n x
+                 (fun T j p => vtp T j)
+                 (fun n p => vtp L n)
+                 (fun n p => vtp U n)
+                 n (le_n _) v env
     | TAnd T1 T2 =>
       interpTAnd n
                  (fun n p => vtp T1 n)
@@ -173,9 +181,10 @@ Ltac vtp_induction T n :=
 Lemma vtp_closed: forall T k v env,
     vtp T k v env -> closed_ty 0 (length env) T.
 Proof.
-  induction T; intros; destruct v; rewrite vtp_unfold in *; vtp_unfold_pieces; ev; try eauto;
+  induction T; intros; destruct v; vtp_simpl_unfold; ev; try eauto;
     (* Either case_match or better_case_match works*)
-    repeat better_case_match; eauto.
+    repeat better_case_match; ev; eauto 6;
+      contradiction.
 Qed.
 Hint Resolve vtp_closed.
 
@@ -375,41 +384,24 @@ Lemma stp_and : forall env S T1 T2 n v,
     vtp S n v env -> vtp (TAnd T1 T2) n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
-(* Can't do the version with sem_subtype until we add later as a type constructor. *)
-(* First attempt. *)
-Lemma mem_stp' : forall env x L U n v vx,
-    vtp (TMem L U) (S n) v env ->
-    vtp L n vx env ->
-    indexr x env = Some v ->
-    vtp (TSel (varF x)) n vx env.
-Proof.
-  (* Either case_match or better_case_match works. *)
-  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some;
-    try solve [tauto |  assert (j < S n) by auto; firstorder eauto].
-Qed.
-
-(* Better attempt, where I only use "later" L, as expected. Note the proof is simpler! *)
 Lemma mem_stp : forall env x L U n v vx,
-    vtp (TMem L U) (S n) v env ->
+    vtp (TMem L U) n v env ->
     vtp L n vx env ->
     indexr x env = Some v ->
-    vtp (TSel (varF x)) (S n) vx env.
+    vtp (TSel (varF x) L U) n vx env.
 Proof.
   (* This needs better_case_match (or discriminate later) *)
-  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some;
-    solve [tauto | firstorder eauto].
+  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some; try contradiction; eauto.
 Qed.
 
-(* Annoying: proof search by firstorder can't instantiate j < S n with j := n, unless we add a hint. *)
 Lemma stp_mem : forall env x L U n v vx,
-    vtp (TMem L U) (S n) v env ->
-    vtp (TSel (varF x)) (S n) vx env ->
+    vtp (TMem L U) n v env ->
+    vtp (TSel (varF x) L U) n vx env ->
     indexr x env = Some v ->
     vtp U n vx env.
 Proof.
   (* Either case_match or better_case_match works*)
-  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some;
-    solve [tauto | assert (n < S n) by auto; firstorder eauto].
+  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some; try contradiction; eauto.
 Qed.
 
 Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | forall n, forall Hfuel : n > 0, tevalS e n env = Some (Some v, 0) } :=
@@ -603,9 +595,9 @@ Qed.
 
 (* Better version of mem_stp. *)
 Lemma mem_stp_etp : forall env x L U n vx,
-    etp (TMem L U) (S n) (tvar x) env ->
+    etp (TMem L U) n (tvar x) env ->
     vtp L n vx env ->
-    vtp (TSel (varF x)) (S n) vx env.
+    vtp (TSel (varF x) L U) n vx env.
 Proof.
   intros * H ?;
     apply etp_var in H;
@@ -616,15 +608,29 @@ Proof.
   (* Apparently firstorder can't destruct existentials? *)
 Qed.
 
+Lemma mem_stp_sub : forall G L U x,
+    sem_type G (TMem L U) (tvar x) ->
+    sem_subtype G L (TSel (varF x) L U).
+Proof.
+  intros; eauto using mem_stp_etp.
+Qed.
+
 Lemma stp_mem_etp : forall env x L U n vx,
-    etp (TMem L U) (S n) (tvar x) env ->
-    vtp (TSel (varF x)) (S n) vx env ->
+    etp (TMem L U) n (tvar x) env ->
+    vtp (TSel (varF x) L U) n vx env ->
     vtp U n vx env.
 Proof.
   intros * H ?;
     apply etp_var in H;
     (* Either: *)
     ev; eauto using stp_mem.
+Qed.
+
+Lemma stp_mem_sub : forall G L U x,
+    sem_type G (TMem L U) (tvar x) ->
+    sem_subtype G (TSel (varF x) L U) U.
+Proof.
+  intros; eauto using stp_mem_etp.
 Qed.
 
 Lemma stp_refl : forall G T,

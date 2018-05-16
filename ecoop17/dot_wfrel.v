@@ -158,27 +158,34 @@ Program Definition interpTMem n (A1 : pretype_dom n) (A2 : pretype_dom n)
   fun n0 (p : n0 <= n) v env =>
     match v with
     | vty env1 TX =>
-      forall j (Hj : j < n0),
-      forall vy,
-        (A1 j _ vy env -> val_type TX j _ vy env1) /\
-        (val_type TX j _ vy env1 -> A2 j _ vy env)
+      (* Ensure that L is less than U *now*! We must use "Later" only to guard uses of TX! *)
+      (forall vy j (Hj : j <= n0),
+          (A1 j _ vy env -> A2 j _ vy env)) /\
+      (forall vy j (Hj : j < n0),
+          (A1 j _ vy env -> val_type TX j _ vy env1) /\
+          (val_type TX j _ vy env1 -> A2 j _ vy env))
     | _ => False
     end.
 
 Program Definition interpTSel0 n i (env0: list vl)
-        (val_type : ty -> forall j, j < n -> vl_prop): pretype_dom n :=
+        (val_type : ty -> forall j, j < n -> vl_prop)
+        (L : pretype_dom n) (U : pretype_dom n) :=
   fun n0 (p : n0 <= n) v env =>
     match indexr i env0 with
     | Some (vty env1 TX) =>
-      forall j (Hk : j < n0), val_type TX j _ v env1
+      (* This set is between L and U *now*! We must use "Later" only to guard uses of TX! *)
+      U n0 _ v env /\
+      (L n0 _ v env \/
+       forall j (Hk : j < n0), val_type TX j _ v env1)
     | _ => False
     end.
 
 Program Definition interpTSel n x
-        (val_type : ty -> forall j, j < n -> vl_prop) :=
+        (val_type : ty -> forall j, j < n -> vl_prop)
+        (L : pretype_dom n) (U : pretype_dom n) :=
   fun n0 (p : n0 <= n) v env =>
     match x with
-    | varF i => interpTSel0 n i env val_type n0 p v env
+    | varF i => interpTSel0 n i env val_type L U n0 p v env
     | varB _ => False
      end.
 
@@ -218,8 +225,13 @@ Program Fixpoint val_type (T: ty) (n : nat)
                  n _ v env
     | TTop => True
     | TBot => False
-    | TSel x =>
-      interpTSel n x (fun T j p => val_type T j _)
+    | TSel x L U =>
+      (* Because L is only used in a disjunction we must require its closedness. *)
+      closed_ty 0 (length env) L /\
+      interpTSel n x
+                 (fun T j p => val_type T j _)
+                 (fun n p => val_type L n _)
+                 (fun n p => val_type U n _)
                 n _ v env
     | TAnd T1 T2 =>
       interpTAnd n
@@ -296,9 +308,13 @@ Lemma val_type_unfold : forall T n v env,
                  n (le_n _) v env
     | TTop => True
     | TBot => False
-    | TSel x =>
-      interpTSel n x (fun T j p => val_type T j)
-                n (le_n _) v env
+    | TSel x L U =>
+      closed_ty 0 (length env) L /\
+      interpTSel n x
+                 (fun T j p => val_type T j)
+                 (fun n p => val_type L n)
+                 (fun n p => val_type U n)
+                 n (le_n _) v env
     | TAnd T1 T2 =>
       interpTAnd n
                  (fun n p => val_type T1 n)

@@ -33,10 +33,10 @@ Inductive ty : Set :=
 | TBot : ty
 (* (z: T) -> T^z *)
 | TAll : ty -> ty -> ty
-(* x.Type *)
-| TSel : var -> ty
+(* x.Type :: { L .. U } *)
+| TSel : var -> ty (* L *) -> ty (* U *) -> ty
 (* | TSel : var -> typ_label -> ty *)
-| TMem : ty(*S*) -> ty(*U*) -> ty
+| TMem : ty (* L *) -> ty (* U *) -> ty
 | TBind  : ty -> ty (* Recursive binder: { z => T^z },
                        where z is locally bound in T *)
 | TAnd : ty -> ty -> ty (* Intersection Type: T1 /\ T2 *)
@@ -46,8 +46,6 @@ Inductive ty : Set :=
 (* with dec : Set :=  *)
 (* | dec_typ : typ_label -> ty (* S *) -> ty (* U *) -> dec *)
 (* | dec_trm : trm_label -> ty -> dec *)
-(* (* (* { Type: S..U } *) *) *)
-(* (* | TMem : ty(*S*) -> ty(*U*) -> ty *) *)
 | TLater : ty -> ty
 .
 
@@ -100,9 +98,11 @@ Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
     closed_ty i j T1 ->
     closed_ty (S i) j T2 ->
     closed_ty i j (TAll T1 T2)
-| cl_sel: forall i j x,
+| cl_sel: forall i j x S U,
     closed_var i j x ->
-    closed_ty i j (TSel x)
+    closed_ty i j S ->
+    closed_ty i j U ->
+    closed_ty i j (TSel x S U)
     (* closed_ty i j (TSel (varVl x)) *)
 | cl_mem: forall i j T1 T2,
     closed_ty i j T1 ->
@@ -137,7 +137,7 @@ Fixpoint open_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
     | TTop        => TTop
     | TBot        => TBot
     | TAll T1 T2  => TAll (open_rec k u T1) (open_rec (S k) u T2)
-    | TSel v => TSel (open_rec_var k u v)
+    | TSel v L U  => TSel (open_rec_var k u v) (open_rec k u L) (open_rec k u U)
     | TMem T1 T2  => TMem (open_rec k u T1) (open_rec k u T2)
     | TBind T => TBind (open_rec (S k) u T)
     | TAnd T1 T2 => TAnd (open_rec k u T1) (open_rec k u T2)
@@ -162,7 +162,7 @@ Fixpoint subst (u : var) (T : ty) {struct T} : ty :=
     | TTop         => TTop
     | TBot         => TBot
     | TAll T1 T2   => TAll (subst u T1) (subst u T2)
-    | TSel v       => TSel (subst_var u v)
+    | TSel v L U   => TSel (subst_var u v) (subst u L) (subst u U)
     | TMem T1 T2   => TMem (subst u T1) (subst u T2)
     | TBind T      => TBind (subst u T)
     | TAnd T1 T2   => TAnd (subst u T1)(subst u T2)
@@ -175,7 +175,7 @@ Fixpoint tsize_flat(T: ty) :=
     | TTop => 1
     | TBot => 1
     | TAll T1 T2 => S (tsize_flat T1 + tsize_flat T2)
-    | TSel _ => 1
+    | TSel _ L U => 1 + tsize_flat L + tsize_flat U
     | TMem T1 T2 => S (tsize_flat T1 + tsize_flat T2)	
     | TBind T => S (tsize_flat T)
     | TAnd T1 T2 => S (tsize_flat T1 + tsize_flat T2)
