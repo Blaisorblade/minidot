@@ -133,23 +133,24 @@ Definition pretype_dom n :=
   forall (n0: nat) (H: n0 <= n), vl_prop.
 Hint Unfold pretype_dom.
 
-Program Definition expr_sem {n} (A : pretype_dom n) k (p : k <= n) env1 e
+Program Definition expr_sem {n} T (A : pretype_dom n) k (p : k <= n) env1 e
   : env_prop :=
   fun env =>
     (* If evaluation terminates in at most k steps without running out of fuel, *)
+    closed_ty 0 (length env) T /\
     forall optV j,
       tevalSnOpt env1 e optV j ->
       j <= k ->
       (* then evaluation did not get stuck and the result satisfies A. *)
       exists v, optV = Some v /\ A (k - j) _ v env.
 
-Program Definition interpTAll n (A1 : pretype_dom n) (A2 : pretype_dom n) : pretype_dom n :=
+Program Definition interpTAll n T2 (A1 : pretype_dom n) (A2 : pretype_dom n) : pretype_dom n :=
   fun n0 p v env =>
     match v with
     | vabs env1 T0 t =>
       forall vx k (Hj: k <= n0),
         A1 k _ vx env ->
-        expr_sem A2 k _ (vx :: env1) t (vx :: env)
+        expr_sem T2 A2 k _ (vx :: env1) t (vx :: env)
     | _ => False
     end.
 
@@ -213,6 +214,7 @@ Program Fixpoint val_type (T: ty) (n : nat)
     | TAll T1 T2 =>
       closed_ty 0 (length env) T1 /\ closed_ty 1 (length env) T2 /\
       interpTAll n
+                 (open (varF (length env)) T2)
                  (fun n p => val_type T1 n _)
                  (fun n p => val_type (open (varF (length env)) T2) n _)
                  n _ v env
@@ -296,6 +298,7 @@ Lemma val_type_unfold : forall T n v env,
     | TAll T1 T2 =>
       closed_ty 0 (length env) T1 /\ closed_ty 1 (length env) T2 /\
       interpTAll n
+                 (open (varF (length env)) T2)
                  (fun n p => val_type T1 n)
                  (fun n p => val_type (open (varF (length env)) T2) n)
                  n (le_n _) v env

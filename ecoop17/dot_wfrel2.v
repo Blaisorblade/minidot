@@ -9,6 +9,7 @@ Lemma vtp_unfold : forall T n v env,
     | TAll T1 T2 =>
       closed_ty 0 (length env) T1 /\ closed_ty 1 (length env) T2 /\
       interpTAll n
+                 (open (varF (length env)) T2)
                  (fun n p => vtp T1 n)
                  (fun n p => vtp (open (varF (length env)) T2) n)
                  n (le_n _) v env
@@ -62,6 +63,7 @@ Lemma vtp_unfold_underbinders :
     | TAll T1 T2 =>
       closed_ty 0 (length env) T1 /\ closed_ty 1 (length env) T2 /\
       interpTAll n
+                 (open (varF (length env)) T2)
                  (fun n p => vtp T1 n)
                  (fun n p => vtp (open (varF (length env)) T2) n)
                  n (le_n _) v env
@@ -334,46 +336,88 @@ Proof.
 Qed.
 
 Program Definition etp T k e env :=
-  @expr_sem k (fun k _ => vtp T k) k _ env e env.
+  @expr_sem k T (fun k _ => vtp T k) k _ env e env.
+
+Lemma etp_closed: forall T k v env,
+    etp T k v env -> closed_ty 0 (length env) T.
+Proof.
+  unfold etp, expr_sem; tauto.
+Qed.
+Hint Resolve etp_closed.
+
+Definition wf (G : tenv) T := closed_ty 0 (length G) T.
 
 (* Semantic typing *)
 Definition sem_type (G : tenv) (T : ty) (e: tm) :=
+  wf G T /\
   forall k env,
     R_env k env G ->
     etp T k e env.
 
 Definition sem_subtype (G : tenv) (T1 T2: ty) :=
+  wf G T1 /\
+  wf G T2 /\
   forall k env,
     R_env k env G ->
     forall e, etp T1 k e env -> etp T2 k e env.
 
 Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
+  wf G T1 /\
+  wf G T2 /\
   forall k env,
     R_env k env G ->
     forall v, vtp T1 k v env -> vtp T2 k v env.
 
-Hint Unfold sem_type sem_subtype sem_vl_subtype etp.
+Hint Unfold wf sem_type sem_subtype sem_vl_subtype etp.
 
+Lemma sem_type_closed : forall G T e,
+    sem_type G T e -> wf G T.
+Proof. unfold sem_type; intros; tauto. Qed.
+
+Lemma sem_subtype_closed1 : forall G T1 T2,
+    sem_subtype G T1 T2 -> wf G T1.
+Proof. unfold sem_subtype; intros; tauto. Qed.
+
+Lemma sem_subtype_closed2 : forall G T1 T2,
+    sem_subtype G T1 T2 -> wf G T2.
+Proof. unfold sem_subtype; intros; tauto. Qed.
+
+Lemma sem_vl_subtype_closed1 : forall G T1 T2,
+    sem_vl_subtype G T1 T2 -> wf G T1.
+Proof. unfold sem_vl_subtype; intros; tauto. Qed.
+
+Lemma sem_vl_subtype_closed2 : forall G T1 T2,
+    sem_vl_subtype G T1 T2 -> wf G T2.
+Proof. unfold sem_vl_subtype; intros; tauto. Qed.
+
+Hint Resolve sem_type_closed
+     sem_subtype_closed1
+     sem_subtype_closed2
+     sem_vl_subtype_closed1
+     sem_vl_subtype_closed2.
+
+Hint Resolve wf_length.
 Lemma vl_subtype_to_subtype : forall G T1 T2,
     sem_vl_subtype G T1 T2 -> sem_subtype G T1 T2.
 Proof.
-  unfold sem_subtype, sem_vl_subtype, etp;
-  vtp_unfold_pieces;
-  firstorder eauto.
+  unfold sem_subtype, sem_vl_subtype, etp, wf; vtp_unfold_pieces;
+    intros; intuition idtac;
+      replace (length G) with (length env) in * by eauto;
+      firstorder eauto.
 Qed.
 Hint Resolve vl_subtype_to_subtype.
 
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
-Lemma sem_and_stp1 : forall G T1 T2, sem_subtype G (TAnd T1 T2) T1.
-Proof. eauto using and_stp1. Qed.
+Lemma sem_and_stp1 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype G (TAnd T1 T2) T1.
+Proof. eauto 8 using and_stp1. Qed.
 
 Lemma and_stp2 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T2 n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
 
-Lemma sem_and_stp2 : forall G T1 T2, sem_subtype G (TAnd T1 T2) T2.
-Proof. eauto using and_stp2. Qed.
+Lemma sem_and_stp2 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype G (TAnd T1 T2) T2.
+Proof. eauto 8 using and_stp2. Qed.
 
 Lemma stp_and' : forall env T1 T2 n v, vtp T1 n v env -> vtp T2 n v env -> vtp (TAnd T1 T2) n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
@@ -419,7 +463,8 @@ Lemma etp_vtp_j: forall e v k j nm T env,
     tevalSnm env e v j nm -> etp T k e env -> j <= k -> vtp T (k - j) v env.
 Proof.
   intros;
-  assert (exists v0, Some v = Some v0 /\ vtp T (k - j) v0 env) by eauto;
+    assert (exists v0, Some v = Some v0 /\ vtp T (k - j) v0 env) by
+      (unfold etp, expr_sem in *; iauto);
   ev; injections_some; eauto.
 Qed.
 Hint Resolve etp_vtp_j.
@@ -437,6 +482,7 @@ Lemma vtp_etp_j: forall e v T env k j nm,
 Proof.
   intros * Hvtp Heval Hkj.
   unfold etp; vtp_unfold_pieces; unfold tevalSnOpt, tevalSnm in *.
+  split_conj; eauto.
   intros * [nm' Heval'] Hkj0.
   assert (optV = Some v /\ j = j0) as [-> ->] by (
     pose (N := nm + nm' + 1);
@@ -458,10 +504,28 @@ Hint Resolve vtp_etp.
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
 Proof.
-  unfold sem_subtype, sem_vl_subtype.
-  intros * H * Henv * HvT1.
+  unfold sem_subtype, sem_vl_subtype; intros * (? & ? & H).
+  split_conj; eauto.
+  intros * Henv * HvT1.
   destruct (vl_to_tm v) as [[e env1] Heval]; eauto.
+  (* Here we can't go on because Heval references env1, not env. *)
+  specialize (H k env Henv e).
+  assert (etp T2 k e env) as [? HeT2]. {
+    apply H.
+    unfold etp, expr_sem. split_conj; eauto; intros.
+    unfold etp, expr_sem, tevalSnOpt, tevalSnOpt, tevalSnmOpt in *.
+    ev.
+    exists v.
+    admit.
+  }
+  unfold etp, expr_sem, tevalSnOpt, tevalSnOpt, tevalSnmOpt in HeT2.
+  destruct (HeT2 (Some v) 0) as (? & ? & ?); replace (k - 0) with k in * by omega; simpl; eauto.
+  admit.
+  (* Either: *)
+  congruence.
+  (* injections_some; auto. *)
 Admitted.
+
 (* Qed. *)
 Hint Resolve subtype_to_vl_subtype.
 
@@ -478,7 +542,7 @@ Lemma sem_stp_and : forall G S T1 T2,
     sem_subtype G S T2 ->
     sem_subtype G S (TAnd T1 T2).
 Proof.
-  rewrite vl_sub_equiv; intros; eauto using stp_and.
+  rewrite vl_sub_equiv; unfold sem_vl_subtype; intuition eauto using stp_and.
 Qed.
 
 Lemma vtp_extend : forall vx v k env T,
@@ -496,11 +560,12 @@ Lemma vtp_etp_rev:
     etp T k e env.
   eauto. Qed.
 
-(* Lemma closed_open: forall T i j k u, *)
-(*     (* closed_ty i j (TSel u) -> *) *)
-(*     closed_ty i (S j) (open_rec k u T) -> *)
-(*     closed_ty (S i) j T. *)
-(* Proof. *)
+Lemma closed_open: forall T i j k u,
+    (* closed_ty i j (TSel u) -> *)
+    closed_ty i (S j) (open_rec k u T) ->
+    closed_ty (S i) j T.
+Proof.
+Admitted.
 (*   (* unfold open_rec; fold open_rec. *) *)
 (*   induction T; intros; eauto; inversion H; subst; *)
 (*     simpl in *; *)
@@ -532,32 +597,19 @@ Qed.
 
 Lemma t_forall_i: forall G T1 T2 t,
   (* sem_type (T1 :: G) T2 t -> *)
+  wf G T1 ->
   sem_type (T1 :: G) (open (varF (length G)) T2) t ->
   sem_type G (TAll T1 T2) (tabs T2 t).
 Proof.
-  unfold sem_type. intros.
+  unfold sem_type, wf; simpl; intros; intuition eauto using closed_open.
   (* XXX needed: Lemma for syntactic values. *)
   (* Also needed: a way to swap goals that actually works! *)
   eapply vtp_etp_rev with (nm := 0).
   - unfold tevalSnm, tevalSnmOpt; intros; step_eval; trivial.
-  -
+  - replace (length G) with (length env) in * by eauto.
     unfold etp in *; vtp_simpl_unfold;
-    split_conj.
-    + admit.
-    + admit.
-      (* assert (closed_ty 0 (length env) (open (varF (length G)) T2)). { *)
-      (*   eapply vtp_closed. *)
-        (* XXX Can't work unless we know that the body terminates. We need to change
-        defs and prove *etp_closed* or expr_sem_closed. That wasn't a problem
-        for strong normalization because there we _do_ know the body terminates. *)
-      (* } *)
-    +
-    intros.
-    (* assert (exists v : vl, optV = Some v /\ vtp T2 (k0 - j) v (vx :: env)) by eauto. *)
-    assert (exists v, optV = Some v /\ vtp (open (varF (length G)) T2) (k0 - j) v (vx :: env)) by eauto.
-    assert (length env = length G) as -> by eauto using wf_length.
-    solve [ev; eexists; split_conj; eauto].
-Admitted.
+    split_conj; eauto using closed_open.
+Qed.
 
 Lemma teval_var: forall env x,
   exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV.
@@ -608,47 +660,47 @@ Proof.
   (* Apparently firstorder can't destruct existentials? *)
 Qed.
 
+(* Lemma sem_type_tvar_closed: forall G T x, sem_type G T (tvar x) -> length G > x. *)
+(* Proof. *)
+(* Admitted. *)
+
+(* Hint Resolve sem_type_tvar_closed. *)
+
+Ltac invert_closed :=
+  match goal with
+  | H : closed_ty _ _ ?T  |- _ =>
+    tryif is_var T then fail else inverts H
+  end.
+
 Lemma mem_stp_sub : forall G L U x,
     sem_type G (TMem L U) (tvar x) ->
+    closed_var 0 (length G) (varF x) ->
     sem_subtype G L (TSel (varF x) L U).
 Proof.
-  intros; eauto using mem_stp_etp.
+  intros; eapply vl_subtype_to_subtype;
+    unfold sem_type, sem_vl_subtype, wf in *; ev; invert_closed;
+      intuition idtac; eauto using mem_stp_etp.
 Qed.
 
 (* Let's pretend we have regularity for sem_vl_subtype. I should of course just add the needed assumptions, but don't want to go over all the existing proofs. *)
-Lemma sem_vl_subtype_closed: forall G T1 T2,
-    sem_vl_subtype G T1 T2 ->
-    closed_ty 0 (length G) T1 /\
-    closed_ty 0 (length G) T2.
-Proof.
-  unfold sem_vl_subtype; intros.
-  assert (env: venv) by admit.
-  assert (k: nat) by admit.
-  assert (R_env k env G) by admit.
-  assert (v: vl) by admit.
-  assert (vtp T1 k v env) by admit.
-  replace (length G) with (length env) by eauto using wf_length.
-  intuition eauto using vtp_closed.
-Admitted.
-
-Lemma sem_vl_subtype_c1: forall G T1 T2,
-    sem_vl_subtype G T1 T2 -> closed_ty 0 (length G) T1.
-Proof. intros; eapply sem_vl_subtype_closed with (T1 := T1) (T2 := T2); assumption. Qed.
-
-Lemma sem_vl_subtype_c2: forall G T1 T2,
-    sem_vl_subtype G T1 T2 -> closed_ty 0 (length G) T2.
-Proof. intros; eapply sem_vl_subtype_closed with (T1 := T1) (T2 := T2); assumption. Qed.
+(* Lemma sem_vl_subtype_closed: forall G T1 T2, *)
+(*     sem_vl_subtype G T1 T2 -> *)
+(*     closed_ty 0 (length G) T1 /\ *)
+(*     closed_ty 0 (length G) T2. *)
+(* Proof. unfold sem_vl_subtype, wf; intuition eauto. Qed. *)
+(* Hint Resolve sem_vl_subtype_closed. *)
 
 Lemma mem_mem_stp: forall G L1 L2 U1 U2,
     sem_subtype G L2 L1 ->
     sem_subtype G U1 U2 ->
     sem_subtype G (TMem L1 U1) (TMem L2 U2).
 Proof.
-  rewrite vl_sub_equiv; unfold sem_vl_subtype; intros; vtp_simpl_unfold.
-  rewrite wf_length with (ts := G) (k := k); eauto.
-  ev. better_case_match; try contradiction; subst; intuition idtac.
-  (* Binding :-| *)
-  all: firstorder eauto 6 using sem_vl_subtype_c1, sem_vl_subtype_c2.
+  rewrite vl_sub_equiv; unfold sem_vl_subtype; intros; intuition idtac; intros; eauto; vtp_simpl_unfold.
+  replace (length env) with (length G) in * by
+      (rewrite wf_length with (ts := G) (k := k); eauto);
+    intuition idtac;
+    better_case_match; try contradiction; subst;
+      firstorder eauto 6.
 Qed.
 
 Lemma stp_mem_etp : forall env x L U n vx,
@@ -664,12 +716,16 @@ Qed.
 
 Lemma stp_mem_sub : forall G L U x,
     sem_type G (TMem L U) (tvar x) ->
+    closed_var 0 (length G) (varF x) ->
     sem_subtype G (TSel (varF x) L U) U.
 Proof.
-  intros; eauto using stp_mem_etp.
+  intros; eapply vl_subtype_to_subtype;
+    unfold sem_type, sem_vl_subtype, wf in *; ev; invert_closed;
+      intuition idtac; eauto using stp_mem_etp.
 Qed.
 
 Lemma stp_refl : forall G T,
+    wf G T ->
     sem_subtype G T T.
 Proof. intros; eauto. Qed.
 
@@ -677,76 +733,83 @@ Lemma stp_trans : forall G T1 T2 T3,
     sem_subtype G T1 T2 ->
     sem_subtype G T2 T3 ->
     sem_subtype G T1 T3.
-Proof. intros; auto. Qed.
+Proof.
+  rewrite vl_sub_equiv; unfold sem_vl_subtype; intuition auto.
+Qed.
 
 Lemma t_sub: forall G T1 T2 e,
     sem_subtype G T1 T2 ->
     sem_type G T1 e ->
     sem_type G T2 e.
-Proof. intros; eauto. Qed.
+Proof. unfold sem_subtype, sem_type; intuition auto. Qed.
 
 (* Oh, this isn't quite vtp_tbind_i. *)
-Lemma t_bind_i: forall G T t,
-  sem_type (TLater T :: G) (open (varF (length G)) T) t ->
-  sem_type G (TBind T) t.
-Proof.
-  unfold sem_type, etp, expr_sem.
-  intros * Hvtp * Henv * Heval Hjk *.
-  induction k.
-  - assert (j = 0) as -> by omega.
-    assert (v: vl) by admit.
+(* Lemma t_bind_i: forall G T t, *)
+(*   sem_type (TLater T :: G) (open (varF (length G)) T) t -> *)
+(*   sem_type G (TBind T) t. *)
+(* Proof. *)
+(*   unfold sem_type, etp, expr_sem. *)
+(*   intros *;  *)
+(*   intros * Hvtp * Henv * Heval Hjk *. *)
+(*   induction k. *)
+(*   - assert (j = 0) as -> by omega. *)
+(*     assert (v: vl) by admit. *)
 
-    assert (R_env 0 (v :: env) (TLater T :: G)). {
-      constructor.
-      - eauto.
-      - vtp_simpl_unfold.
-        assert (closed_ty 0 (length (v :: env)) T) by admit; eauto.
-    }
-    lets (v' & -> & Hvtp') : Hvtp 0 (v :: env) optV ___; eauto. {
-      assert (tevalSnOpt (v :: env) t optV 0) by admit; eauto.
-    }
-    simpl in *.
-    ev; subst.
-    assert (closed_ty 0 (length env) (TBind T)). {
-      constructor.
-      eapply vtp_closed in Hvtp'.
-      assert (closed_ty 1 (length env) T) by admit; eauto.
-    }
-    eexists; split_conj; eauto.
-    eapply vtp_tbind_i; eauto.
-    (* Uh, this almost works but not quite, but wouldn't be a problem in Iris.
-       We must show t's result is v' and is well-typed in environment (v' :: env).
-       We know that t's result is v' and is well-typed in environment (v :: env).
+(*     assert (R_env 0 (v :: env) (TLater T :: G)). { *)
+(*       constructor. *)
+(*       - eauto. *)
+(*       - vtp_simpl_unfold. *)
+(*         assert (closed_ty 0 (length (v :: env)) T) by admit; eauto. *)
+(*     } *)
+(*     lets (v' & -> & Hvtp') : Hvtp 0 (v :: env) optV ___; eauto. { *)
+(*       assert (tevalSnOpt (v :: env) t optV 0) by admit; eauto. *)
+(*     } *)
+(*     simpl in *. *)
+(*     ev; subst. *)
+(*     assert (closed_ty 0 (length env) (TBind T)). { *)
+(*       constructor. *)
+(*       eapply vtp_closed in Hvtp'. *)
+(*       assert (closed_ty 1 (length env) T) by admit; eauto. *)
+(*     } *)
+(*     eexists; split_conj; eauto. *)
+(*     eapply vtp_tbind_i; eauto. *)
+(*     (* Uh, this almost works but not quite, but wouldn't be a problem in Iris. *)
+(*        We must show t's result is v' and is well-typed in environment (v' :: env). *)
+(*        We know that t's result is v' and is well-typed in environment (v :: env). *)
 
-       In the Iris model, the difference wouldn't matter because we can only see
-       the truncation of v and x, which are considered equal, but this isn't
-       reflected by the current definitions I'm using --- I don't even have
-       the "thunk" constructors `next` for values of TLater.
-     *)
-  assert (vtp (open (varF (length G)) T) 0 v' (v :: env)) by assumption.
-  assert (vtp (open (varF (length env)) T) 0 v' (v' :: env)) by admit; eauto.
+(*        In the Iris model, the difference wouldn't matter because we can only see *)
+(*        the truncation of v and x, which are considered equal, but this isn't *)
+(*        reflected by the current definitions I'm using --- I don't even have *)
+(*        the "thunk" constructors `next` for values of TLater. *)
+(*      *) *)
+(*   assert (vtp (open (varF (length G)) T) 0 v' (v :: env)) by assumption. *)
+(*   assert (vtp (open (varF (length env)) T) 0 v' (v' :: env)) by admit; eauto. *)
 
-  (* Induction step. *)
-  -
-    (* Is j = S k?*)
-    inverse Hjk.
-    + clear IHk. (* Unapplicable *)
-      assert (Henv': R_env k env G) by eauto.
-      simpl. replace (k - k) with 0 by omega.
-      eexists.
-      vtp_simpl_unfold.
-      split_conj.
-      vtp_unfold_pieces.
+(*   (* Induction step. *) *)
+(*   - *)
+(*     (* Is j = S k?*) *)
+(*     inverse Hjk. *)
+(*     + clear IHk. (* Unapplicable *) *)
+(*       assert (Henv': R_env k env G) by eauto. *)
+(*       simpl. replace (k - k) with 0 by omega. *)
+(*       eexists. *)
+(*       vtp_simpl_unfold. *)
+(*       split_conj. *)
+(*       vtp_unfold_pieces. *)
 
+(* Admitted. *)
+
+Lemma closed_extend: forall i j T,
+    closed_ty i j T -> closed_ty i (S j) T.
 Admitted.
-
+Hint Resolve closed_extend.
 (* Variant of vtp_extend. *)
 Lemma stp_weak : forall G T1 T2 T,
     sem_subtype G T1 T2 ->
     sem_subtype (T :: G) T1 T2.
 Proof.
-  unfold sem_subtype.
-  intros * Hsub * Henv * HT1.
+  unfold sem_subtype, wf; simpl; intros * (? & ? & Hsub); split_conj; eauto.
+  intros * Henv * HT1.
   dependent destruction Henv.
   (* etp, expr_sem. *)
   eapply Hsub; eauto.
@@ -762,8 +825,8 @@ Lemma t_weak : forall G T T1 e,
     sem_type (T1 :: G) T e.
 Proof.
   unfold sem_type.
-  intros ? * Htp * Henv.
-  eapply Htp.
+  (* intros ? * Htp * Henv. *)
+  (* eapply Htp. *)
 Admitted.
 
 Definition realizable G T :=
