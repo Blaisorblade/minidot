@@ -31,7 +31,7 @@ Inductive label: Set :=
 Inductive ty : Set :=
 | TTop : ty
 | TBot : ty
-(* (z: T) -> T^z *)
+(* (z: S) -> T^z *)
 | TAll : ty -> ty -> ty
 (* x.Type :: { L .. U } *)
 | TSel : var -> ty (* L *) -> ty (* U *) -> ty
