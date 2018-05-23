@@ -244,7 +244,7 @@ Proof.
   (* handle TLater, for when m is less than 0 *)
   all: try omega.
   (* If m = 0 we must show that the produced type is closed. *)
-  all: eauto using vtp_closed.
+  all: eauto.
 
   (* handle TLater, for when m isn't 0.
      XXX: this assumes we have n = S n0 and m = S n1. *)
@@ -570,12 +570,49 @@ Proof.
   induction T; intros; invert_closed; eauto.
 Qed.
 Hint Resolve closed_ty_extend.
+
+(* Probably false as given, where does it come from??? *)
+(* Lemma closed_open: forall T i j k, *)
+(*     (* closed_ty i j (TSel u) -> *) *)
+(*     closed_ty i (S j) (open_rec k (varF j) T) -> *)
+(*     (* i >= k -> *) *)
+(*     closed_ty (S i) j T. *)
+(* Proof. *)
+(* Admitted. *)
+(* (*   (* unfold open_rec; fold open_rec. *) *) *)
+(* (*   induction T; intros; eauto; inversion H; subst; *) *)
+(* (*     simpl in *; *) *)
+(* (*     constructor; eauto. *) *)
+(* (*   destruct v. simpl in *. *) *)
+(* (*     try better_case_match; try beq_nat; invert_closed_var; auto. *) *)
+(* (*   inverts H. *) *)
+(* (* Qed. *) *)
+
+(*   (* - cinject H0. *) *)
+(*   (*   inverse H. *) *)
+(*   (*   inverse H3. *) *)
+(*   (*   constructor. *) *)
+(*   (*   admit. (* False! *) *) *)
+(*   (* - beq_nat. *) *)
+(*   (*   cinject H0. clear H. inverse H3. *) *)
+(*   (*   + constructor. *) *)
+(*   (*     admit. (* False! *) *) *)
+(*   (*   + constructor. *) *)
+(*   (*     admit. (* False! *) *) *)
+(*   (* -  beq_nat. *) *)
+(*   (*    cinject H0. *) *)
+
 Lemma vtp_extend : forall vx v k env T,
   vtp T k v env ->
   vtp T k v (vx::env).
 Proof.
-  intros; vtp_simpl_unfold.
 Admitted.
+  (* induction T; vtp_simpl_unfold; unfold wf; simpl; intuition eauto. *)
+  (* - admit. *)
+  (* - admit. *)
+  (* - better_case_match; intuition eauto. *)
+  (*   + admit. *)
+  (*   +  *)
 Hint Immediate vtp_extend.
 
 Lemma vtp_etp_rev:
@@ -584,31 +621,6 @@ Lemma vtp_etp_rev:
     vtp T k v env ->
     etp T k e env.
   eauto. Qed.
-
-Lemma closed_open: forall T i j k u,
-    (* closed_ty i j (TSel u) -> *)
-    closed_ty i (S j) (open_rec k u T) ->
-    closed_ty (S i) j T.
-Proof.
-Admitted.
-(*   (* unfold open_rec; fold open_rec. *) *)
-(*   induction T; intros; eauto; inversion H; subst; *)
-(*     simpl in *; *)
-(*     constructor; eauto; *)
-(*       repeat better_case_match; try discriminate. *)
-(*   - cinject H0. *)
-(*     inverse H. *)
-(*     inverse H3. *)
-(*     constructor. *)
-(*     admit. (* False! *) *)
-(*   - beq_nat. *)
-(*     cinject H0. clear H. inverse H3. *)
-(*     + constructor. *)
-(*       admit. (* False! *) *)
-(*     + constructor. *)
-(*       admit. (* False! *) *)
-(*   -  beq_nat. *)
-(*      cinject H0. *)
 
 (* Awkward to state with vtp? *)
 Lemma vtp_tbind_i: forall env v T n,
@@ -623,17 +635,18 @@ Qed.
 Lemma t_forall_i: forall G T1 T2 t,
   (* sem_type (T1 :: G) T2 t -> *)
   wf G T1 ->
+  closed_ty 1 (length G) T2 ->
   sem_type (T1 :: G) (open (varF (length G)) T2) t ->
   sem_type G (TAll T1 T2) (tabs T2 t).
 Proof.
-  unfold sem_type, wf; simpl; intros; intuition eauto using closed_open.
+  unfold sem_type, wf; simpl; intros; intuition eauto.
   (* XXX needed: Lemma for syntactic values. *)
   (* Also needed: a way to swap goals that actually works! *)
   eapply vtp_etp_rev with (nm := 0).
   - unfold tevalSnm, tevalSnmOpt; intros; step_eval; trivial.
   - replace (length G) with (length env) in * by eauto.
     unfold etp in *; vtp_simpl_unfold;
-    split_conj; eauto using closed_open.
+      split_conj; eauto.
 Qed.
 
 Lemma teval_var: forall env x,
