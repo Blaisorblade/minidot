@@ -547,6 +547,29 @@ Proof.
   rewrite vl_sub_equiv; unfold sem_vl_subtype; intuition eauto using stp_and.
 Qed.
 
+Ltac invert_closed :=
+  match goal with
+  | H : closed_ty _ _ ?T  |- _ =>
+    tryif is_var T then fail else inverts H
+  end.
+Ltac invert_closed_var :=
+  match goal with
+  | H : closed_var _ _ _ |- _ => inverts H
+  end.
+
+Lemma closed_var_extend: forall v i j,
+    closed_var i j v -> closed_var i (S j) v.
+Proof.
+  destruct v; intros; invert_closed_var; eauto.
+Qed.
+Hint Resolve closed_var_extend.
+
+Lemma closed_ty_extend: forall T i j,
+    closed_ty i j T -> closed_ty i (S j) T.
+Proof.
+  induction T; intros; invert_closed; eauto.
+Qed.
+Hint Resolve closed_ty_extend.
 Lemma vtp_extend : forall vx v k env T,
   vtp T k v env ->
   vtp T k v (vx::env).
@@ -667,12 +690,6 @@ Qed.
 (* Admitted. *)
 
 (* Hint Resolve sem_type_tvar_closed. *)
-
-Ltac invert_closed :=
-  match goal with
-  | H : closed_ty _ _ ?T  |- _ =>
-    tryif is_var T then fail else inverts H
-  end.
 
 Lemma mem_stp_sub : forall G L U x,
     sem_type G (TMem L U) (tvar x) ->
@@ -801,10 +818,6 @@ Proof. unfold sem_subtype, sem_type; intuition auto. Qed.
 
 (* Admitted. *)
 
-Lemma closed_extend: forall i j T,
-    closed_ty i j T -> closed_ty i (S j) T.
-Admitted.
-Hint Resolve closed_extend.
 (* Variant of vtp_extend. *)
 Lemma stp_weak : forall G T1 T2 T,
     sem_subtype G T1 T2 ->
