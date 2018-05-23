@@ -133,11 +133,13 @@ Definition pretype_dom n :=
   forall (n0: nat) (H: n0 <= n), vl_prop.
 Hint Unfold pretype_dom.
 
+Definition wf {A} (G : list A) T := closed_ty 0 (length G) T.
+
 Program Definition expr_sem {n} T (A : pretype_dom n) k (p : k <= n) env1 e
   : env_prop :=
   fun env =>
     (* If evaluation terminates in at most k steps without running out of fuel, *)
-    closed_ty 0 (length env) T /\
+    wf env T /\
     forall optV j,
       tevalSnOpt env1 e optV j ->
       j <= k ->

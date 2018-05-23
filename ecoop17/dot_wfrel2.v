@@ -180,15 +180,19 @@ Ltac vtp_induction T n :=
   apply ind_args with (T := T) (n := n);
   clear T n.
 
+Hint Unfold wf.
 Lemma vtp_closed: forall T k v env,
-    vtp T k v env -> closed_ty 0 (length env) T.
+    vtp T k v env -> wf env T.
 Proof.
-  induction T; intros; destruct v; vtp_simpl_unfold; ev; try eauto;
+  unfold wf; induction T; intros; destruct v; vtp_simpl_unfold; ev; try eauto;
     (* Either case_match or better_case_match works*)
     repeat better_case_match; ev; eauto 6;
       contradiction.
 Qed.
 Hint Resolve vtp_closed.
+
+Lemma wf_to_closed_ty: forall {A} (env: list A) T, wf env T -> closed_ty 0 (length env) T. Proof. eauto. Qed.
+Hint Resolve wf_to_closed_ty.
 
 Lemma vtp_mon: forall T env v m n,
     vtp T n v env ->
@@ -339,13 +343,11 @@ Program Definition etp T k e env :=
   @expr_sem k T (fun k _ => vtp T k) k _ env e env.
 
 Lemma etp_closed: forall T k v env,
-    etp T k v env -> closed_ty 0 (length env) T.
+    etp T k v env -> wf env T.
 Proof.
   unfold etp, expr_sem; tauto.
 Qed.
 Hint Resolve etp_closed.
-
-Definition wf (G : tenv) T := closed_ty 0 (length G) T.
 
 (* Semantic typing *)
 Definition sem_type (G : tenv) (T : ty) (e: tm) :=
