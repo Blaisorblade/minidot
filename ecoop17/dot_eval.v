@@ -182,6 +182,8 @@ Hint Unfold tevalSnmOpt tevalSnOpt tevalSnm tevalSn tevalSn'.
 Lemma tevalSnEqv: forall env e v k, tevalSn env e v k = tevalSn' env e v k.
 Proof. reflexivity. Qed.
 
+(* Currently unused tactics and proof sketches on evaluation and its monotonicity. *)
+
 Lemma tevalSnmOpt_det: forall env t optV1 optV2 j1 j2 nm1 nm2,
     tevalSnmOpt env t optV1 j1 nm1 ->
     tevalSnmOpt env t optV2 j2 nm2 ->
@@ -197,21 +199,26 @@ Proof.
   injection Hopt1; intros; split_conj; eauto.
 Qed.
 
-Lemma tevalSnOpt_det: forall env t optV1 optV2 j1 j2,
-    tevalSnOpt env t optV1 j1 ->
-    tevalSnOpt env t optV2 j2 ->
-    optV1 = optV2 /\ j1 = j2.
-Proof.
-  unfold tevalSnOpt; intros; ev; eauto using tevalSnmOpt_det.
-Qed.
+(* Lemma tevalSnOpt_det: forall env t optV1 optV2 j1 j2, *)
+(*     tevalSnOpt env t optV1 j1 -> *)
+(*     tevalSnOpt env t optV2 j2 -> *)
+(*     optV1 = optV2 /\ j1 = j2. *)
+(* Proof. *)
+(*   unfold tevalSnOpt; intros; ev; eauto using tevalSnmOpt_det. *)
+(* Qed. *)
 
-Ltac eval_det :=
-  match goal with
-  | H1 : tevalSnOpt _ _ ?a 0, H2 : tevalSnOpt _ _ ?b 0 |- _ =>
-    lets ? : tevalSnOpt_det H1 H2 ___
-  end; ev.
+(* Ltac eval_det := *)
+(*   match goal with *)
+(*   | H1 : tevalSnmOpt _ _ _ _ _, H2 : tevalSnmOpt _ _ _ _ _ |- _ => *)
+(*     lets (? & ?) : tevalSnmOpt_det H1 H2 ___ *)
+(*   end. *)
 
-(* Currently unused tactics and proof sketches on evaluation and its monotonicity. *)
+(* Older variant: *)
+(* Ltac eval_det := *)
+(*   match goal with *)
+(*   | H1 : tevalSnOpt _ _ ?a 0, H2 : tevalSnOpt _ _ ?b 0 |- _ => *)
+(*     lets ? : tevalSnOpt_det H1 H2 ___ *)
+(*   end; ev. *)
 
 (* Require Import dot_monads. *)
 
