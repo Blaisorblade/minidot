@@ -41,12 +41,11 @@ Inductive ty : Set :=
                        where z is locally bound in T *)
 | TAnd : ty -> ty -> ty (* Intersection Type: T1 /\ T2 *)
 | TOr : ty -> ty -> ty (* Union Type: T1 \/ T2 *)
-(*                                  . *)
+| TLater : ty -> ty
 (* | TRcd : dec -> ty (* { d } *) *)
 (* with dec : Set :=  *)
 (* | dec_typ : typ_label -> ty (* S *) -> ty (* U *) -> dec *)
 (* | dec_trm : trm_label -> ty -> dec *)
-| TLater : ty -> ty
 .
 
 Inductive tm : Set :=
