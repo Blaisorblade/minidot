@@ -172,23 +172,22 @@ Program Definition interpTMem n (A1 : pretype_dom n) (A2 : pretype_dom n)
 
 Program Definition interpTSel0 n i (env0: list vl)
         (val_type : ty -> forall j, j < n -> vl_prop)
-        (L : pretype_dom n) (U : pretype_dom n) :=
+        (U : pretype_dom n) :=
   fun n0 (p : n0 <= n) v env =>
     match indexr i env0 with
     | Some (vty env1 TX) =>
       (* This set is between L and U *now*! We must use "Later" only to guard uses of TX! *)
       U n0 _ v env /\
-      (L n0 _ v env \/
-       forall j (Hk : j < n0), val_type TX j _ v env1)
+      (forall j (Hk : j < n0), val_type TX j _ v env1)
     | _ => False
     end.
 
 Program Definition interpTSel n x
         (val_type : ty -> forall j, j < n -> vl_prop)
-        (L : pretype_dom n) (U : pretype_dom n) :=
+        (U : pretype_dom n) :=
   fun n0 (p : n0 <= n) v env =>
     match x with
-    | varF i => interpTSel0 n i env val_type L U n0 p v env
+    | varF i => interpTSel0 n i env val_type U n0 p v env
     | varB _ => False
      end.
 
@@ -229,12 +228,9 @@ Program Fixpoint val_type (T: ty) (n : nat)
                  n _ v env
     | TTop => True
     | TBot => False
-    | TSel x L U =>
-      (* Because L is only used in a disjunction we must require its closedness. *)
-      closed_ty 0 (length env) L /\
+    | TSel x U =>
       interpTSel n x
                  (fun T j p => val_type T j _)
-                 (fun n p => val_type L n _)
                  (fun n p => val_type U n _)
                 n _ v env
     | TAnd T1 T2 =>
@@ -313,11 +309,9 @@ Lemma val_type_unfold : forall T n v env,
                  n (le_n _) v env
     | TTop => True
     | TBot => False
-    | TSel x L U =>
-      closed_ty 0 (length env) L /\
+    | TSel x U =>
       interpTSel n x
                  (fun T j p => val_type T j)
-                 (fun n p => val_type L n)
                  (fun n p => val_type U n)
                  n (le_n _) v env
     | TAnd T1 T2 =>

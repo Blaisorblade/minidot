@@ -22,11 +22,9 @@ Lemma vtp_unfold : forall T n v env,
                  n (le_n _) v env
     | TTop => True
     | TBot => False
-    | TSel x L U =>
-      closed_ty 0 (length env) L /\
+    | TSel x U =>
       interpTSel n x
                  (fun T j p => vtp T j)
-                 (fun n p => vtp L n)
                  (fun n p => vtp U n)
                  n (le_n _) v env
     | TAnd T1 T2 =>
@@ -76,11 +74,9 @@ Lemma vtp_unfold_underbinders :
                  n (le_n _) v env
     | TTop => True
     | TBot => False
-    | TSel x L U =>
-      closed_ty 0 (length env) L /\
+    | TSel x U =>
       interpTSel n x
                  (fun T j p => vtp T j)
-                 (fun n p => vtp L n)
                  (fun n p => vtp U n)
                  n (le_n _) v env
     | TAnd T1 T2 =>
@@ -434,15 +430,15 @@ Lemma mem_stp : forall env x L U n v vx,
     vtp (TMem L U) n v env ->
     vtp L n vx env ->
     indexr x env = Some v ->
-    vtp (TSel (varF x) L U) n vx env.
+    vtp (TSel (varF x) U) n vx env.
 Proof.
   (* This needs better_case_match (or discriminate later) *)
-  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some; try contradiction; eauto.
+  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some; try contradiction; firstorder eauto.
 Qed.
 
 Lemma stp_mem : forall env x L U n v vx,
     vtp (TMem L U) n v env ->
-    vtp (TSel (varF x) L U) n vx env ->
+    vtp (TSel (varF x) U) n vx env ->
     indexr x env = Some v ->
     vtp U n vx env.
 Proof.
@@ -693,7 +689,7 @@ Qed.
 Lemma mem_stp_etp : forall env x L U n vx,
     etp (TMem L U) n (tvar x) env ->
     vtp L n vx env ->
-    vtp (TSel (varF x) L U) n vx env.
+    vtp (TSel (varF x) U) n vx env.
 Proof.
   intros * H ?;
     apply etp_var in H;
@@ -713,7 +709,7 @@ Qed.
 Lemma mem_stp_sub : forall G L U x,
     sem_type G (TMem L U) (tvar x) ->
     closed_var 0 (length G) (varF x) ->
-    sem_subtype G L (TSel (varF x) L U).
+    sem_subtype G L (TSel (varF x) U).
 Proof.
   intros; eapply vl_subtype_to_subtype;
     unfold sem_type, sem_vl_subtype, wf in *; ev; invert_closed;
@@ -721,7 +717,7 @@ Proof.
 Qed.
 
 (* Let's pretend we have regularity for sem_vl_subtype. I should of course just add the needed assumptions, but don't want to go over all the existing proofs. *)
-(* Lemma sem_vl_subtype_closed: forall G T1 T2, *)
+(* Lemma sem_vl_subtype_closed: forall G T1 T, *)
 (*     sem_vl_subtype G T1 T2 -> *)
 (*     closed_ty 0 (length G) T1 /\ *)
 (*     closed_ty 0 (length G) T2. *)
@@ -743,7 +739,7 @@ Qed.
 
 Lemma stp_mem_etp : forall env x L U n vx,
     etp (TMem L U) n (tvar x) env ->
-    vtp (TSel (varF x) L U) n vx env ->
+    vtp (TSel (varF x) U) n vx env ->
     vtp U n vx env.
 Proof.
   intros * H ?;
@@ -755,7 +751,7 @@ Qed.
 Lemma stp_mem_sub : forall G L U x,
     sem_type G (TMem L U) (tvar x) ->
     closed_var 0 (length G) (varF x) ->
-    sem_subtype G (TSel (varF x) L U) U.
+    sem_subtype G (TSel (varF x) U) U.
 Proof.
   intros; eapply vl_subtype_to_subtype;
     unfold sem_type, sem_vl_subtype, wf in *; ev; invert_closed;
