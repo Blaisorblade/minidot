@@ -10,6 +10,7 @@ p ::= x | v
 
 (* in small-step *)
 Require Export SfLib.
+Require Import Omega.
 
 Require Export Arith.EqNat.
 Require Export Arith.Lt.
