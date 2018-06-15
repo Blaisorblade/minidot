@@ -2981,17 +2981,17 @@ Proof.
       eapply stp_closed2 in H0. simpl in H0. inversion H0; subst. inversion H11; subst.
       omega.
     + SCase "and".
-      assert (vtpdd m1 x T1). eapply IHn; eauto. omega. eu.
-      assert (vtpdd m1 x T2). eapply IHn; eauto. omega. eu.
+      assert (vtpdd m1 x T1). eapply IHn with (n1 := S n0); eauto. omega. eu.
+      assert (vtpdd m1 x T2). eapply IHn with (n1 := S n0); eauto. omega. eu.
       repeat eexists. eapply vtp_and; eauto. eauto.
     + SCase "or1".
-      assert (vtpdd m1 x T1). eapply IHn; eauto. omega. eu.
+      assert (vtpdd m1 x T1). eapply IHn with (n1 := S n0); eauto. omega. eu.
       repeat eexists. eapply vtp_or1; eauto. eauto.
     + SCase "or2".
-      assert (vtpdd m1 x T2). eapply IHn; eauto. omega. eu.
+      assert (vtpdd m1 x T2). eapply IHn with (n1 := S n0); eauto. omega. eu.
       repeat eexists. eapply vtp_or2; eauto. eauto.
     + SCase "trans".
-      assert (vtpdd m1 x T2) as LHS. eapply IHn. eauto. eauto. eauto. omega. eauto. eu.
+      assert (vtpdd m1 x T2) as LHS. eapply IHn with (n1 := S n0); eauto. omega. eu.
       assert (vtpdd x0 x T3) as BB. eapply IHn. eapply LHS. eauto. omega. omega. eauto. eu.
       repeat eexists. eauto. omega.
   - Case "and". subst. inversion H0; subst; invty.
