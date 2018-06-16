@@ -436,3 +436,47 @@ Hint Resolve etp0_closed.
 (*   easy. *)
 (* Qed. *)
 
+Require Import dot_monads.
+Fixpoint vr_subst_all (env: list vr) (v: vr) { struct v }: vr :=
+  match v with
+    | VarF x => VarF x
+    | VarB x =>
+      VarB x
+      (* index x env *)
+    | VObj dms => VObj (dms_subst_all (VObj dms :: env) dms)
+  end
+with subst_all (env: list vr) (T: ty) { struct T }: ty :=
+  match T with
+    | TTop        => TTop
+    | TBot        => TBot
+    | TSel v1 l     => TSel (vr_subst_all env v1) l
+    | TFun l T1 T2  => TFun l (subst_all env T1) (subst_all (VarB 0 :: env) T2)
+    | TMem l T1 T2  => TMem l (subst_all env T1) (subst_all env T2)
+    | TBind T1    => TBind (subst_all (VarB 0 :: env) T1)
+    | TAnd T1 T2  => TAnd (subst_all env T1) (subst_all env T2)
+    | TOr T1 T2   => TOr (subst_all env T1) (subst_all env T2)
+  end
+with tm_subst_all (env: list vr) (t: tm) { struct t }: tm :=
+   match t with
+     | tvar v => tvar (vr_subst_all env v)
+     | tapp t1 l t2 => tapp (tm_subst_all env t1) l (tm_subst_all env t2)
+   end
+with dm_subst_all (env: list vr) (d: dm) { struct d }: dm :=
+   match d with
+     | dfun T1 T2 t2 => dfun (subst_all env T1) (subst_all (VarB 0 :: env) T2) (tm_subst_all (VarB 0 :: env) t2)
+     | dty T1 => dty (subst_all env T1)
+   end
+with dms_subst_all (env: list vr) (ds: dms) { struct ds }: dms :=
+   match ds with
+     | dnil => dnil
+     | dcons d ds => dcons (dm_subst_all env d) (dms_subst_all env ds)
+   end.
+
+(* Program Definition etp T k e env := *)
+(*   @expr_sem k T (fun k _ => vtp T k) k _ env e env. *)
+(* (* Semantic typing *) *)
+(* Definition sem_type (G : tenv) (T : ty) (e: tm) := *)
+(*   wf G T /\ *)
+(*   forall k env, *)
+(*     R_env k env G -> *)
+(*     etp T k e. *)
