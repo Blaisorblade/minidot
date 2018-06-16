@@ -143,10 +143,8 @@ Inductive steps t0 : tm -> nat -> Prop :=
 Definition irred t0 := not (exists t1, step t0 t1).
 
 
-Print lexprod.
+Local Obligation Tactic := valTypeObligationsSSReflection.
 From Equations Require Import Equations.
-Print lexprod.
-
 Equations expr_sem {n} (T : ty) (A : pretype_dom n) k (p : k <= n) (t : tm) : Prop :=
   expr_sem T A k p t :=
   (* If evaluation terminates in at most k steps without running out of fuel, *)
@@ -158,18 +156,6 @@ Equations expr_sem {n} (T : ty) (A : pretype_dom n) k (p : k <= n) (t : tm) : Pr
     (* then evaluation did not get stuck and the result satisfies A. *)
     exists v, A (k - j) _ v.
 
-(* Check WellFounded *)
-(*                   (MR val_type_termRel *)
-(*                      (fun *)
-(*                         hypspack : sigma ty *)
-(*                                      (fun _ : ty => *)
-(*                                       sigma nat (fun _ : nat => ())) => *)
-(*                       (fun *)
-(*                          hypspack0 : sigma ty *)
-(*                                        (fun _ : ty => *)
-(*                                         sigma nat (fun _ : nat => ())) => *)
-(*                        (pr1 hypspack0, pr1 (pr2 hypspack0))) hypspack)). *)
-
 (* Program Definition expr_sem {n} T (A : pretype_dom n) k (p : k <= n) t : Prop := *)
 (*   (* If evaluation terminates in at most k steps without running out of fuel, *) *)
 (*   closed_ty 0 0 T /\ *)
@@ -180,35 +166,15 @@ Equations expr_sem {n} (T : ty) (A : pretype_dom n) k (p : k <= n) (t : tm) : Pr
 (*     (* then evaluation did not get stuck and the result satisfies A. *) *)
 (*     exists v, A (k - j) _ v. *)
 
-(* Definition meas := MR lt tsize_flat. *)
-(* Lemma w *)
 Instance WF_val_type_termRel: WellFounded val_type_termRel := wf_val_type_termRel.
-
-Local Obligation Tactic := valTypeObligationsSSReflection.
 
 Equations val_type (Tn: argPair) (t : tm) : Prop :=
   val_type Tn t by rec Tn val_type_termRel :=
     val_type (pair T (S n)) t := val_type (pair T n) t;
     val_type (pair T O) t := True.
 
-
 Next Obligation. Qed.
-Preterm.
-(* Transparent val_type_unfold. *)
 Next Obligation.
-  (* destruct Tn as [? n]; induction n; rewrite val_type_unfold_eq; unfold val_type_unfold; constructor; auto. *)
-  (* apply val_type_ind_ind; intros; try constructor; eauto. *)
-  (* eauto. *)
-  (* funelim (val_type Tn t). *)
-  (* rewrite val_type_equation_1; constructor. *)
-  (* rewrite val_type_equation_2; constructor. *)
-  (* funelim (val_type Tn t). *)
-  (* Print val_type_ind. *)
-Admitted.
-Next Obligation. Qed.
-
-(*     val_type T n := False. *)
-(* Equations val_type (T: ty) (n : nat): vl_prop := *)
-(*         (* {measure (val_type_measure T n) (termRel)}: vl_prop := *) *)
-(*   val_type T n by rec (T, n) val_type_termRel := *)
-(*     val_type T n := False. *)
+  destruct Tn as [? n]; induction n;
+    simp val_type.
+Defined.
