@@ -100,7 +100,8 @@ VFILES:=SfLib.v\
   dot_eval.v dot_monads.v \
 	dot_wfrel.v dot_wfrel2.v \
 	LibTactics.v \
-	dot_storeless_tidy.v
+	dot_storeless_tidy.v \
+	dot_storeless_wfrel.v
 
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
