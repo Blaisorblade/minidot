@@ -97,25 +97,24 @@ Qed.
 Ltac applyNSimpleIneq l := apply l; simple_ineq.
 
 Ltac smaller_n :=
-  Tactics.program_simpl;
   autounfold; apply left_lex;
   (* simpl; omega. *)
   simple_ineq.
 
 Ltac smaller_types :=
-  Tactics.program_simpl;
   autounfold; apply right_lex;
   try rewrite open_preserves_size';
   (* simpl; omega. *)
   simple_ineq.
 
 (* Solve obligations from valType using ssreflect-based ideas, that is, reusing lemmas for the various cases. *)
-Ltac valTypeObligationsSSReflection :=
-  program_simpl;
+Ltac valTypeObligationsSSReflectionCore :=
   try solve [simple_ineq | applyNSimpleIneq termRelShowOpen | applyNSimpleIneq termRelShow | applyNSimpleIneq termRelShowLt | smaller_types | discriminatePlus].
+Ltac valTypeObligationsSSReflection :=
+  program_simpl; valTypeObligationsSSReflectionCore.
 
 Ltac valTypeObligations Hj :=
-  Tactics.program_simpl;
+  program_simpl;
   solve [ smaller_n | smaller_types | discriminatePlus | (try destruct Hj; [ smaller_types | smaller_n ])].
 
 Local Obligation Tactic := valTypeObligationsSSReflection.
@@ -221,12 +220,15 @@ Solve Obligations with valTypeObligationsSSReflection. (* Works *)
 (* Solve All Obligations. (* No effect *) *)
 (* Next Obligation. Qed. (* Works for 1 obligation. *) *)
 
+Hint Constructors val_type_ind.
+Hint Extern 5 (val_type_termRel _ _) =>
+  smaller_types || smaller_n.
+
 Next Obligation.
   Transparent val_type_unfold.
   Ltac loop := (subst; progress (better_case_match; simp val_type); loop) || idtac.
   apply ind_args with (T := t) (n := n); clear t n; intros * Hind;
-    rewrite val_type_unfold_eq; unfold val_type_unfold; loop;
-      constructors; apply Hind; valTypeObligationsSSReflection.
+    rewrite val_type_unfold_eq; unfold val_type_unfold; loop; eauto.
     (* rewrite val_type_unfold_eq in *. unfold val_type_unfold in *. simpl. auto. *)
   (* - constructors; rewrite val_type_unfold_eq in *; unfold val_type_unfold in *; easy. *)
   Opaque val_type_unfold.
@@ -264,8 +266,7 @@ Proof.
       destruct v;
       simp val_type in *; ev;
         try eauto || easy.
-  all: (destruct v0 || destruct v; simp val_type in *; ev; now eauto)
-       || constructor; eapply H; smaller_types.
+  all: (destruct v0 || destruct v; simp val_type in *; ev; now eauto).
 Qed.
 
 Lemma vtp_v_closed : forall T n v, vtp T n v -> tm_closed 0 0 v.
@@ -285,13 +286,11 @@ Lemma vtp_v_closed : forall T n v, vtp T n v -> tm_closed 0 0 v.
   Ltac indSearch Hind :=
     match goal with
     | H : val_type (?T1, ?n1) _ |- _ =>
-      lets ?: Hind H; smaller_types
+      lets ?: Hind H; eauto
     end.
-  all: try indSearch Hind.
-  all: try (match goal with
+  all: try match goal with
     | H : ?A \/ ?B |- _ => destruct H
-    end; indSearch Hind).
-  - destruct v; simp val_type in *; ev; eauto; indSearch Hind.
+    end; indSearch Hind.
 Qed.
 Hint Resolve vtp_v_closed.
 
@@ -865,6 +864,9 @@ Solve Obligations with program_simpl; rewrite map_length; auto.
 Program Definition etpEnv T k e env :=
   { HwfT : wf env T |
     { HwfE : tm_closed 0 (length env) e | etpEnvCore T k e env _ _ }}.
+Hint Unfold etpEnv.
+Hint Transparent etpEnv.
+Hint Transparent wf.
 
 Lemma etpEnv_closed: forall T k v env,
     etpEnv T k v env -> wf env T.
