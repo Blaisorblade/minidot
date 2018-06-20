@@ -133,8 +133,143 @@ with dms_subst_all_tot i (env: list vr) (ds: dms) (_ : dms_closed i (length env)
        let ds' := dms_subst_all_tot i env ds _ in
        dcons d' ds'
    end.
-Solve All Obligations with program_simpl; inverts H; auto.
+Solve All Obligations with program_simpl; abstract (inverts H; auto).
 
+Hint Unfold closed_ty.
+Hint Constructors vr_closed.
+Hint Constructors closed.
+Hint Constructors dms_closed.
+Hint Constructors dm_closed.
+Hint Constructors tm_closed.
+Hint Constructors dm_closed.
+
+Ltac inverts_if_nonvar x H :=
+    tryif is_var x then fail else inverts H.
+Ltac inverts_closed :=
+  match goal with
+  | H : vr_closed _ _ ?v  |- _ =>
+    inverts_if_nonvar v H
+  | H : closed _ _ ?T     |- _ =>
+    inverts_if_nonvar T H
+  | H : tm_closed _ _ ?t  |- _ =>
+    inverts_if_nonvar t H
+  | H : dm_closed _ _ ?d  |- _ =>
+    inverts_if_nonvar d H
+  | H : dms_closed _ _ ?d |- _ =>
+    inverts_if_nonvar d H
+  end.
+
+(* subst_all_closed_upgrade_rec *)
+Lemma subst_all_res_closed_rec:
+  (forall v, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: vr_closed i (length env) v), vr_closed i k (vr_subst_all_tot i env v Hcl)) /\
+  (forall T, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: closed i (length env) T), closed i k (subst_all_tot i env T Hcl)) /\
+  (forall t, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: tm_closed i (length env) t), tm_closed i k (tm_subst_all_tot i env t Hcl)) /\
+  (forall dm, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dm_closed i (length env) dm), dm_closed i k (dm_subst_all_tot i env dm Hcl)) /\
+  (forall dms, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dms_closed i (length env) dms), dms_closed i k (dms_subst_all_tot i env dms Hcl)).
+Proof.
+  apply syntax_mutind.
+
+  all: try solve [intros * HenvCl Hcl *; simpl in *; intuition eauto using index_Forall].
+  solve [intros * HenvCl Hcl *; simpl in *; inverts_closed; simpl in *; subst; intuition eauto using index_Forall].
+  (* Hint Constructors Forall. *)
+  (* all: try solve [intros; simpl in *; inverts_closed; eauto 8 using Forall_impl, (proj1 closed_upgrade_rec)]. *)
+  (* all: try solve [intros; simpl in *; inverts_closed; eauto 9 using Forall_impl, (proj1 closed_upgrade_rec)]. *)
+  (* all: intros; simpl in *; inverts_closed; eauto 8 using Forall_impl, (proj1 closed_upgrade_rec). *)
+  (* all: try solve [intros * HenvCl Hcl *; simpl in *; inverts_closed; simpl in *; subst; intuition eauto using index_Forall]. *)
+  - intros * HenvCl Hcl; simpl in *; inverts_closed.
+    unfold indexTot.
+    match goal with
+    | |-  context f [index_sigT ?a ?b] => destruct (index_sigT a b) as [? Heq]; rewrite Heq; simpl in *
+    end.
+    unfold gt in *.
+    destruct (index_Forall env i _ HenvCl); ev; eauto.
+    congruence.
+    (*   intuition eauto using index_Forall. *)
+    (*   Check index_Forall. *)
+    (*   simpl in *. *)
+    (*   lets ? : index_Forall vr env HenvCl ___. *)
+    (*   eapply index_Forall. *)
+    (*   intuition eauto using index_Forall. *)
+    (* } *)
+    (* SearchAbout index. *)
+    (* constructor. *)
+    (* unfold index_sigT. *)
+    (* Check vr_subst_all_tot_obligation_1. *)
+    (* Maybe using equations for those definitions would avoid getting all this nonsense. *)
+
+    (* - indLater Hind env i j k. *)
+
+  - intros * Hindt * HenvCl Hcl; simpl in *; inverts_closed.
+    (* eauto 8 using Forall_impl, (proj1 closed_upgrade_rec). *)
+    (* (* constructors. *) *)
+    (* (* eapply Hindt. *) *)
+    (* (* constructors; *) *)
+    (* (* eauto using Forall_impl, (proj1 closed_upgrade_rec). *) *)
+
+    (* (* constructor. *) *)
+    (* (* eapply Hindt. *) *)
+    (* (* constructor. *) *)
+    (* (* intuition eauto using Forall_impl, (proj1 closed_upgrade_rec). *) *)
+    (* (* intuition eauto using Forall_impl, (proj1 closed_upgrade_rec). *) *)
+    (* (* lets ?: Hindt i (S k) (VarB 0 :: env) ___. *) *)
+    (* (* simpl; eauto; *) *)
+
+    (* (* constructors. [eauto | eapply Forall_impl with (P := vr_closed i k); intuition eauto using (proj1 closed_upgrade_rec)]. *) *)
+    (* (* intuition eauto using Forall_impl, (proj1 closed_upgrade_rec). *) *)
+    (* (* solve [intros * HenvCl Hcl *; simpl in *; inverts_closed; simpl in *; subst; intuition eauto using index_Forall]. *) *)
+    Ltac indLater Hind env i k :=
+      lets ?: Hind i (S k) (VarB 0 :: env) ___; simpl; eauto;
+      try (constructors; [eauto | eapply Forall_impl with (P := vr_closed i k); intuition eauto using (proj1 closed_upgrade_rec)]).
+    indLater Hindt env i k.
+  - intros * Hindt * Hindt1 * HenvCl Hcl *; inverts_closed.
+    Ltac indNow Hind env i k :=
+      lets ?: Hind i k env ___; simpl; eauto.
+    indNow Hindt env i k.
+    indLater Hindt1 env i k.
+  (* - *)
+  (*   intros * HenvCl Hcl *; simpl in *; intros. *)
+  (*   (* intuition eauto using index_Forall. *) *)
+  (*   (* inverse Hcl; simpl in *; subst; intuition eauto using index_Forall. *) *)
+  (*   try solve [intros * HenvCl Hcl *; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall]. *)
+  (* all: try solve [intros * HenvCl Hcl *; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall]. *)
+  - intros * Hindt * HenvCl Hcl; inverts_closed.
+    indLater Hindt env i k.
+  - intros * Hindt * Hindt1 * Hindt2 * HenvCl Hcl *; inverts_closed.
+    indNow Hindt env i k.
+    indLater Hindt1 env i k.
+    indLater Hindt2 env i k.
+  (* - intros * Hindt * Hindt1 * HenvCl * Hcl *. inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+
+  (*   indNow Hindt env i k. *)
+  (* - intros * Hindt * Hindt1 * HenvCl Hcl *; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (*   indNow Hindt1 env i j k. *)
+  (* - intros * Hindt * HenvCl Hcl * ; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (* - intros * Hindt * HenvCl Hcl *; simpl in *; inverts Hcl. *)
+  (*   indLater Hindt env i j k. *)
+  (* - intros * Hindt * Hindt1 * HenvCl Hcl *; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (*   indNow Hindt1 env i j k. *)
+  (* - intros * Hindt * Hindt1 * HenvCl Hcl *; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (*   indNow Hindt1 env i j k. *)
+  (* - intros * Hindt * HenvCl * Hcl *; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (* - intros * Hindt * Hindt1 * HenvCl Hcl *; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (*   indNow Hindt1 env i j k. *)
+  (* - intros * Hindt * Hindt1 * Hindt2 * HenvCl Hcl *; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (*   indLater Hindt1 env i j k. *)
+  (*   indLater Hindt2 env i j k. *)
+  (* - intros * Hindt * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (* - intros * Hindt * Hindt1 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
+  (*   indNow Hindt env i j k. *)
+  (*   indNow Hindt1 env i j k. *)
+Qed.
 
 (*******************)
 (* Infrastructure for well-founded induction for properties of vtp. *)
@@ -338,14 +473,6 @@ Proof.
       solve [easy | intuition auto | unfold irred; intro Hsteps; ev; easy ].
 Qed.
 Hint Resolve vtp_irred.
-
-Hint Unfold closed_ty.
-Hint Constructors vr_closed.
-Hint Constructors closed.
-Hint Constructors dms_closed.
-Hint Constructors dm_closed.
-Hint Constructors tm_closed.
-Hint Constructors dm_closed.
 
 Lemma vtp_closed: forall T n v,
     vtp T n v -> closed_ty 0 0 T.
@@ -639,55 +766,6 @@ Hint Constructors Forall.
 (*   intros * HenvCl; induction v; intros * Hcl Hlen; simpl in *; inverse Hcl; *)
 (*   intuition eauto using index_Forall. *)
 (* Abort. *)
-
-(* Lemma subst_all_closed_upgrade_rec: *)
-(*   (forall v, forall i k env, Forall (vr_closed i k) env -> forall j, vr_closed i j v -> length env = j -> exists v', vr_subst_all env v = Some v' /\ vr_closed i k v') /\ *)
-(*   (forall T, forall i k env, Forall (vr_closed i k) env -> forall j, closed i j T -> length env = j -> exists T', subst_all env T = Some T' /\ closed i k T') /\ *)
-(*   (forall t, forall i k env, Forall (vr_closed i k) env -> forall j, tm_closed i j t -> length env = j -> exists t', tm_subst_all env t = Some t' /\ tm_closed i k t') /\ *)
-(*   (forall dm, forall i k env, Forall (vr_closed i k) env -> forall j, dm_closed i j dm -> length env = j -> exists dm', dm_subst_all env dm = Some dm' /\ dm_closed i k dm') /\ *)
-(*   (forall T, forall i k env, Forall (vr_closed i k) env -> forall j, dms_closed i j T -> length env = j -> exists dms', dms_subst_all env T = Some dms' /\ dms_closed i k dms'). *)
-(* Proof. *)
-(*   apply syntax_mutind. *)
-(*   all: try solve [intros * HenvCl * Hcl * Hlen; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall]. *)
-(*   - intros * Hind * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-
-(*     Ltac indLater Hind env i j k :=  *)
-(*       lets (? & -> & ?): Hind i (S k) (VarB 0 :: env) (S j) ___; simpl; eauto; *)
-(*       try (constructors; [eauto | eapply Forall_impl with (P := vr_closed i k); intuition eauto using (proj1 closed_upgrade_rec)]). *)
-(*     indLater Hind env i j k. *)
-(*   - intros * Hindt * Hindt1 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     Ltac indNow Hind env i j k :=  *)
-(*       lets (? & -> & ?): Hind i k env j ___; simpl; eauto. *)
-(*     indNow Hindt env i j k. *)
-(*     indLater Hindt1 env i j k. *)
-(*   - intros * Hindt * Hindt1 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*     indNow Hindt1 env i j k. *)
-(*   - intros * Hindt * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*   - intros * Hindt * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indLater Hindt env i j k. *)
-(*   - intros * Hindt * Hindt1 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*     indNow Hindt1 env i j k. *)
-(*   - intros * Hindt * Hindt1 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*     indNow Hindt1 env i j k. *)
-(*   - intros * Hindt * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*   - intros * Hindt * Hindt1 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*     indNow Hindt1 env i j k. *)
-(*   - intros * Hindt * Hindt1 * Hindt2 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*     indLater Hindt1 env i j k. *)
-(*     indLater Hindt2 env i j k. *)
-(*   - intros * Hindt * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*   - intros * Hindt * Hindt1 * HenvCl * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow Hindt env i j k. *)
-(*     indNow Hindt1 env i j k. *)
-(* Qed. *)
 
 (* Lemma subst_all_success_rec: *)
 (*   (forall v, forall i env, forall j, vr_closed i j v -> length env = j -> exists v', vr_subst_all env v = Some v') /\ *)
