@@ -852,7 +852,7 @@ Hint Resolve vtpEnv_closed.
 (*     v' = Some v'' /\ *)
 (*     vtp T'' k v''. *)
 
-Set Transparent Obligations. (* XXX only for one unfold later, check if really needed. *)
+(* Set Transparent Obligations. (* XXX only for one unfold later, check if really needed. *) *)
 
 Program Definition etpEnvCore T k e env (HwfT : wf env T) (HwfE : tm_closed 0 (length env) e) :=
   let venv := map VObj env in
