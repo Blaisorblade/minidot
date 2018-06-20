@@ -79,6 +79,14 @@ Hint Extern 5 (_ < tsize_flat _) =>
   rewrite open_preserves_size';
   simple_ineq.
 
+Ltac smaller_n :=
+  autounfold; apply left_lex;
+  (* simpl; omega. *)
+  simple_ineq.
+
+Ltac smaller_types :=
+  autounfold; apply right_lex; auto.
+
 Lemma termRelShowOpen: forall j n x T1 T2,
   j <= n -> tsize_flat T2 < tsize_flat T1 ->
   val_type_termRel (open 0 x T2, j) (T1, n).
@@ -95,17 +103,6 @@ Proof.
 Qed.
 
 Ltac applyNSimpleIneq l := apply l; simple_ineq.
-
-Ltac smaller_n :=
-  autounfold; apply left_lex;
-  (* simpl; omega. *)
-  simple_ineq.
-
-Ltac smaller_types :=
-  autounfold; apply right_lex;
-  try rewrite open_preserves_size';
-  (* simpl; omega. *)
-  simple_ineq.
 
 (* Solve obligations from valType using ssreflect-based ideas, that is, reusing lemmas for the various cases. *)
 Ltac valTypeObligationsSSReflectionCore :=
