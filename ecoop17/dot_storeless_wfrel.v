@@ -45,31 +45,66 @@ Hint Constructors lexprod.
 (*******************)
 (* Infrastructure for total parallel substitution on locally closed terms *)
 
+Hint Unfold closed_ty.
+Hint Constructors vr_closed.
+Hint Constructors closed.
+Hint Constructors dms_closed.
+Hint Constructors dm_closed.
+Hint Constructors tm_closed.
+Hint Constructors dm_closed.
+
+Ltac inverts_if_nonvar x H :=
+    tryif is_var x then fail else inverts H.
+Ltac inverts_closed :=
+  match goal with
+  | H : vr_closed _ _ ?v  |- _ =>
+    inverts_if_nonvar v H
+  | H : closed _ _ ?T     |- _ =>
+    inverts_if_nonvar T H
+  | H : tm_closed _ _ ?t  |- _ =>
+    inverts_if_nonvar t H
+  | H : dm_closed _ _ ?d  |- _ =>
+    inverts_if_nonvar d H
+  | H : dms_closed _ _ ?d |- _ =>
+    inverts_if_nonvar d H
+  end.
+
 Ltac beq_nat :=
   match goal with
   | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
   | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
   end.
 
-Lemma index_Forall:
-  forall {X} (env : list X) i P, Forall P env -> i < length env ->
-                            exists v, index i env = Some v /\ P v.
+Lemma vr_closed_upgrade: forall i k k1 v,
+  vr_closed i k v -> k <= k1 -> vr_closed i k1 v.
 Proof.
-  intros * HFor Hlen; induction env.
-  - easy.
-  - inverse HFor; simpl; case_match; beq_nat; eauto.
+  intros. eapply (proj1 closed_upgrade_rec); eauto.
 Qed.
+Hint Resolve vr_closed_upgrade.
 
-Program Lemma index_sigT : forall {X} vs (n : {n : id | n < length vs}),
-                       {T:X & index (proj1_sig n) vs = Some T}.
+Lemma env_closed_upgrade: forall i k k1 env,
+  Forall (vr_closed i k) env ->
+  k <= k1 ->
+  Forall (vr_closed i k1) env.
+Proof. eauto using Forall_impl. Qed.
+Hint Resolve env_closed_upgrade.
+
+Hint Constructors Forall.
+
+(* Anomaly! *)
+(* Program Lemma index_sigT : forall {X} vs (n : id), n < length vs -> *)
+(*                        {T:X & index (proj1_sig n) vs = Some T}. *)
+
+Program Lemma index_sigT : forall {X} vs (n : id), n < length vs ->
+                       {T:X & index n vs = Some T}.
 Proof.
-  intros ? vs [n H]; induction vs; simpl in *.
-  - exfalso; inversion H.
-  - better_case_match; beq_nat; subst; eauto.
-Qed.
+  intros; induction vs; simpl in *.
+  - omega.
+  - case_match; beq_nat; subst; eauto.
+Defined.
 
-Program Definition indexTot {X} (xs : list X) (n : id) (H : n < length xs): X :=
-  projT1 (index_sigT xs n).
+Definition indexTot {X} (xs : list X) (n : id) (H : n < length xs): X :=
+  projT1 (index_sigT xs n H).
 
 Program Fixpoint vr_subst_all_tot i (env: list vr) (v: vr) (_ : vr_closed i (length env) v) { struct v }: vr :=
   match v with
@@ -135,29 +170,40 @@ with dms_subst_all_tot i (env: list vr) (ds: dms) (_ : dms_closed i (length env)
    end.
 Solve All Obligations with program_simpl; abstract (inverts H; auto).
 
-Hint Unfold closed_ty.
-Hint Constructors vr_closed.
-Hint Constructors closed.
-Hint Constructors dms_closed.
-Hint Constructors dm_closed.
-Hint Constructors tm_closed.
-Hint Constructors dm_closed.
+Lemma index_Forall:
+  forall {X} (env : list X) i P, Forall P env -> i < length env ->
+                            exists v, index i env = Some v /\ P v.
+Proof.
+  intros * HFor Hlen; induction env.
+  - easy.
+  - inverse HFor; simpl; case_match; beq_nat; eauto.
+Qed.
 
-Ltac inverts_if_nonvar x H :=
-    tryif is_var x then fail else inverts H.
-Ltac inverts_closed :=
+Lemma index_Forall': forall {X v} (env: list X) i (P: X -> Prop) (Henv: Forall P env) (Hlen: i < length env) (Hidx: index i env = Some v), P v.
+  intros.
+  destruct (index_Forall env i _ Henv); ev; congruence.
+Qed.
+
+(* Can't work because there's no constant head symbol in the conclusion, so auto wouldn't know when to try this out. So we write apply_Forall. *)
+(* Hint Resolve index_Forall'. *)
+
+Ltac apply_Forall :=
   match goal with
-  | H : vr_closed _ _ ?v  |- _ =>
-    inverts_if_nonvar v H
-  | H : closed _ _ ?T     |- _ =>
-    inverts_if_nonvar T H
-  | H : tm_closed _ _ ?t  |- _ =>
-    inverts_if_nonvar t H
-  | H : dm_closed _ _ ?d  |- _ =>
-    inverts_if_nonvar d H
-  | H : dms_closed _ _ ?d |- _ =>
-    inverts_if_nonvar d H
+  | H: Forall ?P ?env |- ?P _ => eapply (index_Forall' _ _ _ H); eauto
   end.
+(* Seems to actually work fine. *)
+(* Hint Extern 5 => apply_Forall. *)
+
+Lemma indexTot_Forall: forall {X} (env: list X) i (P: X -> Prop) (Henv: Forall P env) (Hlen: i < length env),
+    P (indexTot env i Hlen).
+Proof.
+  unfold indexTot; intros;
+    match goal with
+    | |-  context f [index_sigT ?a ?b] => destruct (index_sigT a b) as [? Heq]; simpl in *
+    end;
+    apply_Forall.
+  (* destruct (index_sigT env i). simpl. apply_Forall. *)
+Qed.
 
 (* subst_all_closed_upgrade_rec *)
 Lemma subst_all_res_closed_rec:
@@ -167,46 +213,8 @@ Lemma subst_all_res_closed_rec:
   (forall dm, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dm_closed i (length env) dm), dm_closed i k (dm_subst_all_tot i env dm Hcl)) /\
   (forall dms, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dms_closed i (length env) dms), dms_closed i k (dms_subst_all_tot i env dms Hcl)).
 Proof.
-  apply syntax_mutind.
-
-  Hint Constructors Forall.
-  all: try solve [intros * HenvCl Hcl *; simpl in *; intuition eauto using index_Forall].
-  all: try solve [intros; simpl in *; inverts_closed; simpl; eauto 9 using Forall_impl, (proj1 closed_upgrade_rec)].
-  - intros * HenvCl Hcl; simpl in *; inverts_closed.
-    unfold indexTot.
-    match goal with
-    | |-  context f [index_sigT ?a ?b] => destruct (index_sigT a b) as [? Heq]; rewrite Heq; simpl in *
-    end.
-    unfold gt in *.
-    destruct (index_Forall env i _ HenvCl); ev; eauto.
-    congruence.
-  (********)
-  (* Last subgoal. *)
-  (********)
-  (* Manual proof 1: *)
-  (********)
-  (* - intros * Hindt * Hindt1 * Hindt2 * HenvCl Hcl *; inverts_closed; simpl; *)
-  (*   lets ?: Hindt i k env ___; simpl; eauto; *)
-  (*     lets ?: Hindt1 i (S k) (VarB 0 :: env) ___; simpl; eauto; *)
-  (*     lets ?: Hindt2 i (S k) (VarB 0 :: env) ___; simpl; eauto; *)
-  (*     eauto 6 using Forall_impl, (proj1 closed_upgrade_rec). *)
-  (*   Unshelve. eauto. *)
-  (* Manual proof 2, from when this was much less automated: *)
-  (********)
-  (* - intros * Hindt * Hindt1 * Hindt2 * HenvCl Hcl *; inverts_closed; simpl. *)
-  (*   Ltac indLater Hind env i k := *)
-  (*     lets ?: Hind i (S k) (VarB 0 :: env) ___; simpl; eauto; *)
-  (*     eauto 6 using Forall_impl, (proj1 closed_upgrade_rec). *)
-  (*   Ltac indNow Hind env i k := *)
-  (*     lets ?: Hind i k env ___; simpl; eauto. *)
-  (*   indNow Hindt env i k. *)
-  (*   indLater Hindt1 env i k. *)
-  (*   indLater Hindt2 env i k. *)
-  (********)
-  (* Automatic proof: *)
-  (********)
-  - intros; simpl in *; inverts_closed; simpl; eauto 15 using Forall_impl, (proj1 closed_upgrade_rec).
-  (********)
+  apply syntax_mutind; intros; simpl in *; inverts_closed;
+    solve [eauto 11 | eapply indexTot_Forall; assumption].
 Qed.
 
 (*******************)
