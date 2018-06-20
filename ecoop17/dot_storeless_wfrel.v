@@ -68,13 +68,13 @@ Proof.
   - better_case_match; beq_nat; subst; eauto.
 Qed.
 
-Definition indexTot {X} (xs : list X) (n : {n : id | n < length xs}): X :=
+Program Definition indexTot {X} (xs : list X) (n : id) (H : n < length xs): X :=
   projT1 (index_sigT xs n).
 
 Program Fixpoint vr_subst_all_tot i (env: list vr) (v: vr) (_ : vr_closed i (length env) v) { struct v }: vr :=
   match v with
     | VarF x => VarF x
-    | VarB x => indexTot env x
+    | VarB x => indexTot env x _
     | VObj dms =>
       let dms' := dms_subst_all_tot i (VarB 0 :: env) dms _ in
       VObj dms'
