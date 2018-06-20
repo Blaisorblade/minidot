@@ -115,7 +115,6 @@ Ltac valTypeObligations Hj :=
   solve [ smaller_n | smaller_types | discriminatePlus | (try destruct Hj; [ smaller_types | smaller_n ])].
 
 Local Obligation Tactic := valTypeObligationsSSReflection.
-Require Import Equations.Equations.
 
 Lemma wf_val_type_termRel : well_founded val_type_termRel.
 Proof. apply measure_wf; apply wf_lexprod; intro; apply lt_wf. Qed.
