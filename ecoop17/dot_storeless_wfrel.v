@@ -43,6 +43,100 @@ Hint Unfold pretype_dom.
 Hint Constructors lexprod.
 
 (*******************)
+(* Infrastructure for total parallel substitution on locally closed terms *)
+
+Ltac beq_nat :=
+  match goal with
+  | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
+  | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
+  end.
+
+Lemma index_Forall:
+  forall {X} (env : list X) i P, Forall P env -> i < length env ->
+                            exists v, index i env = Some v /\ P v.
+Proof.
+  intros * HFor Hlen; induction env.
+  - easy.
+  - inverse HFor; simpl; case_match; beq_nat; eauto.
+Qed.
+
+Program Lemma index_sigT : forall {X} vs (n : {n : id | n < length vs}),
+                       {T:X & index (proj1_sig n) vs = Some T}.
+Proof.
+  intros ? vs [n H]; induction vs; simpl in *.
+  - exfalso; inversion H.
+  - better_case_match; beq_nat; subst; eauto.
+Qed.
+
+Definition indexTot {X} (xs : list X) (n : {n : id | n < length xs}): X :=
+  projT1 (index_sigT xs n).
+
+Program Fixpoint vr_subst_all_tot i (env: list vr) (v: vr) (_ : vr_closed i (length env) v) { struct v }: vr :=
+  match v with
+    | VarF x => VarF x
+    | VarB x => indexTot env x
+    | VObj dms =>
+      let dms' := dms_subst_all_tot i (VarB 0 :: env) dms _ in
+      VObj dms'
+  end
+with subst_all_tot i (env: list vr) (T: ty) (_ : closed i (length env) T){ struct T }: ty :=
+  match T with
+    | TTop        => TTop
+    | TBot        => TBot
+    | TSel v1 l     =>
+      let v1' := vr_subst_all_tot i env v1 _ in
+      TSel v1' l
+    | TFun l T1 T2  =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i (VarB 0 :: env) T2 _ in
+      TFun l T1' T2'
+    | TMem l T1 T2  =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i env T2 _ in
+      TMem l T1' T2'
+    | TBind T1    =>
+      let T1' := subst_all_tot i (VarB 0 :: env) T1 _ in
+      TBind T1'
+    | TAnd T1 T2  =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i env T2 _ in
+      TAnd T1' T2'
+    | TOr T1 T2   =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i env T2 _ in
+      TOr T1' T2'
+  end
+with tm_subst_all_tot i (env: list vr) (t: tm) (_ : tm_closed i (length env) t) { struct t }: tm :=
+   match t with
+     | tvar v => let v' := vr_subst_all_tot i env v _ in tvar v'
+     | tapp t1 l t2 =>
+       let t1' := tm_subst_all_tot i env t1 _ in
+       let t2' := tm_subst_all_tot i env t2 _ in
+       tapp t1' l t2'
+   end
+with dm_subst_all_tot i (env: list vr) (d: dm) (_ : dm_closed i (length env) d) { struct d }: dm :=
+   match d with
+     | dfun T1 T2 t2 =>
+       let T1' := subst_all_tot i env T1 _ in
+       let T2' := subst_all_tot i (VarB 0 :: env) T2 _ in
+       let t2' := tm_subst_all_tot i (VarB 0 :: env) t2 _ in
+       dfun T1' T2' t2'
+     | dty T1 =>
+       let T1' := subst_all_tot i env T1 _ in
+       dty T1'
+   end
+with dms_subst_all_tot i (env: list vr) (ds: dms) (_ : dms_closed i (length env) ds) { struct ds }: dms :=
+   match ds with
+     | dnil => dnil
+     | dcons d ds =>
+       let d'  := dm_subst_all_tot i env d _ in
+       let ds' := dms_subst_all_tot i env ds _ in
+       dcons d' ds'
+   end.
+Solve All Obligations with program_simpl; inverts H; auto.
+
+
+(*******************)
 (* Infrastructure for well-founded induction for properties of vtp. *)
 Definition argMeasure (p: ty * nat) := let '(T, n) := p in (existT (fun _ => nat) n (tsize_flat T)).
 Definition val_type_termRel := MR (lexprod lt (fun _ => lt)) (fun p => let '(T, n) := p in (existT (fun _ => nat) n (tsize_flat T))).
@@ -533,21 +627,6 @@ Hint Constructors Forall.
 (*        ret (dcons d' ds') *)
 (*    end. *)
 
-Ltac beq_nat :=
-  match goal with
-  | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
-  | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
-  end.
-
-Lemma index_Forall:
-  forall {X} (env : list X) i P, Forall P env -> i < length env ->
-                            exists v, index i env = Some v /\ P v.
-Proof.
-  intros * HFor Hlen; induction env.
-  - easy.
-  - inverse HFor; simpl; case_match; beq_nat; eauto.
-Qed.
-
 (* (* SearchPattern ((?A -> Prop) -> list ?A -> Prop). *) *)
 (* Lemma subst_all_closed_upgrade_rec_vr: *)
 (*   forall env i, *)
@@ -724,82 +803,6 @@ Proof.
   unfold etp; intros; simp expr_sem in *; tauto.
 Qed.
 Hint Resolve etp_closed.
-
-Program Lemma index_sigT : forall {X} vs (n : {n : id | n < length vs}),
-                       {T:X & index (proj1_sig n) vs = Some T}.
-Proof.
-  intros ? vs [n H]; induction vs; simpl in *.
-  - exfalso; inversion H.
-  - better_case_match; beq_nat; subst; eauto.
-Qed.
-
-Definition indexTot {X} (xs : list X) (n : {n : id | n < length xs}): X :=
-  projT1 (index_sigT xs n).
-
-Program Fixpoint vr_subst_all_tot i (env: list vr) (v: vr) (_ : vr_closed i (length env) v) { struct v }: vr :=
-  match v with
-    | VarF x => VarF x
-    | VarB x => indexTot env x
-    | VObj dms =>
-      let dms' := dms_subst_all_tot i (VarB 0 :: env) dms _ in
-      VObj dms'
-  end
-with subst_all_tot i (env: list vr) (T: ty) (_ : closed i (length env) T){ struct T }: ty :=
-  match T with
-    | TTop        => TTop
-    | TBot        => TBot
-    | TSel v1 l     =>
-      let v1' := vr_subst_all_tot i env v1 _ in
-      TSel v1' l
-    | TFun l T1 T2  =>
-      let T1' := subst_all_tot i env T1 _ in
-      let T2' := subst_all_tot i (VarB 0 :: env) T2 _ in
-      TFun l T1' T2'
-    | TMem l T1 T2  =>
-      let T1' := subst_all_tot i env T1 _ in
-      let T2' := subst_all_tot i env T2 _ in
-      TMem l T1' T2'
-    | TBind T1    =>
-      let T1' := subst_all_tot i (VarB 0 :: env) T1 _ in
-      TBind T1'
-    | TAnd T1 T2  =>
-      let T1' := subst_all_tot i env T1 _ in
-      let T2' := subst_all_tot i env T2 _ in
-      TAnd T1' T2'
-    | TOr T1 T2   =>
-      let T1' := subst_all_tot i env T1 _ in
-      let T2' := subst_all_tot i env T2 _ in
-      TOr T1' T2'
-  end
-with tm_subst_all_tot i (env: list vr) (t: tm) (_ : tm_closed i (length env) t) { struct t }: tm :=
-   match t with
-     | tvar v => let v' := vr_subst_all_tot i env v _ in tvar v'
-     | tapp t1 l t2 =>
-       let t1' := tm_subst_all_tot i env t1 _ in
-       let t2' := tm_subst_all_tot i env t2 _ in
-       tapp t1' l t2'
-   end
-with dm_subst_all_tot i (env: list vr) (d: dm) (_ : dm_closed i (length env) d) { struct d }: dm :=
-   match d with
-     | dfun T1 T2 t2 =>
-       let T1' := subst_all_tot i env T1 _ in
-       let T2' := subst_all_tot i (VarB 0 :: env) T2 _ in
-       let t2' := tm_subst_all_tot i (VarB 0 :: env) t2 _ in
-       dfun T1' T2' t2'
-     | dty T1 =>
-       let T1' := subst_all_tot i env T1 _ in
-       dty T1'
-   end
-with dms_subst_all_tot i (env: list vr) (ds: dms) (_ : dms_closed i (length env) ds) { struct ds }: dms :=
-   match ds with
-     | dnil => dnil
-     | dcons d ds =>
-       let d'  := dm_subst_all_tot i env d _ in
-       let ds' := dms_subst_all_tot i env ds _ in
-       dcons d' ds'
-   end.
-Solve All Obligations with program_simpl; inverts H; auto.
-
 (* Scheme vr_mut_type := Induction for vr Sort Set *)
 (* with   ty_mut_type := Induction for ty Sort Set *)
 (* with   tm_mut_type := Induction for tm Sort Set *)
