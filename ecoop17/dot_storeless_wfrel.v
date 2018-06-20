@@ -187,23 +187,25 @@ Qed.
 (* Can't work because there's no constant head symbol in the conclusion, so auto wouldn't know when to try this out. So we write apply_Forall. *)
 (* Hint Resolve index_Forall'. *)
 
-Ltac apply_Forall :=
-  match goal with
-  | H: Forall ?P ?env |- ?P _ => eapply (index_Forall' _ _ _ H); eauto
-  end.
-(* Seems to actually work fine. *)
-(* Hint Extern 5 => apply_Forall. *)
-
 Lemma indexTot_Forall: forall {X} (env: list X) i (P: X -> Prop) (Henv: Forall P env) (Hlen: i < length env),
     P (indexTot env i Hlen).
 Proof.
-  unfold indexTot; intros;
-    match goal with
-    | |-  context f [index_sigT ?a ?b] => destruct (index_sigT a b) as [? Heq]; simpl in *
-    end;
-    apply_Forall.
-  (* destruct (index_sigT env i). simpl. apply_Forall. *)
+  unfold indexTot; intros; destruct (index_sigT env i);
+    (* A special case of apply_Forall below *)
+    lets ?: @index_Forall' ___ Henv; eauto.
 Qed.
+
+(* Use "solve" because in subst_all_res_closed_rec this tactic leads the proof
+   search down the wrong path whenever it doesn't solve the goal immediately;
+   using "solve" is sort of what eauto's proof search and backtracking would do
+   anyway: if applying this lemma and searching further doesn't help, backtrack. *)
+Ltac apply_Forall :=
+  match goal with
+  | H: Forall ?P ?env |- ?P (indexTot ?env _ _) => try solve [eapply indexTot_Forall; eauto]
+  | H: Forall ?P ?env |- ?P _ => try solve [eapply (index_Forall' _ _ _ H); eauto]
+  end.
+(* Seems to actually work fine, but this is needed too seldom for now, and can be expensive. *)
+(* Hint Extern 5 => apply_Forall. *)
 
 (* subst_all_closed_upgrade_rec *)
 Lemma subst_all_res_closed_rec:
@@ -213,8 +215,7 @@ Lemma subst_all_res_closed_rec:
   (forall dm, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dm_closed i (length env) dm), dm_closed i k (dm_subst_all_tot i env dm Hcl)) /\
   (forall dms, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dms_closed i (length env) dms), dms_closed i k (dms_subst_all_tot i env dms Hcl)).
 Proof.
-  apply syntax_mutind; intros; simpl in *; inverts_closed;
-    solve [eauto 11 | eapply indexTot_Forall; assumption].
+  apply syntax_mutind; intros; simpl in *; inverts_closed; solve [apply_Forall | eauto 11].
 Qed.
 
 (*******************)
