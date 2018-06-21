@@ -348,7 +348,7 @@ Equations expr_sem n (T : ty) (A : pretype_dom n) k (p : k <= n) (t : tm) : Prop
     irred v ->
     j <= k ->
     (* then evaluation did not get stuck and the result satisfies A. *)
-    exists v, A (k - j) _ v.
+    A (k - j) _ v.
 
 
 Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
@@ -979,7 +979,7 @@ Proof.
   unfold etpEnvCore in *; simp expr_sem in *.
   ev; split_conj; intros.
   - admit.
-  - exists v.
+  -
     unfold vtpEnvCore in *.
     (* unfold etpEnvCore_obligation_1 in *. *)
     intuition eauto.
