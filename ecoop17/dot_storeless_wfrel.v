@@ -852,14 +852,42 @@ Hint Resolve etp_closed.
 
 Hint Rewrite map_length.
 
-Program Definition vtpEnvCore T k v env (HwfT : wf env T) (HwfV : tm_closed 0 (length env) v) :=
+(* Equations evalTo2 (env : list dms) (t : tm) (v : tm): nat -> nat -> tm_closed 0 (length env) t -> Prop := *)
+(*   evalTo2 env t v := *)
+(*     fun k j HwfV => *)
+(*     let venv := map VObj env in *)
+(*     steps (tm_subst_all_tot 0 venv t _) v j /\ irred v /\ j <= k. *)
+(* Solve Obligations with program_simpl; rewrite map_length; auto. *)
+
+Program Definition vtpEnvCore T k v env (HwfT : wf env T) :=
+  vtp (subst_all_tot 0 (map VObj env) T _) k v.
+Solve Obligations with program_simpl; rewrite map_length; auto.
+
+Program Definition evalTo env e v k j (HwfE : tm_closed 0 (length env) e) :=
+  steps (tm_subst_all_tot 0 (map VObj env) e _) v j /\ irred v /\ j <= k.
+Solve Obligations with program_simpl; rewrite map_length; auto.
+
+(* Not sure which definition is more usable. *)
+
+Program Definition etpEnvCore T k e env
+        (HwfE : tm_closed 0 (length env) e)
+        (HwfT : closed 0 (length env) T): Prop :=
+  (* expr_sem n T A k p t := *)
+  (* If evaluation terminates in at most k steps without running out of fuel, *)
+  forall v j,
+    evalTo env e v k j _ ->
+    (* then evaluation did not get stuck and the result satisfies A. *)
+    vtpEnvCore T (k - j) v env _.
+Hint Transparent wf.
+
+Program Definition vtpEnvCore2 T k v env (HwfT : wf env T) (HwfV : tm_closed 0 (length env) v) :=
   let venv := map VObj env in
   vtp (subst_all_tot 0 venv T _) k (tm_subst_all_tot 0 venv v _).
 Solve Obligations with program_simpl; rewrite map_length; auto.
 
 Program Definition vtpEnv T k v env :=
-  { HwfT : wf env T |
-    { HwfV : tm_closed 0 (length env) v | vtpEnvCore T k v env _ _ }}.
+  tm_closed 0 0 v /\
+  { HwfT : wf env T | vtpEnvCore T k v env _ }.
 
 Lemma vtpEnv_closed:
   forall T k v env, vtpEnv T k v env -> wf env T.
@@ -878,12 +906,12 @@ Hint Resolve vtpEnv_closed.
 
 (* Set Transparent Obligations. (* XXX only for one unfold later, check if really needed. *) *)
 
-Program Definition etpEnvCore T k e env (HwfT : wf env T) (HwfE : tm_closed 0 (length env) e) :=
-  let venv := map VObj env in
-  let T' := subst_all_tot 0 venv T _ in
-  expr_sem k T' (fun k _ => vtp T' k) k _ (tm_subst_all_tot 0 venv e _).
+(* Program Definition etpEnvCore T k e env (HwfT : wf env T) (HwfE : tm_closed 0 (length env) e) := *)
+(*   let venv := map VObj env in *)
+(*   let T' := subst_all_tot 0 venv T _ in *)
+(*   expr_sem k T' (fun k _ => vtp T' k) k _ (tm_subst_all_tot 0 venv e _). *)
 
-Solve Obligations with program_simpl; rewrite map_length; auto.
+(* Solve Obligations with program_simpl; rewrite map_length; auto. *)
 
 Program Definition etpEnv T k e env :=
   { HwfT : wf env T |
@@ -916,7 +944,7 @@ Program Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
     { HwfT2 : wf G T2 |
       forall e (HwfE : tm_closed 0 (length G) e),
       forall k env (Henv : R_env k env G),
-        vtpEnvCore T1 k e env _ _ -> vtpEnvCore T2 k e env _ _ }}.
+        vtpEnvCore T1 k e env _ -> vtpEnvCore T2 k e env _ }}.
 Solve Obligations with program_simpl; unfold wf in *; erewrite wf_length in *; eauto.
 
 (* Definition sem_subtype (G : tenv) (T1 T2: ty) := *)
@@ -966,57 +994,215 @@ Hint Resolve wf_length.
 (*     exists T1, subst_all env T = Some T1. *)
 (* Admitted. *)
 
+(* Deal with irrelevance of local closure proofs.
+Credits to @Cypi on IRC, see gen_safe_proof and unify_lt_proofs
+https://github.com/cmangin/template-coq/blob/8b3e6ecec085bab8ebe087af07c3db8e56e8aac2/template-coq/theories/Rtree.v#L108-L118
+https://github.com/cmangin/template-coq/blob/8b3e6ecec085bab8ebe087af07c3db8e56e8aac2/template-coq/theories/Rtree.v#L161-L167
+ *)
+
+Lemma closed_irrelevance_rec:
+  (forall i k x (H1 H2: vr_closed i k x), H1 = H2) /\
+  (forall i k T (H1 H2: closed i k T), H1 = H2) /\
+  (forall i k t (H1 H2: tm_closed i k t), H1 = H2) /\
+  (forall i k dm (H1 H2: dm_closed i k dm), H1 = H2) /\
+  (forall i k dms (H1 H2: dms_closed i k dms), H1 = H2).
+Proof.
+  apply closed_mutind; intros; depelim H2; fequal; eauto using le_unique.
+Qed.
+Print Assumptions closed_irrelevance_rec.
+Lemma closed_irrelevance: forall T i k (H1 H2: closed i k T), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma tm_closed_irrelevance: forall i k t (H1 H2: tm_closed i k t), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma vr_closed_irrelevance: forall i k x (H1 H2: vr_closed i k x), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma dm_closed_irrelevance: forall i k d (H1 H2: dm_closed i k d), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma dms_closed_irrelevance: forall i k d (H1 H2: dms_closed i k d), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+
+Ltac aux_gen_irr_proof P :=
+  tryif is_var P then fail else
+    let HPs := fresh "Hs" in
+    generalize P as HPs; intro.
+Ltac aux_rem_irr_proof H P :=
+  tryif is_var P then fail else
+    let HPs := fresh "HPs" in
+    let Heqs := fresh "Heqs" in
+    remember P as HPs eqn:Heqs; clear Heqs.
+Ltac prove_closed_irrelevance := eauto using closed_irrelevance, tm_closed_irrelevance, vr_closed_irrelevance, dm_closed_irrelevance, dms_closed_irrelevance.
+Ltac prove_tm_closed_irrelevance := apply tm_closed_irrelevance.
+Ltac unify_tm_closed_proofs :=
+  repeat match goal with
+         | H1 : tm_closed ?i ?k ?T, H2 : tm_closed ?i ?k ?T |- _ =>
+           assert (H1 = H2) as -> by prove_tm_closed_irrelevance
+         end.
+Ltac unify_closed_proofs :=
+  repeat match goal with
+         | H1 : closed ?i ?k ?T, H2 : closed ?i ?k ?T |- _ =>
+           assert (H1 = H2) as -> by prove_closed_irrelevance
+         end.
+Ltac reduce_indexTot :=
+  try match goal with
+  | H : context [ indexTot ?env ?i _] |- _ => unfold indexTot in *; destruct (index_sigT env i)
+  | |- context [ indexTot ?env ?i _] => unfold indexTot in *; destruct (index_sigT env i)
+  end.
+
+Ltac gen_irr_proofs :=
+  repeat (reduce_indexTot; match goal with
+         | |- context [ vtpEnvCore _ _ _ _ ?H] => aux_gen_irr_proof H; unfold wf in *
+         | H : context [ vtpEnvCore _ _ _ _ ?P ] |- _ => aux_rem_irr_proof H P; unfold wf in *
+         | H : context [ evalTo _ _ _ _ _ ?P ] |- _ => aux_rem_irr_proof H P
+         end).
+
+Ltac lenG_to_lenEnv :=
+  try match goal with
+  | H: R_env _ ?env ?G |- _ =>
+    assert (length env = length G) as Hlen by eauto using wf_length;
+    rewrite <- Hlen in *; clear Hlen
+  end.
+
+Ltac remove_irrelevant_localClosure_mismatches :=
+  gen_irr_proofs; lenG_to_lenEnv; unify_tm_closed_proofs; unify_closed_proofs.
+
+Ltac evp := repeat match goal with
+                    | H: exists _, _ |- _ => destruct H
+                    | H: {_ : _ | _} |- _ =>
+                      let x := fresh "x" in
+                      let H' := fresh "H" in
+                      destruct H as [x H']
+                    | H: {_ : _ & _} |- _ => destruct H
+                    | H: _ /\  _ |- _ => destruct H
+                   end.
+
+Lemma step_closed: forall e v i k, step e v -> tm_closed i k e -> tm_closed i k v.
+Proof.
+  intros * Hst ?.
+  induction Hst; repeat inverts_closed; eauto.
+  unfold subst_tm.
+  assert (tm_closed i (S k) t12). {
+    admit.
+  }
+  admit.
+Admitted.
+  (* pose proof (proj1 (proj2 (proj2 closed_subst_rec))) as tm_closed_subst. *)
+  (* eapply (tm_closed_subst t12 0 k). *)
+  (* pose proof (proj1 (proj2 (proj2 closed_open_rec))) as tm_closed_open. *)
+  (* eapply (tm_closed_open t12 0 k). *)
+
+Lemma steps_closed: forall e v n i k, steps e v n -> tm_closed i k e -> tm_closed i k v.
+Proof. intros * Hst; induction Hst; eauto using step_closed. Qed.
+Lemma Forall_map: forall {X Y} (xs: list X) (f: X -> Y) (P : X -> Prop) (Q : Y -> Prop),
+    Forall P xs ->
+    (forall a, P a -> Q (f a)) ->
+    Forall Q (map f xs).
+Proof. intros * Hforall; induction xs; simpl; inverts Hforall; eauto. Qed.
+Hint Resolve Forall_map.
+Lemma dms_to_env_closed: forall i k env,
+    Forall (dms_closed i (S k)) env ->
+    Forall (vr_closed i k) (map VObj env).
+Proof. eauto using Forall_map. Qed.
+Hint Resolve dms_to_env_closed.
+
+Lemma evalToRes_closed: forall env e v n k j H,
+    evalTo env e v n j H ->
+    Forall (dms_closed 0 (S k)) env ->
+    tm_closed 0 k v.
+Proof.
+  intros; destruct subst_all_res_closed_rec; ev.
+  unfold evalTo in *; ev.
+  repeat (match goal with
+         | H : context [ tm_subst_all_tot _ _ _ ?P ] |- _ => aux_rem_irr_proof H P; unfold wf in *
+         end).
+  eauto using steps_closed, dms_to_env_closed.
+Qed.
+Hint Resolve evalToRes_closed.
+
+Lemma dms_closed_upgrade: forall i k k1 v,
+  dms_closed i k v -> k <= k1 -> dms_closed i k1 v.
+Proof. intros; eapply closed_upgrade_rec; eauto. Qed.
+Hint Resolve dms_closed_upgrade.
+Lemma env_dms_closed: forall k env G, R_env k env G -> Forall (dms_closed 0 (S (length env))) env.
+Proof.
+  induction env; intros * Henv; inverts Henv; constructor; simpl; eauto using Forall_impl.
+
+  assert (tm_closed 0 0 (tvar (VObj a))) by eauto using vtp_v_closed; repeat inverts_closed; eauto.
+Qed.
+Hint Resolve env_dms_closed.
+
 (* Write lemmas to get rid of all the extra side conditions and get to the meat. *)
-Lemma vl_subtype_to_subtype : forall G T1 T2,
+Program Lemma vl_subtype_to_subtype : forall G T1 T2,
     sem_vl_subtype G T1 T2 -> sem_subtype G T1 T2.
 Proof.
   unfold sem_subtype, sem_vl_subtype, wf.
-  program_simpl.
+  (* intros; evp. *)
+  intros * (? & ? & Hvl).
   repeat match goal with
          | H: ?P |- { H : ?P | ?Q } => exists H
          end.
-  intros.
-  unfold etpEnvCore in *; simp expr_sem in *.
+  intros * HeVtpT1; unfold etpEnvCore in *.
   ev; split_conj; intros.
-  - admit.
-  -
-    unfold vtpEnvCore in *.
-    (* unfold etpEnvCore_obligation_1 in *. *)
-    intuition eauto.
-    (* XXX Reprove subst_all_closed_upgrade_rec for subst_all_tot. Then, modify
-    vtp to ensure it only holds for closed terms, prove it, lift that proof to
-    R_env, then try again (or maybe rather move the hard work in vtp_etp and etp_vtp lemmas). *)
 
-(*   - intros. *)
-(*   vtp, etpEnvCore, vtpEnvCore; simp val_type. *)
-(*   unfold etpEnv in *. *)
-(*   Transparent expr_sem. *)
-(*   unfold expr_sem. *)
-(*   Opaque expr_sem. *)
-(*   intros * (? & ? & Himpl); split_conj; eauto. intros * Henv * (? & ?). *)
+  assert (Forall (dms_closed 0 (S (length env))) env) by eauto using env_dms_closed.
+  assert (HwfV: tm_closed 0 (length env) v) by eauto.
+  assert (HwfV2: tm_closed 0 (length G) v) by (erewrite <- wf_length; eauto).
+  assert (Henvkj: R_env (k - j) env G) by eauto.
+  specialize (Hvl _ HwfV2 (k - j) env Henvkj).
+  specialize (HeVtpT1 v j).
+  remove_irrelevant_localClosure_mismatches; eauto.
+Qed.
+Hint Resolve vl_subtype_to_subtype.
 
-(*   ev; split_conj; *)
-(*     replace (length G) with (length env) in * by eauto; *)
-(*     eauto. *)
-(*   lets (? & ?): closed_subst_success T2 (map VObj env) ___; *)
-(*   try rewrite map_length; eauto. *)
-(*   do 2 eexists; split_conj; eauto. *)
-(*   admit. *)
-(*   eauto. *)
-(*   (* info_eauto. *) *)
-(*   (* info_eauto. *) *)
-(*   (* info_eauto. *) *)
+Program Definition ex_type := forall i l v, subst_all_tot i [v] (TSel (VarB 0) l) _ = TSel v l.
+Program Lemma ex: ex_type.
+Proof. red; intros; simpl; reduce_indexTot; simpl in *; congruence. Qed.
+Program Definition ex2_type:= forall i l v0 v1, subst_all_tot i [v1, v0] (TSel (VarB 1) l) _ = TSel v1 l.
+Program Lemma ex2: ex2_type.
+Proof. red; intros; intros; simpl; reduce_indexTot; simpl in *; congruence. Qed.
 
-(*   (* intuition info_eauto. *) *)
-(*   (* - admit. *) *)
-(*   (* - lets (? & ?) : H5 v j ___; eauto. eapply H9. *) *)
-(*   (*   eauto. *) *)
+(* Lemma tm_closed_irrelevance1: forall i1 i2 k1 k2 t *)
+(*                                (H1 : tm_closed i1 k1 t) (H2 : tm_closed i2 k2 t) *)
+(*                                (Hi : i1 ~= i2) (Hk: k1 ~= k2), H1 ~= H2. *)
+(* Proof. intros. *)
+(*        dependent rewrite Hi. Hk. *)
+(*   eauto using proof_irrelevance. Qed. *)
+(*   dependent rewrite Hlen in HPs2. *)
 
-(*   (* simp expr_sem in *; ev. *) *)
-(*   (* lets ? : Himpl Henv e ___; intuition eauto; repeat eexists. *) *)
-(*   (* eauto. *) *)
-(*   (* eauto. *) *)
-(* Admitted. *)
-(* Hint Resolve vl_subtype_to_subtype. *)
+(*   - admit. *)
+(*   - *)
+(*     unfold vtpEnvCore in *. *)
+(*     (* unfold etpEnvCore_obligation_1 in *. *) *)
+(*     intuition eauto. *)
+(*     (* XXX Reprove subst_all_closed_upgrade_rec for subst_all_tot. Then, modify *)
+(*     vtp to ensure it only holds for closed terms, prove it, lift that proof to *)
+(*     R_env, then try again (or maybe rather move the hard work in vtp_etp and etp_vtp lemmas). *) *)
 
-Abort.
+(* (*   - intros. *) *)
+(* (*   vtp, etpEnvCore, vtpEnvCore; simp val_type. *) *)
+(* (*   unfold etpEnv in *. *) *)
+(* (*   Transparent expr_sem. *) *)
+(* (*   unfold expr_sem. *) *)
+(* (*   Opaque expr_sem. *) *)
+(* (*   intros * (? & ? & Himpl); split_conj; eauto. intros * Henv * (? & ?). *) *)
+
+(* (*   ev; split_conj; *) *)
+(* (*     replace (length G) with (length env) in * by eauto; *) *)
+(* (*     eauto. *) *)
+(* (*   lets (? & ?): closed_subst_success T2 (map VObj env) ___; *) *)
+(* (*   try rewrite map_length; eauto. *) *)
+(* (*   do 2 eexists; split_conj; eauto. *) *)
+(* (*   admit. *) *)
+(* (*   eauto. *) *)
+(* (*   (* info_eauto. *) *) *)
+(* (*   (* info_eauto. *) *) *)
+(* (*   (* info_eauto. *) *) *)
+
+(* (*   (* intuition info_eauto. *) *) *)
+(* (*   (* - admit. *) *) *)
+(* (*   (* - lets (? & ?) : H5 v j ___; eauto. eapply H9. *) *) *)
+(* (*   (*   eauto. *) *) *)
+
+(* (*   (* simp expr_sem in *; ev. *) *) *)
+(* (*   (* lets ? : Himpl Henv e ___; intuition eauto; repeat eexists. *) *) *)
+(* (*   (* eauto. *) *) *)
+(* (*   (* eauto. *) *) *)
