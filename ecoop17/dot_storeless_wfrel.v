@@ -747,6 +747,31 @@ Proof.
   - intros * Hindt; intros; simpl in *; inverts_closed.
     indLater' Hindt env i j.
   - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
+    (* Ltac guess H := *)
+    (*   repeat match type of H with *)
+    (*          | forall x : ?T, _ => *)
+    (*            let x := fresh "x" in *)
+    (*            evar (x: T); *)
+    (*            let x' := eval unfold x in x *)
+    (*              in specialize (H x') *)
+    (*          end. *)
+
+    (* Ltac firstorder_case_match T := *)
+    (*   match goal with *)
+    (*   | |- context [ match ?x with _ => _ end ] => *)
+    (*     assert (exists y, x = Some y) as (? & ->); T *)
+    (*   end. *)
+    (* firstorder_case_match ltac:(firstorder eauto). *)
+    (* firstorder_case_match idtac. *)
+    (* (* ltac:(guess Hindt1; eauto). *) *)
+    (* guess Hindt1. *)
+    (* eauto. *)
+    (* eauto. *)
+    (* Unshelve. shelve. shelve. all: eauto.  *)
+
+    (* eapply Hindt1; simpl; eauto. *)
+    (* simpl in *. *)
+
     indNow' Hindt env i j.
     indLater' Hindt1 env i j.
   - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
@@ -874,30 +899,12 @@ Hint Rewrite map_length.
 (*     steps (tm_subst_all_tot 0 venv t _) v j /\ irred v /\ j <= k. *)
 (* Solve Obligations with program_simpl; rewrite map_length; auto. *)
 
-Program Definition vtpEnvCore T k v env (HwfT : wf env T) :=
-  vtp (subst_all_tot 0 (map VObj env) T _) k v.
-Solve Obligations with program_simpl; rewrite map_length; auto.
-
 Program Definition evalTo env e v k j (HwfE : tm_closed 0 (length env) e) :=
   steps (tm_subst_all_tot 0 (map VObj env) e _) v j /\ irred v /\ j <= k.
 Solve Obligations with program_simpl; rewrite map_length; auto.
 
-(* Not sure which definition is more usable. *)
-
-Program Definition etpEnvCore T k e env
-        (HwfE : tm_closed 0 (length env) e)
-        (HwfT : closed 0 (length env) T): Prop :=
-  (* expr_sem n T A k p t := *)
-  (* If evaluation terminates in at most k steps without running out of fuel, *)
-  forall v j,
-    evalTo env e v k j _ ->
-    (* then evaluation did not get stuck and the result satisfies A. *)
-    vtpEnvCore T (k - j) v env _.
-Hint Transparent wf.
-
-Program Definition vtpEnvCore2 T k v env (HwfT : wf env T) (HwfV : tm_closed 0 (length env) v) :=
-  let venv := map VObj env in
-  vtp (subst_all_tot 0 venv T _) k (tm_subst_all_tot 0 venv v _).
+Program Definition vtpEnvCore T k v env (HwfT : wf env T) :=
+  vtp (subst_all_tot 0 (map VObj env) T _) k v.
 Solve Obligations with program_simpl; rewrite map_length; auto.
 
 Program Definition vtpEnv T k v env :=
@@ -906,8 +913,61 @@ Program Definition vtpEnv T k v env :=
 
 Lemma vtpEnv_closed:
   forall T k v env, vtpEnv T k v env -> wf env T.
-Proof. unfold vtpEnv, wf, closed_ty; program_simpl. Qed.
+Proof. unfold vtpEnv; program_simpl. Qed.
 Hint Resolve vtpEnv_closed.
+
+(* Program Definition vtpEnvCore2 T k v env (HwfT : wf env T) (HwfV : tm_closed 0 (length env) v) := *)
+(*   let venv := map VObj env in *)
+(*   vtp (subst_all_tot 0 venv T _) k (tm_subst_all_tot 0 venv v _). *)
+(* Solve Obligations with program_simpl; rewrite map_length; auto. *)
+
+Program Definition etpEnvCore T k e env
+        (HwfE : tm_closed 0 (length env) e)
+        (HwfT : wf env T): Prop :=
+  forall v j,
+    evalTo env e v k j _ ->
+    vtpEnvCore T (k - j) v env _.
+Hint Transparent wf.
+
+Program Definition etpEnv T k e env :=
+  { HwfT : wf env T |
+    { HwfE : tm_closed 0 (length env) e | etpEnvCore T k e env _ _ }}.
+Hint Unfold etpEnv.
+Hint Transparent etpEnv.
+Hint Transparent wf.
+
+Lemma etpEnv_closed: forall T k v env,
+    etpEnv T k v env -> wf env T.
+Proof. unfold etpEnv; program_simpl. Qed.
+Hint Resolve etpEnv_closed.
+
+Definition evalToSome env e v k j :=
+  exists t', tm_subst_all (map VObj env) e = Some t' /\ steps t' v j /\ irred v /\ j <= k.
+
+Definition vtpEnvSomeCore T k v env :=
+  exists T', subst_all (map VObj env) T = Some T' /\
+        vtp T' k v.
+
+Definition vtpEnvSome T k v env :=
+  tm_closed 0 0 v /\ wf env T /\ vtpEnvSomeCore T k v env.
+
+Lemma vtpEnvSome_closed:
+  forall T k v env, vtpEnvSome T k v env -> wf env T.
+Proof. unfold vtpEnvSome, wf, closed_ty; program_simpl. Qed.
+Hint Resolve vtpEnvSome_closed.
+
+Definition etpEnvSomeCore T k e env : Prop :=
+  forall v j,
+    evalToSome env e v k j ->
+    vtpEnvSomeCore T (k - j) v env.
+
+Definition etpEnvSome T k e env :=
+  tm_closed 0 (length env) e /\ wf env T /\ etpEnvSomeCore T k e env.
+
+Lemma etpEnvSome_closed: forall T k v env,
+    etpEnvSome T k v env -> wf env T.
+Proof. unfold etpEnvSome; program_simpl. Qed.
+Hint Resolve etpEnvSome_closed.
 
 (* Definition vtpEnv T k v env := *)
 (*   let venv := map VObj env in *)
@@ -927,18 +987,6 @@ Hint Resolve vtpEnv_closed.
 (*   expr_sem k T' (fun k _ => vtp T' k) k _ (tm_subst_all_tot 0 venv e _). *)
 
 (* Solve Obligations with program_simpl; rewrite map_length; auto. *)
-
-Program Definition etpEnv T k e env :=
-  { HwfT : wf env T |
-    { HwfE : tm_closed 0 (length env) e | etpEnvCore T k e env _ _ }}.
-Hint Unfold etpEnv.
-Hint Transparent etpEnv.
-Hint Transparent wf.
-
-Lemma etpEnv_closed: forall T k v env,
-    etpEnv T k v env -> wf env T.
-Proof. unfold etpEnv, wf; program_simpl. Qed.
-Hint Resolve etpEnv_closed.
 
 (* Semantic typing *)
 Program Definition sem_type (G : tenv) (T : ty) (e: tm) :=
@@ -961,21 +1009,6 @@ Program Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
       forall k env (Henv : R_env k env G),
         vtpEnvCore T1 k e env _ -> vtpEnvCore T2 k e env _ }}.
 Solve Obligations with program_simpl; unfold wf in *; erewrite wf_length in *; eauto.
-
-(* Definition sem_subtype (G : tenv) (T1 T2: ty) := *)
-(*   wf G T1 /\ *)
-(*   wf G T2 /\ *)
-(*   forall k env, *)
-(*     R_env k env G -> *)
-(*     forall e, etpEnv T1 k e env -> etpEnv T2 k e env. *)
-
-(* Definition sem_vl_subtype (G : tenv) (T1 T2: ty) := *)
-(*   wf G T1 /\ *)
-(*   wf G T2 /\ *)
-(*   forall k env, *)
-(*     R_env k env G -> *)
-(*     forall v, *)
-(*       vtpEnv T1 k v env -> vtpEnv T2 k v env. *)
 
 Lemma sem_type_closed : forall G T e,
     sem_type G T e -> wf G T.
@@ -1003,6 +1036,26 @@ Hint Resolve sem_type_closed
      sem_vl_subtype_closed1
      sem_vl_subtype_closed2.
 Hint Resolve wf_length.
+
+Definition sem_type_some (G : tenv) (T : ty) (e: tm) :=
+  wf G T /\ tm_closed 0 (length G) e /\
+      forall k env (Henv: R_env k env G), etpEnvSomeCore T k e env.
+
+Lemma sem_type_some_closed : forall G T e,
+    sem_type_some G T e -> wf G T.
+Proof. unfold sem_type_some; program_simpl. Qed.
+
+Definition sem_subtype_some (G : tenv) (T1 T2: ty) :=
+  wf G T1 /\ wf G T2 /\
+      forall e (HwfE : tm_closed 0 (length G) e),
+      forall k env (Henv : R_env k env G),
+        etpEnvSomeCore T1 k e env -> etpEnvSomeCore T2 k e env.
+
+Definition sem_vl_subtype_some (G : tenv) (T1 T2: ty) :=
+  wf G T1 /\ wf G T2 /\
+      forall e (HwfE : tm_closed 0 (length G) e),
+      forall k env (Henv : R_env k env G),
+        vtpEnvSomeCore T1 k e env -> vtpEnvSomeCore T2 k e env.
 
 (* Lemma closed_subst_success: forall T env, *)
 (*     (closed_ty 0 (length env) T) -> *)
