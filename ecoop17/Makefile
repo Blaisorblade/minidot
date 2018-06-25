@@ -101,6 +101,8 @@ VFILES:=SfLib.v\
 	dot_wfrel.v dot_wfrel2.v \
 	LibTactics.v \
 	dot_storeless_tidy.v \
+	dot_storeless_subst_aux.v \
+	dot_storeless_wfrel_aux.v \
 	dot_storeless_wfrel.v
 
 
