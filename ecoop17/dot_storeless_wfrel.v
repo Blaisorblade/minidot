@@ -635,70 +635,70 @@ Hint Constructors Forall.
 (*   easy. *)
 (* Qed. *)
 
-(* Require Import dot_monads. *)
+Require Import dot_monads.
 
-(* Fixpoint vr_subst_all (env: list vr) (v: vr) { struct v }: option vr := *)
-(*   match v with *)
-(*     | VarF x => ret (VarF x) *)
-(*     | VarB x => index x env *)
-(*     | VObj dms => *)
-(*       dms' <- dms_subst_all (VarB 0 :: env) dms; *)
-(*       ret (VObj dms') *)
-(*   end *)
-(* with subst_all (env: list vr) (T: ty) { struct T }: option ty := *)
-(*   match T with *)
-(*     | TTop        => ret TTop *)
-(*     | TBot        => ret TBot *)
-(*     | TSel v1 l     => *)
-(*       v1' <- vr_subst_all env v1; *)
-(*       ret (TSel v1' l) *)
-(*     | TFun l T1 T2  => *)
-(*       T1' <- subst_all env T1; *)
-(*       T2' <- subst_all (VarB 0 :: env) T2; *)
-(*       ret (TFun l T1' T2') *)
-(*     | TMem l T1 T2  => *)
-(*       T1' <- subst_all env T1; *)
-(*       T2' <- subst_all env T2; *)
-(*       ret (TMem l T1' T2') *)
-(*     | TBind T1    => *)
-(*       T1' <- subst_all (VarB 0 :: env) T1; *)
-(*       ret (TBind T1') *)
-(*     | TAnd T1 T2  => *)
-(*       T1' <- subst_all env T1; *)
-(*       T2' <- subst_all env T2; *)
-(*       ret (TAnd T1' T2') *)
-(*     | TOr T1 T2   => *)
-(*       T1' <- subst_all env T1; *)
-(*       T2' <- subst_all env T2; *)
-(*       ret (TOr T1' T2') *)
-(*   end *)
-(* with tm_subst_all (env: list vr) (t: tm) { struct t }: option tm := *)
-(*    match t with *)
-(*      | tvar v => v' <- vr_subst_all env v; ret (tvar v') *)
-(*      | tapp t1 l t2 => *)
-(*        t1' <- tm_subst_all env t1; *)
-(*        t2' <- tm_subst_all env t2; *)
-(*        ret (tapp t1' l t2') *)
-(*    end *)
-(* with dm_subst_all (env: list vr) (d: dm) { struct d }: option dm := *)
-(*    match d with *)
-(*      | dfun T1 T2 t2 => *)
-(*        T1' <- subst_all env T1; *)
-(*        T2' <- subst_all (VarB 0 :: env) T2; *)
-(*        t2' <- tm_subst_all (VarB 0 :: env) t2; *)
-(*        ret (dfun T1' T2' t2') *)
-(*      | dty T1 => *)
-(*        T1' <- subst_all env T1; *)
-(*        ret (dty T1') *)
-(*    end *)
-(* with dms_subst_all (env: list vr) (ds: dms) { struct ds }: option dms := *)
-(*    match ds with *)
-(*      | dnil => ret dnil *)
-(*      | dcons d ds => *)
-(*        d'  <- dm_subst_all env d; *)
-(*        ds' <- dms_subst_all env ds; *)
-(*        ret (dcons d' ds') *)
-(*    end. *)
+Fixpoint vr_subst_all (env: list vr) (v: vr) { struct v }: option vr :=
+  match v with
+    | VarF x => ret (VarF x)
+    | VarB x => index x env
+    | VObj dms =>
+      dms' <- dms_subst_all (VarB 0 :: env) dms;
+      ret (VObj dms')
+  end
+with subst_all (env: list vr) (T: ty) { struct T }: option ty :=
+  match T with
+    | TTop        => ret TTop
+    | TBot        => ret TBot
+    | TSel v1 l     =>
+      v1' <- vr_subst_all env v1;
+      ret (TSel v1' l)
+    | TFun l T1 T2  =>
+      T1' <- subst_all env T1;
+      T2' <- subst_all (VarB 0 :: env) T2;
+      ret (TFun l T1' T2')
+    | TMem l T1 T2  =>
+      T1' <- subst_all env T1;
+      T2' <- subst_all env T2;
+      ret (TMem l T1' T2')
+    | TBind T1    =>
+      T1' <- subst_all (VarB 0 :: env) T1;
+      ret (TBind T1')
+    | TAnd T1 T2  =>
+      T1' <- subst_all env T1;
+      T2' <- subst_all env T2;
+      ret (TAnd T1' T2')
+    | TOr T1 T2   =>
+      T1' <- subst_all env T1;
+      T2' <- subst_all env T2;
+      ret (TOr T1' T2')
+  end
+with tm_subst_all (env: list vr) (t: tm) { struct t }: option tm :=
+   match t with
+     | tvar v => v' <- vr_subst_all env v; ret (tvar v')
+     | tapp t1 l t2 =>
+       t1' <- tm_subst_all env t1;
+       t2' <- tm_subst_all env t2;
+       ret (tapp t1' l t2')
+   end
+with dm_subst_all (env: list vr) (d: dm) { struct d }: option dm :=
+   match d with
+     | dfun T1 T2 t2 =>
+       T1' <- subst_all env T1;
+       T2' <- subst_all (VarB 0 :: env) T2;
+       t2' <- tm_subst_all (VarB 0 :: env) t2;
+       ret (dfun T1' T2' t2')
+     | dty T1 =>
+       T1' <- subst_all env T1;
+       ret (dty T1')
+   end
+with dms_subst_all (env: list vr) (ds: dms) { struct ds }: option dms :=
+   match ds with
+     | dnil => ret dnil
+     | dcons d ds =>
+       d'  <- dm_subst_all env d;
+       ds' <- dms_subst_all env ds;
+       ret (dcons d' ds')
+   end.
 
 (* (* SearchPattern ((?A -> Prop) -> list ?A -> Prop). *) *)
 (* Lemma subst_all_closed_upgrade_rec_vr: *)
@@ -713,54 +713,54 @@ Hint Constructors Forall.
 (*   intuition eauto using index_Forall. *)
 (* Abort. *)
 
-(* Lemma subst_all_success_rec: *)
-(*   (forall v, forall i env, forall j, vr_closed i j v -> length env = j -> exists v', vr_subst_all env v = Some v') /\ *)
-(*   (forall T, forall i env, forall j, closed i j T -> length env = j -> exists T', subst_all env T = Some T') /\ *)
-(*   (forall t, forall i env, forall j, tm_closed i j t -> length env = j -> exists t', tm_subst_all env t = Some t') /\ *)
-(*   (forall dm, forall i env, forall j, dm_closed i j dm -> length env = j -> exists dm', dm_subst_all env dm = Some dm') /\ *)
-(*   (forall T, forall i env, forall j, dms_closed i j T -> length env = j -> exists dms', dms_subst_all env T = Some dms'). *)
-(* Proof. *)
-(*   apply syntax_mutind. *)
-(*   all: try solve [intros * Hcl * Hlen; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall]. *)
-(*   - intros * Hcl * Hlen; simpl in *; inverts Hcl. apply index_exists; auto. *)
-(*     Ltac indNow' Hind env i j := *)
-(*       lets (? & ->): Hind i env j ___; simpl; eauto. *)
-(*     Ltac indLater' Hind env i j := *)
-(*       lets (? & ->): Hind i (VarB 0 :: env) (S j) ___; simpl; eauto. *)
+Lemma subst_all_success_rec:
+  (forall v, forall i env, forall j, vr_closed i j v -> length env = j -> exists v', vr_subst_all env v = Some v') /\
+  (forall T, forall i env, forall j, closed i j T -> length env = j -> exists T', subst_all env T = Some T') /\
+  (forall t, forall i env, forall j, tm_closed i j t -> length env = j -> exists t', tm_subst_all env t = Some t') /\
+  (forall dm, forall i env, forall j, dm_closed i j dm -> length env = j -> exists dm', dm_subst_all env dm = Some dm') /\
+  (forall T, forall i env, forall j, dms_closed i j T -> length env = j -> exists dms', dms_subst_all env T = Some dms').
+Proof.
+  apply syntax_mutind.
+  all: try solve [intros * Hcl * Hlen; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall].
+  - intros * Hcl * Hlen; simpl in *; inverts Hcl. apply index_exists; auto.
+    Ltac indNow' Hind env i j :=
+      lets (? & ->): Hind i env j ___; simpl; eauto.
+    Ltac indLater' Hind env i j :=
+      lets (? & ->): Hind i (VarB 0 :: env) (S j) ___; simpl; eauto.
 
-(*   - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indLater' Hindt env i j. *)
-(*   - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*     indLater' Hindt1 env i j. *)
-(*   - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*     indNow' Hindt1 env i j. *)
-(*   - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*   - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indLater' Hindt env i j. *)
-(*   - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*     indNow' Hindt1 env i j. *)
-(*   - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*     indNow' Hindt1 env i j. *)
-(*   - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*   - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*     indNow' Hindt1 env i j. *)
-(*   - intros * Hindt * Hindt1 * Hindt2 * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*     indLater' Hindt1 env i j. *)
-(*     indLater' Hindt2 env i j. *)
-(*   - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*   - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl. *)
-(*     indNow' Hindt env i j. *)
-(*     indNow' Hindt1 env i j. *)
-(* Qed. *)
+  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+    indLater' Hindt env i j.
+  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+    indLater' Hindt1 env i j.
+  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+    indNow' Hindt1 env i j.
+  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+    indLater' Hindt env i j.
+  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+    indNow' Hindt1 env i j.
+  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+    indNow' Hindt1 env i j.
+  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+    indNow' Hindt1 env i j.
+  - intros * Hindt * Hindt1 * Hindt2 * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+    indLater' Hindt1 env i j.
+    indLater' Hindt2 env i j.
+  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+    indNow' Hindt env i j.
+    indNow' Hindt1 env i j.
+Qed.
 (* (*   (*   assert (exists T', dms_subst_all env d. *) *) *)
 (* (*   (*   lets ?: Hind ___; eauto. *) *) *)
 (* (*   (*   rewrite Hind. *) *) *)
