@@ -1024,7 +1024,7 @@ Lemma closed_irrelevance_rec:
 Proof.
   apply closed_mutind; intros; depelim H2; fequal; eauto using le_unique.
 Qed.
-Print Assumptions closed_irrelevance_rec.
+
 Lemma closed_irrelevance: forall T i k (H1 H2: closed i k T), H1 = H2.
 Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
 Lemma tm_closed_irrelevance: forall i k t (H1 H2: tm_closed i k t), H1 = H2.
