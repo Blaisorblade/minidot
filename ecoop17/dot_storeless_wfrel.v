@@ -5,7 +5,6 @@ Require Import Equations.Equations.
 
 Require Import dot_storeless_tidy.
 Require Import tactics.
-(* Require Import dot_monads. *)
 
 (*******************)
 (* Define language infrastructure. *)
@@ -17,7 +16,7 @@ Notation tsize_flat := tsize.
 
 Lemma open_preserves_size': forall T v j,
     tsize_flat (open j v T) = tsize_flat T.
-Proof. intros; rewrite <- open_preserves_size; easy. Qed.
+Proof. symmetry. eapply open_preserves_size. Qed.
 Definition vl := tm.
 
 Definition closed_ty i j T := closed j i T.
