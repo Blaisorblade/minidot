@@ -737,43 +737,43 @@ Lemma subst_all_success_rec:
   (forall T, forall i env, forall j, dms_closed i j T -> length env = j -> exists dms', dms_subst_all env T = Some dms').
 Proof.
   apply syntax_mutind.
-  all: try solve [intros * Hcl * Hlen; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall].
-  - intros * Hcl * Hlen; simpl in *; inverts Hcl. apply index_exists; auto.
+  (* all: try solve [intros * Hcl * Hlen; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall]. *)
+  all: try solve [intros; simpl in *; inverts_closed; simpl in *; subst; intuition eauto using index_Forall, index_exists].
+  (* all: try solve [intros; simpl in *; inverts_closed; simpl in *; subst; firstorder (ev; simpl; autorewrite with core; eauto 20 using index_Forall, index_exists)]. *)
     Ltac indNow' Hind env i j :=
       lets (? & ->): Hind i env j ___; simpl; eauto.
     Ltac indLater' Hind env i j :=
       lets (? & ->): Hind i (VarB 0 :: env) (S j) ___; simpl; eauto.
-
-  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt; intros; simpl in *; inverts_closed.
     indLater' Hindt env i j.
-  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
     indLater' Hindt1 env i j.
-  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
     indNow' Hindt1 env i j.
-  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
-  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt; intros; simpl in *; inverts_closed.
     indLater' Hindt env i j.
-  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
     indNow' Hindt1 env i j.
-  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
     indNow' Hindt1 env i j.
-  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
-  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
     indNow' Hindt1 env i j.
-  - intros * Hindt * Hindt1 * Hindt2 * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt * Hindt1 * Hindt2; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
     indLater' Hindt1 env i j.
     indLater' Hindt2 env i j.
-  - intros * Hindt * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
-  - intros * Hindt * Hindt1 * Hcl * Hlen; simpl in *; inverts Hcl.
+  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
     indNow' Hindt env i j.
     indNow' Hindt1 env i j.
 Qed.
