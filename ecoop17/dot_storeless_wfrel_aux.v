@@ -4,8 +4,35 @@ Require Import Coq.Wellfounded.Lexicographic_Product.
 Require Import Equations.Equations.
 
 Require Import dot_storeless_tidy.
-Require Import dot_storeless_subst_aux.
 Require Import tactics.
+
+(*******************)
+(* Renames for adaption. *)
+
+Notation tsize_flat := tsize.
+
+Lemma open_preserves_size': forall T v j,
+    tsize_flat (open j v T) = tsize_flat T.
+Proof. symmetry. eapply open_preserves_size. Qed.
+Definition vl := tm.
+
+Definition closed_ty i j T := closed j i T.
+Hint Unfold closed_ty.
+
+Hint Constructors vr_closed.
+Hint Constructors closed.
+Hint Constructors dms_closed.
+Hint Constructors dm_closed.
+Hint Constructors tm_closed.
+Hint Constructors dm_closed.
+
+(*******************)
+(* Small-step semantics *)
+Definition irred t0 := not (exists t1, step t0 t1).
+
+Inductive steps t0 : tm -> nat -> Prop :=
+| Step0 : steps t0 t0 0
+| StepS : forall t1 t2 i, step t0 t1 -> steps t1 t2 i -> steps t0 t2 (S i).
 
 (*******************)
 (* Define language infrastructure. *)

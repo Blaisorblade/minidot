@@ -3,32 +3,13 @@ Require Import Coq.Relations.Relation_Operators.
 Require Import Coq.Wellfounded.Lexicographic_Product.
 
 Require Import dot_storeless_tidy.
+Require Import dot_storeless_wfrel_aux.
 Require Import tactics.
-
-(*******************)
-(* Renames for adaption. *)
-
-Notation tsize_flat := tsize.
-
-Lemma open_preserves_size': forall T v j,
-    tsize_flat (open j v T) = tsize_flat T.
-Proof. symmetry. eapply open_preserves_size. Qed.
-Definition vl := tm.
-
-Definition closed_ty i j T := closed j i T.
 
 (*******************)
 (* Infrastructure for total parallel substitution on locally closed terms *)
 
 Definition wf {A} (G : list A) T := closed 0 (length G) T.
-
-Hint Unfold closed_ty.
-Hint Constructors vr_closed.
-Hint Constructors closed.
-Hint Constructors dms_closed.
-Hint Constructors dm_closed.
-Hint Constructors tm_closed.
-Hint Constructors dm_closed.
 
 Ltac inverts_if_nonvar x H :=
     tryif is_var x then fail else inverts H.
@@ -208,14 +189,6 @@ Lemma subst_all_res_closed_rec:
 Proof.
   apply syntax_mutind; intros; simpl in *; inverts_closed; solve [apply_Forall | eauto 11].
 Qed.
-
-(*******************)
-(* Small-step semantics *)
-Inductive steps t0 : tm -> nat -> Prop :=
-| Step0 : steps t0 t0 0
-| StepS : forall t1 t2 i, step t0 t1 -> steps t1 t2 i -> steps t0 t2 (S i).
-
-Definition irred t0 := not (exists t1, step t0 t1).
 
 Lemma step_closed: forall e v i k, step e v -> tm_closed i k e -> tm_closed i k v.
 Proof.
