@@ -418,3 +418,36 @@ Hint Resolve vtp_mon.
   (* (*   intros *; revert v m; *) *)
   (* (*   vtp_induction T n; intros * Hind * Hvtpn1 * Hmn. *) *)
   (* (* destruct T; destruct v; simp val_type in *; ev; repeat split_conj. *) *)
+
+Lemma and_stp1 : forall T1 T2 n v, vtp (TAnd T1 T2) n v -> vtp T1 n v.
+Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
+
+Lemma and_stp2 : forall T1 T2 n v, vtp (TAnd T1 T2) n v -> vtp T2 n v.
+Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
+
+Lemma stp_and' : forall T1 T2 n v, vtp T1 n v -> vtp T2 n v -> vtp (TAnd T1 T2) n v.
+Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
+
+Lemma stp_and : forall S T1 T2 n v,
+    (vtp S n v -> vtp T1 n v) ->
+    (vtp S n v -> vtp T2 n v) ->
+    vtp S n v -> vtp (TAnd T1 T2) n v.
+Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
+
+Lemma val_type_mon: forall T v m n,
+    val_type (T, n) v ->
+    m <= n ->
+    val_type (T, m) v.
+Proof. eapply vtp_mon. Qed.
+Hint Resolve val_type_mon.
+
+Lemma mem_stp : forall l L U n v vx,
+    vtp (TMem l L U) (S n) (tvar v) ->
+    vtp L n vx ->
+    vtp (TSel v l) (S n) vx.
+Proof.
+  (* This needs better_case_match (or discriminate later) *)
+  unfold vtp; intros. destruct v; simp val_type in *.
+  intuition idtac; eauto; ev.
+  eexists; repeat split_conj; intuition eauto.
+Qed.

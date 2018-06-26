@@ -390,9 +390,6 @@ Proof.
 Qed.
 Hint Resolve vl_subtype_some_to_subtype_some.
 
-Lemma and_stp1 : forall T1 T2 n v, vtp (TAnd T1 T2) n v -> vtp T1 n v.
-Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
-
 Hint Unfold wf sem_type_some sem_subtype_some sem_vl_subtype_some.
 
 Ltac to_vl_stp L :=
@@ -407,41 +404,11 @@ Proof. to_vl_stp and_stp1. Qed.
 Lemma sem_and_stp1 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype_some G (TAnd T1 T2) T1.
 Proof. eauto using vl_subtype_some_to_subtype_some, sem_vl_and_stp1. Qed.
 
-Lemma and_stp2 : forall T1 T2 n v, vtp (TAnd T1 T2) n v -> vtp T2 n v.
-Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
-
 Lemma sem_vl_and_stp2 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_vl_subtype_some G (TAnd T1 T2) T2.
 Proof. to_vl_stp and_stp2. Qed.
 
 Lemma sem_and_stp2 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype_some G (TAnd T1 T2) T2.
 Proof. eauto using vl_subtype_some_to_subtype_some, sem_vl_and_stp2. Qed.
-
-Lemma stp_and' : forall T1 T2 n v, vtp T1 n v -> vtp T2 n v -> vtp (TAnd T1 T2) n v.
-Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
-
-Lemma stp_and : forall S T1 T2 n v,
-    (vtp S n v -> vtp T1 n v) ->
-    (vtp S n v -> vtp T2 n v) ->
-    vtp S n v -> vtp (TAnd T1 T2) n v.
-Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
-
-Lemma val_type_mon: forall T v m n,
-    val_type (T, n) v ->
-    m <= n ->
-    val_type (T, m) v.
-Proof. eapply vtp_mon. Qed.
-Hint Resolve val_type_mon.
-
-Lemma mem_stp : forall l L U n v vx,
-    vtp (TMem l L U) (S n) (tvar v) ->
-    vtp L n vx ->
-    vtp (TSel v l) (S n) vx.
-Proof.
-  (* This needs better_case_match (or discriminate later) *)
-  unfold vtp; intros. destruct v; simp val_type in *.
-  intuition idtac; eauto; ev.
-  eexists; repeat split_conj; intuition eauto.
-Qed.
 
 (* Lemma tm_closed_irrelevance1: forall i1 i2 k1 k2 t *)
 (*                                (H1 : tm_closed i1 k1 t) (H2 : tm_closed i2 k2 t) *)
