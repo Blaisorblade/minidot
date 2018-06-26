@@ -431,6 +431,20 @@ Lemma val_type_mon: forall T v m n,
     val_type (T, m) v.
 Proof. eapply vtp_mon. Qed.
 Hint Resolve val_type_mon.
+
+Lemma mem_stp : forall l L U n v vx,
+    vtp (TMem l L U) (S n) (tvar v) ->
+    vtp L n vx ->
+    vtp (TSel v l) (S n) vx.
+Proof.
+  (* This needs better_case_match (or discriminate later) *)
+  unfold vtp; intros. destruct v; simp val_type in *.
+  intuition idtac; eauto; ev.
+  eexists; repeat split_conj; intuition eauto.
+  lets ? : H5 vx j ___; trivial.
+  ev; eauto.
+Qed.
+
 (* Lemma tm_closed_irrelevance1: forall i1 i2 k1 k2 t *)
 (*                                (H1 : tm_closed i1 k1 t) (H2 : tm_closed i2 k2 t) *)
 (*                                (Hi : i1 ~= i2) (Hk: k1 ~= k2), H1 ~= H2. *)
