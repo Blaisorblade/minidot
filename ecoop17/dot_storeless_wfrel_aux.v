@@ -200,10 +200,12 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
     val_type (pair (TMem l L U) n) (tvar (VObj ds)) :=
                                        closed_ty 0 0 L /\ closed_ty 0 0 U /\ dms_closed 0 1 ds /\
                                        exists TX, index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) /\
-                                             (forall vy j (Hj: j <= n), val_type (pair L j) vy -> val_type (pair U j) vy) /\
+                                             (forall vy j (Hj: j <= n),
+                                                 val_type (pair L j) vy -> val_type (pair U j) vy) /\
                                              (forall vy j (Hj: j < n),
-                                                 (val_type (pair L j) vy -> val_type (pair TX j) vy) /\
-                                                 (val_type (pair TX j) vy -> val_type (pair U j) vy));
+                                                 val_type (pair L j) vy -> val_type (pair TX j) vy) /\
+                                             (forall vy j (Hj: j < n),
+                                                 val_type (pair TX j) vy -> val_type (pair U j) vy);
     val_type (pair (TSel (VObj ds) l) n) v :=
                                          irred v /\
                                          dms_closed 0 1 ds /\

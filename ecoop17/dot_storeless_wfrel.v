@@ -441,8 +441,6 @@ Proof.
   unfold vtp; intros. destruct v; simp val_type in *.
   intuition idtac; eauto; ev.
   eexists; repeat split_conj; intuition eauto.
-  lets ? : H5 vx j ___; trivial.
-  ev; eauto.
 Qed.
 
 (* Lemma tm_closed_irrelevance1: forall i1 i2 k1 k2 t *)
