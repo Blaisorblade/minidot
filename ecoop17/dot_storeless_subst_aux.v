@@ -468,3 +468,66 @@ Lemma dms_closed_upgrade: forall i k k1 v,
   dms_closed i k v -> k <= k1 -> dms_closed i k1 v.
 Proof. intros; eapply closed_upgrade_rec; eauto. Qed.
 Hint Resolve dms_closed_upgrade.
+
+Lemma subst_all_nonTot_res_closed_rec:
+  (forall v, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: vr_closed i (length env) v),
+          exists v', vr_subst_all env v = Some v' /\
+                vr_closed i j v') /\
+  (forall T, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: closed i (length env) T),
+          exists T', subst_all env T = Some T' /\
+                closed i j T') /\
+  (forall t, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: tm_closed i (length env) t),
+          exists t', tm_subst_all env t = Some t' /\
+                tm_closed i j t') /\
+  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dm_closed i (length env) d),
+          exists d', dm_subst_all env d = Some d' /\
+                dm_closed i j d') /\
+  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dms_closed i (length env) d),
+          exists d', dms_subst_all env d = Some d' /\
+                dms_closed i j d').
+Proof.
+    Ltac smartInd :=
+      match goal with
+      | Hind : context [ ?f _ ?s ] |- context [ match ?f ?env ?s with _ => _ end ] =>
+        lets (? & -> & ?): Hind env ___; simpl; eauto
+      end.
+  apply syntax_mutind; simpl; intros;
+      inverts_closed; subst;
+      intuition eauto using index_Forall; repeat smartInd; eauto.
+    (* Ltac indLater' Hind env i j := *)
+    (*   lets (? & -> & ?): Hind i (S j) (VarB 0 :: env) ___; simpl; eauto. *)
+    (* Ltac indNow' Hind env i j := *)
+    (*   lets (? & -> & ?): Hind i j env ___; simpl; eauto. *)
+Qed.
+
+Lemma vr_subst_all_nonTot_res_closed:
+  (forall v, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: vr_closed i (length env) v),
+          exists v', vr_subst_all env v = Some v' /\
+                vr_closed i j v').
+Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Lemma subst_all_nonTot_res_closed:
+  (forall T, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: closed i (length env) T),
+          exists T', subst_all env T = Some T' /\
+                closed i j T').
+Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Lemma tm_subst_all_nonTot_res_closed:
+  (forall t, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: tm_closed i (length env) t),
+          exists t', tm_subst_all env t = Some t' /\
+                tm_closed i j t').
+Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Lemma dm_subst_all_nonTot_res_closed:
+  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dm_closed i (length env) d),
+          exists d', dm_subst_all env d = Some d' /\
+                dm_closed i j d').
+Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Lemma dms_subst_all_nonTot_res_closed:
+  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dms_closed i (length env) d),
+          exists d', dms_subst_all env d = Some d' /\
+                dms_closed i j d').
+Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Hint Resolve
+     vr_subst_all_nonTot_res_closed
+     subst_all_nonTot_res_closed
+     tm_subst_all_nonTot_res_closed
+     dm_subst_all_nonTot_res_closed
+     dms_subst_all_nonTot_res_closed.

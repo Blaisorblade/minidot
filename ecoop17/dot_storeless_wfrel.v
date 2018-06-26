@@ -124,7 +124,7 @@ Proof. unfold etpEnv; program_simpl. Qed.
 Hint Resolve etpEnv_closed.
 
 Definition evalToSome env e v k j :=
-  exists t', tm_subst_all (map VObj env) e = Some t' /\ steps t' v j /\ irred v /\ j <= k.
+  (exists t', tm_subst_all (map VObj env) e = Some t' /\ steps t' v j) /\ irred v /\ j <= k.
 
 Definition vtpEnvSomeCore T k v env :=
   exists T', subst_all (map VObj env) T = Some T' /\
@@ -239,6 +239,28 @@ Definition sem_vl_subtype_some (G : tenv) (T1 T2: ty) :=
       forall k env (Henv : R_env k env G),
         vtpEnvSomeCore T1 k e env -> vtpEnvSomeCore T2 k e env.
 
+Lemma sem_subtype_some_closed1 : forall G T1 T2,
+    sem_subtype_some G T1 T2 -> wf G T1.
+Proof. unfold sem_subtype_some; program_simpl. Qed.
+
+Lemma sem_subtype_some_closed2 : forall G T1 T2,
+    sem_subtype_some G T1 T2 -> wf G T2.
+Proof. unfold sem_subtype_some; program_simpl. Qed.
+
+Lemma sem_vl_subtype_some_closed1 : forall G T1 T2,
+    sem_vl_subtype_some G T1 T2 -> wf G T1.
+Proof. unfold sem_vl_subtype_some; program_simpl. Qed.
+
+Lemma sem_vl_subtype_some_closed2 : forall G T1 T2,
+    sem_vl_subtype_some G T1 T2 -> wf G T2.
+Proof. unfold sem_vl_subtype_some; program_simpl. Qed.
+
+Hint Resolve sem_type_some_closed
+     sem_subtype_some_closed1
+     sem_subtype_some_closed2
+     sem_vl_subtype_some_closed1
+     sem_vl_subtype_some_closed2.
+
 (* Lemma closed_subst_success: forall T env, *)
 (*     (closed_ty 0 (length env) T) -> *)
 (*     exists T1, subst_all env T = Some T1. *)
@@ -282,8 +304,7 @@ Ltac gen_irr_proofs :=
 Ltac lenG_to_lenEnv :=
   try match goal with
   | H: R_env _ ?env ?G |- _ =>
-    assert (length env = length G) as Hlen by eauto using wf_length;
-    rewrite <- Hlen in *; clear Hlen
+    replace (length G) with (length env) in * by (eauto using wf_length)
   end.
 
 Ltac remove_irrelevant_localClosure_mismatches :=
@@ -320,6 +341,20 @@ Proof.
   assert (tm_closed 0 0 (tvar (VObj a))) by eauto using vtp_v_closed; repeat inverts_closed; eauto.
 Qed.
 Hint Resolve env_dms_closed.
+
+Lemma evalToSomeRes_closed: forall env e v n k j,
+    evalToSome env e v n j ->
+    tm_closed 0 (length env) e ->
+    Forall (dms_closed 0 (S k)) env ->
+    tm_closed 0 k v.
+Proof.
+  unfold evalToSome; intros * ((t0 & ?) & ?); intros; ev;
+    assert (exists t', tm_subst_all (map VObj env) e = Some t' /\ tm_closed 0 k t') as (t1 & ? & ?)
+      by (eapply tm_subst_all_nonTot_res_closed; try rewrite map_length; eauto);
+    assert (t0 = t1) as -> by congruence;
+    eauto using steps_closed.
+Qed.
+Hint Resolve evalToSomeRes_closed.
 
 (* Write lemmas to get rid of all the extra side conditions and get to the meat. *)
 Program Lemma vl_subtype_to_subtype : forall G T1 T2,
