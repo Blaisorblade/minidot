@@ -334,25 +334,28 @@ Proof.
 Qed.
 Hint Resolve evalToRes_closed.
 
-Lemma env_dms_closed: forall k env G, R_env k env G -> Forall (dms_closed 0 (S (length env))) env.
+Lemma env_dms_closed: forall k env G l, R_env k env G -> length env = l -> Forall (dms_closed 0 (S l)) env.
 Proof.
-  induction env; intros * Henv; inverts Henv; constructor; simpl; eauto using Forall_impl.
-
-  assert (tm_closed 0 0 (tvar (VObj a))) by eauto using vtp_v_closed; repeat inverts_closed; eauto.
+  induction env; intros * Henv Hl; subst; inverts Henv; constructor; simpl; eauto using Forall_impl.
+  assert (tm_closed 0 0 (tvar (VObj a))) by (eauto using vtp_v_closed); repeat inverts_closed; eauto.
 Qed.
 Hint Resolve env_dms_closed.
 
-Lemma evalToSomeRes_closed: forall env e v n k j,
+Lemma evalToSomeRes_closed: forall env e v n k j l,
     evalToSome env e v n j ->
-    tm_closed 0 (length env) e ->
+    tm_closed 0 l e ->
+    length env = l ->
     Forall (dms_closed 0 (S k)) env ->
     tm_closed 0 k v.
 Proof.
-  unfold evalToSome; intros * ((t0 & ?) & ?); intros; ev;
-    assert (exists t', tm_subst_all (map VObj env) e = Some t' /\ tm_closed 0 k t') as (t1 & ? & ?)
-      by (eapply tm_subst_all_nonTot_res_closed; try rewrite map_length; eauto);
-    assert (t0 = t1) as -> by congruence;
-    eauto using steps_closed.
+  unfold evalToSome; intros; subst;
+    assert (exists t', tm_subst_all (map VObj env) e = Some t' /\ tm_closed 0 k t')
+    by (eapply tm_subst_all_nonTot_res_closed; try rewrite map_length; eauto); ev;
+      match goal with
+      | H1 : ?t = Some ?x1, H2 : ?t = Some ?x2 |- _ =>
+        assert (x1 = x2) as -> by congruence
+      end;
+      eauto using steps_closed.
 Qed.
 Hint Resolve evalToSomeRes_closed.
 
@@ -379,11 +382,11 @@ Proof.
 Qed.
 Hint Resolve vl_subtype_to_subtype.
 
-Lemma vl_subtype_some_to_subtype_some : forall G T1 T2,
-    sem_vl_subtype_some G T1 T2 -> sem_subtype_some G T1 T2.
+Lemma vl_subtype_some_to_subtype_some : forall G T1 T2
+    (Hsub: sem_vl_subtype_some G T1 T2), sem_subtype_some G T1 T2.
 Proof.
   unfold sem_subtype_some, sem_vl_subtype_some, etpEnvSomeCore;
-    intuition idtac; lenG_to_lenEnv; eauto 6.
+    intuition eauto 8.
 Qed.
 Hint Resolve vl_subtype_some_to_subtype_some.
 
@@ -422,6 +425,12 @@ Lemma stp_and : forall S T1 T2 n v,
     vtp S n v -> vtp (TAnd T1 T2) n v.
 Proof. unfold vtp; intros; simp val_type in *; tauto. Qed.
 
+Lemma val_type_mon: forall T v m n,
+    val_type (T, n) v ->
+    m <= n ->
+    val_type (T, m) v.
+Proof. eapply vtp_mon. Qed.
+Hint Resolve val_type_mon.
 (* Lemma tm_closed_irrelevance1: forall i1 i2 k1 k2 t *)
 (*                                (H1 : tm_closed i1 k1 t) (H2 : tm_closed i2 k2 t) *)
 (*                                (Hi : i1 ~= i2) (Hk: k1 ~= k2), H1 ~= H2. *)
