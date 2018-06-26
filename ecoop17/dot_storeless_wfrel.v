@@ -379,6 +379,14 @@ Proof.
 Qed.
 Hint Resolve vl_subtype_to_subtype.
 
+Lemma vl_subtype_some_to_subtype_some : forall G T1 T2,
+    sem_vl_subtype_some G T1 T2 -> sem_subtype_some G T1 T2.
+Proof.
+  unfold sem_subtype_some, sem_vl_subtype_some, etpEnvSomeCore;
+    intuition idtac; lenG_to_lenEnv; eauto 6.
+Qed.
+Hint Resolve vl_subtype_some_to_subtype_some.
+
 (* Lemma tm_closed_irrelevance1: forall i1 i2 k1 k2 t *)
 (*                                (H1 : tm_closed i1 k1 t) (H2 : tm_closed i2 k2 t) *)
 (*                                (Hi : i1 ~= i2) (Hk: k1 ~= k2), H1 ~= H2. *)
