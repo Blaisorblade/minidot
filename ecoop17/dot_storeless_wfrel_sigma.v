@@ -9,6 +9,149 @@ Require Import tactics.
 
 Require Import dot_storeless_wfrel.
 
+(* Anomaly! *)
+(* Program Lemma index_sigT : forall {X} vs (n : id), n < length vs -> *)
+(*                        {T:X & index (proj1_sig n) vs = Some T}. *)
+
+Program Lemma index_sigT : forall {X} vs (n : id), n < length vs ->
+                       {T:X & index n vs = Some T}.
+Proof.
+  intros; induction vs; simpl in *.
+  - omega.
+  - case_match; beq_nat; subst; eauto.
+Defined.
+
+Definition indexTot {X} (xs : list X) (n : id) (H : n < length xs): X :=
+  projT1 (index_sigT xs n H).
+
+Program Fixpoint vr_subst_all_tot i (env: list vr) (v: vr) (_ : vr_closed i (length env) v) { struct v }: vr :=
+  match v with
+    | VarF x => VarF x
+    | VarB x => indexTot env x _
+    | VObj dms =>
+      let dms' := dms_subst_all_tot i (VarB 0 :: env) dms _ in
+      VObj dms'
+  end
+with subst_all_tot i (env: list vr) (T: ty) (_ : closed i (length env) T){ struct T }: ty :=
+  match T with
+    | TTop        => TTop
+    | TBot        => TBot
+    | TSel v1 l     =>
+      let v1' := vr_subst_all_tot i env v1 _ in
+      TSel v1' l
+    | TFun l T1 T2  =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i (VarB 0 :: env) T2 _ in
+      TFun l T1' T2'
+    | TMem l T1 T2  =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i env T2 _ in
+      TMem l T1' T2'
+    | TBind T1    =>
+      let T1' := subst_all_tot i (VarB 0 :: env) T1 _ in
+      TBind T1'
+    | TAnd T1 T2  =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i env T2 _ in
+      TAnd T1' T2'
+    | TOr T1 T2   =>
+      let T1' := subst_all_tot i env T1 _ in
+      let T2' := subst_all_tot i env T2 _ in
+      TOr T1' T2'
+  end
+with tm_subst_all_tot i (env: list vr) (t: tm) (_ : tm_closed i (length env) t) { struct t }: tm :=
+   match t with
+     | tvar v => let v' := vr_subst_all_tot i env v _ in tvar v'
+     | tapp t1 l t2 =>
+       let t1' := tm_subst_all_tot i env t1 _ in
+       let t2' := tm_subst_all_tot i env t2 _ in
+       tapp t1' l t2'
+   end
+with dm_subst_all_tot i (env: list vr) (d: dm) (_ : dm_closed i (length env) d) { struct d }: dm :=
+   match d with
+     | dfun T1 T2 t2 =>
+       let T1' := subst_all_tot i env T1 _ in
+       let T2' := subst_all_tot i (VarB 0 :: env) T2 _ in
+       let t2' := tm_subst_all_tot i (VarB 0 :: env) t2 _ in
+       dfun T1' T2' t2'
+     | dty T1 =>
+       let T1' := subst_all_tot i env T1 _ in
+       dty T1'
+   end
+with dms_subst_all_tot i (env: list vr) (ds: dms) (_ : dms_closed i (length env) ds) { struct ds }: dms :=
+   match ds with
+     | dnil => dnil
+     | dcons d ds =>
+       let d'  := dm_subst_all_tot i env d _ in
+       let ds' := dms_subst_all_tot i env ds _ in
+       dcons d' ds'
+   end.
+Solve All Obligations with program_simpl; abstract (inverts H; auto).
+
+Ltac reduce_indexTot :=
+  try match goal with
+  | H : context [ indexTot ?env ?i _] |- _ => unfold indexTot in *; destruct (index_sigT env i)
+  | |- context [ indexTot ?env ?i _] => unfold indexTot in *; destruct (index_sigT env i)
+  end.
+
+Program Definition ex_type := forall i l v, subst_all_tot i [v] (TSel (VarB 0) l) _ = TSel v l.
+Program Lemma ex: ex_type.
+Proof. red; intros; simpl; reduce_indexTot; simpl in *; congruence. Qed.
+Program Definition ex2_type:= forall i l v0 v1, subst_all_tot i [v1, v0] (TSel (VarB 1) l) _ = TSel v1 l.
+Program Lemma ex2: ex2_type.
+Proof. red; intros; intros; simpl; reduce_indexTot; simpl in *; congruence. Qed.
+
+Lemma indexTot_Forall: forall {X} (env: list X) i (P: X -> Prop) (Henv: Forall P env) (Hlen: i < length env),
+    P (indexTot env i Hlen).
+Proof.
+  unfold indexTot; intros; destruct (index_sigT env i);
+    (* A special case of apply_Forall below *)
+    lets ?: @index_Forall' ___ Henv; eauto.
+Qed.
+
+(* Use "solve" because in subst_all_res_closed_rec this tactic leads the proof
+   search down the wrong path whenever it doesn't solve the goal immediately;
+   using "solve" is sort of what eauto's proof search and backtracking would do
+   anyway: if applying this lemma and searching further doesn't help, backtrack. *)
+Ltac apply_Forall :=
+  match goal with
+  | H: Forall ?P ?env |- ?P (indexTot ?env _ _) => try solve [eapply indexTot_Forall; eauto]
+  end.
+(* Seems to actually work fine, but this is needed too seldom for now, and can be expensive. *)
+(* Hint Extern 5 => apply_Forall. *)
+
+Lemma subst_all_res_closed_rec:
+  (forall v, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: vr_closed i (length env) v), vr_closed i k (vr_subst_all_tot i env v Hcl)) /\
+  (forall T, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: closed i (length env) T), closed i k (subst_all_tot i env T Hcl)) /\
+  (forall t, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: tm_closed i (length env) t), tm_closed i k (tm_subst_all_tot i env t Hcl)) /\
+  (forall dm, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dm_closed i (length env) dm), dm_closed i k (dm_subst_all_tot i env dm Hcl)) /\
+  (forall dms, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dms_closed i (length env) dms), dms_closed i k (dms_subst_all_tot i env dms Hcl)).
+Proof.
+  apply syntax_mutind; intros; simpl in *; inverts_closed; solve [apply_Forall | eauto 11].
+Qed.
+
+Lemma closed_irrelevance_rec:
+  (forall i k x (H1 H2: vr_closed i k x), H1 = H2) /\
+  (forall i k T (H1 H2: closed i k T), H1 = H2) /\
+  (forall i k t (H1 H2: tm_closed i k t), H1 = H2) /\
+  (forall i k dm (H1 H2: dm_closed i k dm), H1 = H2) /\
+  (forall i k dms (H1 H2: dms_closed i k dms), H1 = H2).
+Proof.
+  apply closed_mutind; intros; depelim H2; fequal; eauto using le_unique.
+Qed.
+
+Lemma closed_irrelevance: forall T i k (H1 H2: closed i k T), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma tm_closed_irrelevance: forall i k t (H1 H2: tm_closed i k t), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma vr_closed_irrelevance: forall i k x (H1 H2: vr_closed i k x), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma dm_closed_irrelevance: forall i k d (H1 H2: dm_closed i k d), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+Lemma dms_closed_irrelevance: forall i k d (H1 H2: dms_closed i k d), H1 = H2.
+Proof. destruct closed_irrelevance_rec; ev; eauto. Qed.
+
+(* Evaluation *)
 Program Definition evalTo env e v k j (HwfE : tm_closed 0 (length env) e) :=
   steps (tm_subst_all_tot 0 (map VObj env) e _) v j /\ irred v /\ j <= k.
 Solve Obligations with program_simpl; rewrite map_length; auto.
