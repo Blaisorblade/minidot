@@ -531,3 +531,21 @@ Hint Resolve
      tm_subst_all_nonTot_res_closed
      dm_subst_all_nonTot_res_closed
      dms_subst_all_nonTot_res_closed.
+
+Definition evalToSome env e v k j :=
+  (exists t', tm_subst_all (map VObj env) e = Some t' /\ steps t' v j) /\ irred v /\ j <= k.
+
+Lemma evalToSomeRes_closed: forall env e v n k j l,
+    evalToSome env e v n j ->
+    tm_closed 0 l e ->
+    length env = l ->
+    Forall (dms_closed 0 (S k)) env ->
+    tm_closed 0 k v.
+Proof.
+  unfold evalToSome; intros; subst;
+    assert (exists t', tm_subst_all (map VObj env) e = Some t' /\ tm_closed 0 k t')
+    by (eapply tm_subst_all_nonTot_res_closed; try rewrite map_length; eauto); ev;
+      optFuncs_det;
+      eauto using steps_closed.
+Qed.
+Hint Resolve evalToSomeRes_closed.

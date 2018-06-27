@@ -103,7 +103,8 @@ VFILES:=SfLib.v\
 	dot_storeless_tidy.v \
 	dot_storeless_subst_aux.v \
 	dot_storeless_wfrel_aux.v \
-	dot_storeless_wfrel.v
+	dot_storeless_wfrel.v \
+	dot_storeless_wfrel_sigma.v
 
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
