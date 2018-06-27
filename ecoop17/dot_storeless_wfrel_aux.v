@@ -446,8 +446,47 @@ Lemma mem_stp : forall l L U n v vx,
     vtp L n vx ->
     vtp (TSel v l) (S n) vx.
 Proof.
-  (* This needs better_case_match (or discriminate later) *)
-  unfold vtp; intros. destruct v; simp val_type in *.
+  unfold vtp; intros; destruct v; simp val_type in *;
   intuition idtac; eauto; ev.
   eexists; repeat split_conj; intuition eauto.
+Qed.
+
+Ltac cinject H := injection H; clear H; intros; subst.
+
+Ltac injections_safe_gen :=
+  match goal with
+  | H : ?c ?a1 ?a2 ?a3 ?a4 = ?c ?b1 ?b2 ?b3 ?b4 |- _ => cinject H
+  | H : ?c ?a1 ?a2 ?a3 = ?c ?b1 ?b2 ?b3 |- _ => cinject H
+  | H : ?c ?a1 ?a2 = ?c ?b1 ?b2 |- _ => cinject H
+  | H : ?c ?a1 = ?c ?b1 |- _ => cinject H
+  | H : ?c = ?c |- _ => cinject H
+  end.
+
+Ltac optFuncs_det :=
+  match goal with
+  | H1 : ?t = Some ?x1, H2 : ?t = Some ?x2 |- _ =>
+    let H := fresh "H" in
+    rewrite H1 in H2; repeat injections_safe_gen
+  end.
+
+(* Goal forall T (a b c d: T), (a, b) = (c, d) -> a = c /\ b = d. *)
+(* Proof. intros; split_conj; now repeat injections_safe_gen. Qed. *)
+
+(* Goal forall T (a1 a2 a3 a4 a5 a6 b1 b2 b3 b4 b5 b6 : T), (a1, a2) = (b1, b2) -> a1 = b1 /\ a2 = b2. *)
+(* Proof. intros; repeat injections_safe_gen; now repeat split_conj. Qed. *)
+
+(* Goal forall T (a1 a2 a3 a4 a5 a6 b1 b2 b3 b4 b5 b6 : T), (a1, (a2, a3)) = (b1, (b2, b3)) -> a1 = b1 /\ a2 = b2 /\ a3 = b3. *)
+(* Proof. intros; repeat injections_safe_gen; now repeat split_conj. Qed. *)
+
+Lemma stp_mem : forall l L U n v vx,
+    vtp (TMem l L U) (S n) (tvar v) ->
+    vtp (TSel v l) (S n) vx ->
+    vtp U n vx.
+Proof.
+  unfold vtp; intros; destruct v; simp val_type in *;
+    intuition idtac; ev;
+      (* Both vtp hypotheses talk about concrete type found by lookup in v.l;
+      assert that's the same. *)
+      optFuncs_det;
+      eauto.
 Qed.
