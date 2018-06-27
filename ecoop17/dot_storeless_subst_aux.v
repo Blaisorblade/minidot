@@ -33,11 +33,11 @@ Ltac beq_nat :=
   | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
   end.
 
+
+Ltac unmut_lemma H := destruct H; ev; eauto.
 Lemma vr_closed_upgrade: forall i k k1 v,
   vr_closed i k v -> k <= k1 -> vr_closed i k1 v.
-Proof.
-  intros. eapply (proj1 closed_upgrade_rec); eauto.
-Qed.
+Proof. unmut_lemma closed_upgrade_rec. Qed.
 Hint Resolve vr_closed_upgrade.
 
 Lemma env_closed_upgrade: forall i k k1 env,
@@ -319,7 +319,7 @@ Hint Resolve dms_to_env_closed.
 
 Lemma dms_closed_upgrade: forall i k k1 v,
   dms_closed i k v -> k <= k1 -> dms_closed i k1 v.
-Proof. intros; eapply closed_upgrade_rec; eauto. Qed.
+Proof. unmut_lemma closed_upgrade_rec. Qed.
 Hint Resolve dms_closed_upgrade.
 
 Lemma subst_all_nonTot_res_closed_rec:
@@ -353,27 +353,27 @@ Lemma vr_subst_all_nonTot_res_closed:
   (forall v i env, Forall (vr_closed i (length env)) env -> forall (Hcl: vr_closed i (length env) v),
           exists v', vr_subst_all env v = Some v' /\
                 vr_closed i (length env) v').
-Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma subst_all_nonTot_res_closed:
   (forall T i env, Forall (vr_closed i (length env)) env -> forall (Hcl: closed i (length env) T),
           exists T', subst_all env T = Some T' /\
                 closed i (length env) T').
-Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma tm_subst_all_nonTot_res_closed:
   (forall t i env, Forall (vr_closed i (length env)) env -> forall (Hcl: tm_closed i (length env) t),
           exists t', tm_subst_all env t = Some t' /\
                 tm_closed i (length env) t').
-Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma dm_subst_all_nonTot_res_closed:
   (forall d i env, Forall (vr_closed i (length env)) env -> forall (Hcl: dm_closed i (length env) d),
           exists d', dm_subst_all env d = Some d' /\
                 dm_closed i (length env) d').
-Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma dms_subst_all_nonTot_res_closed:
   (forall d i env, Forall (vr_closed i (length env)) env -> forall (Hcl: dms_closed i (length env) d),
           exists d', dms_subst_all env d = Some d' /\
                 dms_closed i (length env) d').
-Proof. destruct subst_all_nonTot_res_closed_rec; ev; eauto. Qed.
+Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Hint Resolve
      vr_subst_all_nonTot_res_closed
      subst_all_nonTot_res_closed
