@@ -399,3 +399,55 @@ Proof.
       eauto using steps_closed.
 Qed.
 Hint Resolve evalToSomeRes_closed.
+
+(*******************)
+(* Prove irreducible closed terms evaluate to themselves (vl_evalToSome_self).
+   We must first prove that substitution leaves them unchnaged. *)
+
+(* Define what's an identity substitution, through the required property (rather than through an inductive type). *)
+Definition vr_env_id xs := forall n, n < length xs -> index n xs = Some (VarB n).
+
+(* Allow proving vr_env_id. These lemmas could probably be the constructors for
+   an inductive characterization. *)
+Lemma nil_vr_env_id: vr_env_id [].
+Proof. unfold vr_env_id; simpl; easy. Qed.
+
+Lemma cons_vr_env_id: forall env, vr_env_id env -> vr_env_id (VarB (length env) :: env).
+Proof. unfold vr_env_id; simpl; intros; case_match; beq_nat; subst; auto. Qed.
+
+Hint Resolve nil_vr_env_id cons_vr_env_id.
+
+(* Prove that an identity substitution is also an identity when lifted to our
+   language syntax. *)
+Lemma subst_closed_id_rec:
+  (forall v i env, vr_env_id env -> forall (Hcl: vr_closed i (length env) v),
+          vr_subst_all env v = Some v) /\
+  (forall T i env, vr_env_id env -> forall (Hcl: closed i (length env) T),
+          subst_all env T = Some T) /\
+  (forall t i env, vr_env_id env -> forall (Hcl: tm_closed i (length env) t),
+          tm_subst_all env t = Some t) /\
+  (forall d i env, vr_env_id env -> forall (Hcl: dm_closed i (length env) d),
+          dm_subst_all env d = Some d) /\
+  (forall d i env, vr_env_id env -> forall (Hcl: dms_closed i (length env) d),
+          dms_subst_all env d = Some d).
+Proof.
+  apply syntax_mutind; intros; simpl; trivial;
+    inverts_closed; subst; eauto;
+      repeat
+        match goal with
+        | Hind : context [ ?f _ ?s ] |- context [ match ?f ?env ?s with _ => _ end ] =>
+          lets ->: Hind env ___; eauto
+        end.
+Qed.
+
+Lemma tm_subst_closed_id: forall t i env, tm_closed i (length env) t -> vr_env_id env -> tm_subst_all env t = Some t.
+Proof. unmut_lemma subst_closed_id_rec. Qed.
+
+Lemma tm_subst_closed_id_nil: forall t i, tm_closed i 0 t -> tm_subst_all [] t = Some t.
+Proof. eauto using tm_subst_closed_id. Qed.
+Hint Resolve tm_subst_closed_id_nil.
+
+Hint Constructors steps.
+
+Lemma vl_evalToSome_self: forall v n i, irred v -> tm_closed i 0 v -> evalToSome [] v v n 0.
+Proof. unfold evalToSome; intuition eauto. Qed.
