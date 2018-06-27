@@ -56,14 +56,6 @@ Definition val_type_termRel := MR (lexprod lt (fun _ => lt)) (fun p => let '(T, 
 
 (*******************)
 (* Tactics. *)
-(* Show that different branches are disjoint. *)
-Ltac discriminatePlus :=
-  idtac.
-  (* (* repeat split; intros; let Habs := fresh "Habs" in intro Habs; destruct Habs; discriminate. *) *)
-  (* repeat split_conj; intros; *)
-  (* (let Habs := fresh "Habs" in *)
-  (* try (intro Habs; destruct Habs) + idtac); *)
-  (* discriminate. *)
 
 (* Prove some inequalities needed below, without producing big proof terms like omega does. Probably not worth it. *)
 Ltac simple_ineq :=
@@ -113,13 +105,9 @@ Ltac applyNSimpleIneq l := apply l; simple_ineq.
 
 (* Solve obligations from valType using ssreflect-based ideas, that is, reusing lemmas for the various cases. *)
 Ltac valTypeObligationsSSReflectionCore :=
-  try solve [simple_ineq | applyNSimpleIneq termRelShowOpen | applyNSimpleIneq termRelShow | applyNSimpleIneq termRelShowLt | smaller_types | discriminatePlus].
+  try solve [simple_ineq | applyNSimpleIneq termRelShowOpen | applyNSimpleIneq termRelShow | applyNSimpleIneq termRelShowLt | smaller_types ].
 Ltac valTypeObligationsSSReflection :=
   program_simpl; valTypeObligationsSSReflectionCore.
-
-Ltac valTypeObligations Hj :=
-  program_simpl;
-  solve [ smaller_n | smaller_types | discriminatePlus | (try destruct Hj; [ smaller_types | smaller_n ])].
 
 Local Obligation Tactic := valTypeObligationsSSReflection.
 
