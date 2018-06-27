@@ -13,7 +13,6 @@ Hint Unfold venv.
 Hint Unfold tenv.
 
 Inductive R_env (k : nat) : venv -> tenv -> Set :=
-  (* (env: venv) (G: tenv) : Set := *)
 | R_nil :
     R_env k [] []
 | R_cons : forall T v env G,
@@ -50,36 +49,8 @@ Proof.
   unfold etp; intros; simp expr_sem in *; tauto.
 Qed.
 Hint Resolve etp_closed.
-(* Scheme vr_mut_type := Induction for vr Sort Set *)
-(* with   ty_mut_type := Induction for ty Sort Set *)
-(* with   tm_mut_type := Induction for tm Sort Set *)
-(* with   dm_mut_type := Induction for dm Sort Set *)
-(* with   dms_mut_type := Induction for dms Sort Set. *)
-(* Combined Scheme syntax_mut_typeind from vr_mut_type, ty_mut_type, tm_mut_type, dm_mut_type, dms_mut_type. *)
-
-(* Lemma subst_all_success_rec_sig: *)
-(*   (forall v, forall i env, forall j, vr_closed i j v -> length env = j -> { v' | vr_subst_all env v = Some v'}) * *)
-(*   (forall T, forall i env, forall j, closed i j T -> length env = j -> { T' | subst_all env T = Some T'}) * *)
-(*   (forall t, forall i env, forall j, tm_closed i j t -> length env = j -> { t' | tm_subst_all env t = Some t'}) * *)
-(*   (forall dm, forall i env, forall j, dm_closed i j dm -> length env = j -> { dm' | dm_subst_all env dm = Some dm'}) * *)
-(*   (forall T, forall i env, forall j, dms_closed i j T -> length env = j -> { dms' | dms_subst_all env T = Some dms'}). *)
-(* Proof. *)
-(*   apply syntax_mutind. *)
-(*   Abort. *)
-
-(* Program Definition subst_all_tot (env: venv) T (HclT: closed 0 (length env) T) := *)
-(*   let '(ex_intro _ A B) := (subst_all_success T 0 (map VObj env) (length env) HclT eq_refl) *)
-(*   in A. *)
-(* Check subst_all_tot. *)
 
 Hint Rewrite map_length.
-
-(* Equations evalTo2 (env : list dms) (t : tm) (v : tm): nat -> nat -> tm_closed 0 (length env) t -> Prop := *)
-(*   evalTo2 env t v := *)
-(*     fun k j HwfV => *)
-(*     let venv := map VObj env in *)
-(*     steps (tm_subst_all_tot 0 venv t _) v j /\ irred v /\ j <= k. *)
-(* Solve Obligations with program_simpl; rewrite map_length; auto. *)
 
 Program Definition evalTo env e v k j (HwfE : tm_closed 0 (length env) e) :=
   steps (tm_subst_all_tot 0 (map VObj env) e _) v j /\ irred v /\ j <= k.
@@ -97,11 +68,6 @@ Lemma vtpEnv_closed:
   forall T k v env, vtpEnv T k v env -> wf env T.
 Proof. unfold vtpEnv; program_simpl. Qed.
 Hint Resolve vtpEnv_closed.
-
-(* Program Definition vtpEnvCore2 T k v env (HwfT : wf env T) (HwfV : tm_closed 0 (length env) v) := *)
-(*   let venv := map VObj env in *)
-(*   vtp (subst_all_tot 0 venv T _) k (tm_subst_all_tot 0 venv v _). *)
-(* Solve Obligations with program_simpl; rewrite map_length; auto. *)
 
 Program Definition etpEnvCore T k e env
         (HwfE : tm_closed 0 (length env) e)
@@ -150,25 +116,6 @@ Lemma etpEnvSome_closed: forall T k v env,
     etpEnvSome T k v env -> wf env T.
 Proof. unfold etpEnvSome; program_simpl. Qed.
 Hint Resolve etpEnvSome_closed.
-
-(* Definition vtpEnv T k v env := *)
-(*   let venv := map VObj env in *)
-(*   let T' := subst_all venv T in *)
-(*   let v' := tm_subst_all venv v in *)
-(*   closed_ty 0 (length env) T /\ *)
-(*   exists T'' v'', *)
-(*     T' = Some T'' /\ *)
-(*     v' = Some v'' /\ *)
-(*     vtp T'' k v''. *)
-
-(* Set Transparent Obligations. (* XXX only for one unfold later, check if really needed. *) *)
-
-(* Program Definition etpEnvCore T k e env (HwfT : wf env T) (HwfE : tm_closed 0 (length env) e) := *)
-(*   let venv := map VObj env in *)
-(*   let T' := subst_all_tot 0 venv T _ in *)
-(*   expr_sem k T' (fun k _ => vtp T' k) k _ (tm_subst_all_tot 0 venv e _). *)
-
-(* Solve Obligations with program_simpl; rewrite map_length; auto. *)
 
 (* Semantic typing *)
 Program Definition sem_type (G : tenv) (T : ty) (e: tm) :=
@@ -260,11 +207,6 @@ Hint Resolve sem_type_some_closed
      sem_subtype_some_closed2
      sem_vl_subtype_some_closed1
      sem_vl_subtype_some_closed2.
-
-(* Lemma closed_subst_success: forall T env, *)
-(*     (closed_ty 0 (length env) T) -> *)
-(*     exists T1, subst_all env T = Some T1. *)
-(* Admitted. *)
 
 (* Deal with irrelevance of local closure proofs.
 Credits to @Cypi on IRC, see gen_safe_proof and unify_lt_proofs
@@ -409,50 +351,3 @@ Proof. to_vl_stp and_stp2. Qed.
 
 Lemma sem_and_stp2 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype_some G (TAnd T1 T2) T2.
 Proof. eauto using vl_subtype_some_to_subtype_some, sem_vl_and_stp2. Qed.
-
-(* Lemma tm_closed_irrelevance1: forall i1 i2 k1 k2 t *)
-(*                                (H1 : tm_closed i1 k1 t) (H2 : tm_closed i2 k2 t) *)
-(*                                (Hi : i1 ~= i2) (Hk: k1 ~= k2), H1 ~= H2. *)
-(* Proof. intros. *)
-(*        dependent rewrite Hi. Hk. *)
-(*   eauto using proof_irrelevance. Qed. *)
-(*   dependent rewrite Hlen in HPs2. *)
-
-(*   - admit. *)
-(*   - *)
-(*     unfold vtpEnvCore in *. *)
-(*     (* unfold etpEnvCore_obligation_1 in *. *) *)
-(*     intuition eauto. *)
-(*     (* XXX Reprove subst_all_closed_upgrade_rec for subst_all_tot. Then, modify *)
-(*     vtp to ensure it only holds for closed terms, prove it, lift that proof to *)
-(*     R_env, then try again (or maybe rather move the hard work in vtp_etp and etp_vtp lemmas). *) *)
-
-(* (*   - intros. *) *)
-(* (*   vtp, etpEnvCore, vtpEnvCore; simp val_type. *) *)
-(* (*   unfold etpEnv in *. *) *)
-(* (*   Transparent expr_sem. *) *)
-(* (*   unfold expr_sem. *) *)
-(* (*   Opaque expr_sem. *) *)
-(* (*   intros * (? & ? & Himpl); split_conj; eauto. intros * Henv * (? & ?). *) *)
-
-(* (*   ev; split_conj; *) *)
-(* (*     replace (length G) with (length env) in * by eauto; *) *)
-(* (*     eauto. *) *)
-(* (*   lets (? & ?): closed_subst_success T2 (map VObj env) ___; *) *)
-(* (*   try rewrite map_length; eauto. *) *)
-(* (*   do 2 eexists; split_conj; eauto. *) *)
-(* (*   admit. *) *)
-(* (*   eauto. *) *)
-(* (*   (* info_eauto. *) *) *)
-(* (*   (* info_eauto. *) *) *)
-(* (*   (* info_eauto. *) *) *)
-
-(* (*   (* intuition info_eauto. *) *) *)
-(* (*   (* - admit. *) *) *)
-(* (*   (* - lets (? & ?) : H5 v j ___; eauto. eapply H9. *) *) *)
-(* (*   (*   eauto. *) *) *)
-
-(* (*   (* simp expr_sem in *; ev. *) *) *)
-(* (*   (* lets ? : Himpl Henv e ___; intuition eauto; repeat eexists. *) *) *)
-(* (*   (* eauto. *) *) *)
-(* (*   (* eauto. *) *) *)
