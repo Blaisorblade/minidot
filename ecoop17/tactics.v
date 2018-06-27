@@ -115,13 +115,24 @@ Ltac split_and := split_conj.
 (*   end. *)
 
 (* From Chlipala's tactics. *)
-Ltac cinject H := injection H; clear H; intros; try subst.
+Ltac cinject H := injection H; clear H; intros; subst.
 
 (* More reliable (?) variant of inversions_some; also handle S. *)
-Ltac injections_some :=
+Ltac injections_safe_gen :=
   match goal with
-  | [H : Some ?a = Some ?b |- _ ] => cinject H
-  | [H : S ?a = S ?b |- _ ] => cinject H
+  | H : ?c ?a1 ?a2 ?a3 ?a4 = ?c ?b1 ?b2 ?b3 ?b4 |- _ => cinject H
+  | H : ?c ?a1 ?a2 ?a3 = ?c ?b1 ?b2 ?b3 |- _ => cinject H
+  | H : ?c ?a1 ?a2 = ?c ?b1 ?b2 |- _ => cinject H
+  | H : ?c ?a1 = ?c ?b1 |- _ => cinject H
+  | H : ?c = ?c |- _ => cinject H
+  end.
+Ltac injections_some := injections_safe_gen.
+
+Ltac optFuncs_det :=
+  match goal with
+  | H1 : ?t = Some ?x1, H2 : ?t = Some ?x2 |- _ =>
+    let H := fresh "H" in
+    rewrite H1 in H2; repeat injections_safe_gen
   end.
 
 (* To use with repeat fequalSafe in automation.
