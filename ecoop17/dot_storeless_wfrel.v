@@ -395,7 +395,7 @@ Hint Unfold wf sem_type_some sem_subtype_some sem_vl_subtype_some.
 Ltac to_vl_stp L :=
   unfold sem_vl_subtype_some, vtpEnvSomeCore;
     intuition eauto; ev;
-      simpl in *; repeat better_case_match; try congruence; injections_some;
+      simpl in *; repeat better_case_match; try congruence; injectHyps;
         eauto using L.
 
 Lemma sem_vl_and_stp1 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_vl_subtype_some G (TAnd T1 T2) T1.

@@ -97,5 +97,5 @@ Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((op
 
 Solve Obligations with program_simplify;
   repeat case_match; try reflexivity;
-    repeat fequalSafe; repeat injections_some;
+    repeat fequalSafe; injectHyps;
       reflexivity || omega || discriminate.

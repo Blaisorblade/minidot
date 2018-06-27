@@ -94,45 +94,31 @@ Ltac split_conj :=
 (* stdpp name. *)
 Ltac split_and := split_conj.
 
-(* (* Try automatic inversion on hypotheses matching Some to Some, in a few variants. *)
-(*  * I use these variants depending on the scenario; they are needed because no *)
-(*  * inversion tactic is too robust. *)
-(*  *) *)
-(* Ltac inverse_some := *)
-(*   (* Below, using inversion instead of inversion_clear reduces the *)
-(*   danger of destroying information and producing false goals, but *)
-(*   means that repeat inverse_some will loop! *) *)
-(*   match goal with *)
-(*   | H : Some ?x = Some ?y |- _ => inversion_clear H; subst *)
-(*   end. *)
-(* Ltac inverts_some := *)
-(*   match goal with *)
-(*   | H : Some ?x = Some ?y |- _ => inversion H; subst; clear H *)
-(*   end. *)
-(* Ltac inversions_some := *)
-(*   match goal with *)
-(*   | H : Some ?x = Some ?y |- _ => inversion H; subst *)
-(*   end. *)
 
 (* From Chlipala's tactics. *)
 Ltac cinject H := injection H; clear H; intros; subst.
 
-(* More reliable (?) variant of inversions_some; also handle S. *)
-Ltac injections_safe_gen :=
+(* Apply automatically injection on hypotheses of form ?c args1 = ?c args2; if c
+   is a constructor this will produce equalities args1_i = args2_i for all i.
+   Since this tactic uses injection, it is more reliable than attempts based on
+   inversion. *)
+Ltac injectHyp :=
   match goal with
-  | H : ?c ?a1 ?a2 ?a3 ?a4 = ?c ?b1 ?b2 ?b3 ?b4 |- _ => cinject H
-  | H : ?c ?a1 ?a2 ?a3 = ?c ?b1 ?b2 ?b3 |- _ => cinject H
-  | H : ?c ?a1 ?a2 = ?c ?b1 ?b2 |- _ => cinject H
-  | H : ?c ?a1 = ?c ?b1 |- _ => cinject H
+  | H : ?c _ _ _ _ _ _ = ?c _ _ _ _ _ _ |- _ => cinject H
+  | H : ?c _ _ _ _ _ = ?c _ _ _ _ _ |- _ => cinject H
+  | H : ?c _ _ _ _ = ?c _ _ _ _ |- _ => cinject H
+  | H : ?c _ _ _ = ?c _ _ _ |- _ => cinject H
+  | H : ?c _ _ = ?c _ _ |- _ => cinject H
+  | H : ?c _ = ?c _ |- _ => cinject H
   | H : ?c = ?c |- _ => cinject H
   end.
-Ltac injections_some := injections_safe_gen.
+Ltac injectHyps := repeat injectHyp.
 
 Ltac optFuncs_det :=
   match goal with
   | H1 : ?t = Some ?x1, H2 : ?t = Some ?x2 |- _ =>
     let H := fresh "H" in
-    rewrite H1 in H2; repeat injections_safe_gen
+    rewrite H1 in H2; injectHyps
   end.
 
 (* To use with repeat fequalSafe in automation.

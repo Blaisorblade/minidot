@@ -433,7 +433,7 @@ Lemma mem_stp : forall env x L U n v vx,
     vtp (TSel (varF x) U) n vx env.
 Proof.
   (* This needs better_case_match (or discriminate later) *)
-  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; try injections_some; try contradiction; firstorder eauto.
+  intros; vtp_simpl_unfold; repeat better_case_match; ev; intros; injectHyps; try contradiction; firstorder eauto.
 Qed.
 
 Lemma stp_mem : forall env x L U n v vx,
@@ -443,7 +443,7 @@ Lemma stp_mem : forall env x L U n v vx,
     vtp U n vx env.
 Proof.
   (* Either case_match or better_case_match works*)
-  intros; vtp_simpl_unfold; repeat case_match; ev; intros; try injections_some; try contradiction; eauto.
+  intros; vtp_simpl_unfold; repeat case_match; ev; intros; injectHyps; try contradiction; eauto.
 Qed.
 
 (* Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | *)
@@ -471,7 +471,7 @@ Proof.
   intros;
     assert (exists v0, Some v = Some v0 /\ vtp T (k - j) v0 env) by
       (unfold etp, expr_sem in *; iauto);
-  ev; injections_some; eauto.
+  ev; injectHyps; eauto.
 Qed.
 Hint Resolve etp_vtp_j.
 

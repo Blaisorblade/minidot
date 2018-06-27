@@ -48,14 +48,14 @@ Qed.
   (* - inverse H. *)
   (* - simpl in *. *)
 
-  (* (* induction vs; intros * H; inverse H; simpl. repeat case_match; try injections_some; repeat beq_nat; subst. *) *)
+  (* (* induction vs; intros * H; inverse H; simpl. repeat case_match; injectHyps; repeat beq_nat; subst. *) *)
   (* induction vs; intros * H; try solve [inverse H]; *)
-  (* repeat (simpl in *; case_match; simpl in *; try beq_nat; try injections_some); simpl in *; try solve [exfalso; eauto]; trivial. *)
+  (* repeat (simpl in *; case_match; simpl in *; try beq_nat; injectHyps); simpl in *; try solve [exfalso; eauto]; trivial. *)
   (* lets ?: IHvs (S (length vs)) x T ___. subst; eauto. *)
   (* case_match; beq_nat; try solve [exfalso; eauto]. subst. *)
 
   (* + exfalso; eauto. *)
   (*   replace (length vs) by x in S. *)
   (*   exfalso. simpl in *. *)
-  (*   repeat (case_match; try beq_nat; try injections_some). *)
-  (*   repeat case_match; try injections_some; repeat beq_nat; subst. *)
+  (*   repeat (case_match; try beq_nat; injectHyps). *)
+  (*   repeat case_match; injectHyps; repeat beq_nat; subst. *)

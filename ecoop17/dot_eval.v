@@ -166,7 +166,7 @@ Proof.
     intros;
     repeat
       (try better_case_match;
-       try injections_some;
+       injectHyps;
        repeat fequalSafe;
        repeat rewrite IHn in *;
        try (reflexivity || discriminate || omega)).
@@ -246,7 +246,7 @@ Qed.
 (*   end. *)
 
 (* Ltac inv_mbind_some := *)
-(*   repeat inv_mbind; repeat injections_some. *)
+(*   repeat inv_mbind; injectHyps. *)
 
 (* First try *)
 
@@ -286,7 +286,7 @@ Qed.
 
 (*     assert (exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]] by admit. *)
 (*     assert (tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) as -> by (rewrite Hevaln0; auto). *)
-(*     rewrite Hevaln0 in *; injections_some; auto. *)
+(*     rewrite Hevaln0 in *; injectHyps; auto. *)
 (*   - *)
 (*     assert (exists optV1, tevalS e1 n env = Some optV1) as [[optV1 j1] Hevaln1] by admit. *)
 (*     simpl in *. *)
@@ -298,7 +298,7 @@ Qed.
 
 (*     assert (exists optV2, tevalS e2 n (v::env) = Some optV2) as [[optV2 j2] Hevaln2] by admit. *)
 (*     assert (tevalS e2 m' (v::env) = tevalS e2 n (v::env)) as -> by (rewrite Hevaln2; auto). *)
-(*     rewrite Hevaln2 in *; injections_some; auto. *)
+(*     rewrite Hevaln2 in *; injectHyps; auto. *)
 (* Admitted. *)
 
 (* Possible TODO: if such lemmas ever become relevant: prove as exercise that if
