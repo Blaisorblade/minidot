@@ -94,6 +94,9 @@ Admitted.
 
 Require Import dot_monads.
 
+(* XXX Substitution needs to pass down the length of the target environment,
+   appropriately incremented, to use instead of length env. *)
+
 Fixpoint vr_subst_all (env: list vr) (v: vr) { struct v }: option vr :=
   match v with
     | VarF x => ret (VarF x)
