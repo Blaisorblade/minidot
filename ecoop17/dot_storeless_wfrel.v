@@ -178,23 +178,23 @@ Hint Resolve tm_closed_upgrade.
 Opaque max.
 
 Lemma subst_all_nonTot_res_closed_rec2:
-  (forall v, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: vr_closed i (length env) v),
+  (forall v, forall i j env, Forall (vr_closed i j) env -> vr_closed i (length env) v ->
           forall j', j' = max (S (length env)) j ->
           exists v', vr_subst_all env v = Some v' /\
                 vr_closed i j' v') /\
-  (forall T, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: closed i (length env) T),
+  (forall T, forall i j env, Forall (vr_closed i j) env -> closed i (length env) T ->
           forall j', j' = max (S (length env)) j ->
           exists T', subst_all env T = Some T' /\
                 closed i j' T') /\
-  (forall t, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: tm_closed i (length env) t),
+  (forall t, forall i j env, Forall (vr_closed i j) env -> tm_closed i (length env) t ->
           forall j', j' = max (S (length env)) j ->
           exists t', tm_subst_all env t = Some t' /\
                 tm_closed i j' t') /\
-  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dm_closed i (length env) d),
+  (forall d, forall i j env, Forall (vr_closed i j) env -> dm_closed i (length env) d ->
           forall j', j' = max (S (length env)) j ->
           exists d', dm_subst_all env d = Some d' /\
                 dm_closed i j' d') /\
-  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dms_closed i (length env) d),
+  (forall d, forall i j env, Forall (vr_closed i j) env -> dms_closed i (length env) d ->
           forall j', j' = max (S (length env)) j ->
           exists d', dms_subst_all env d = Some d' /\
                 dms_closed i j' d').
@@ -321,19 +321,19 @@ with dms_subst_all_k k (env: list vr) (ds: dms) { struct ds }: option dms :=
    end.
 
 Lemma subst_all_nonTot_res_closed_rec3:
-  (forall v, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: vr_closed i (length env) v),
+  (forall v, forall i k env, Forall (vr_closed i k) env -> vr_closed i (length env) v ->
           exists v', vr_subst_all_k k env v = Some v' /\
                 vr_closed i k v') /\
-  (forall T, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: closed i (length env) T),
+  (forall T, forall i k env, Forall (vr_closed i k) env -> closed i (length env) T ->
           exists T', subst_all_k k env T = Some T' /\
                 closed i k T') /\
-  (forall t, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: tm_closed i (length env) t),
+  (forall t, forall i k env, Forall (vr_closed i k) env -> tm_closed i (length env) t ->
           exists t', tm_subst_all_k k env t = Some t' /\
                 tm_closed i k t') /\
-  (forall d, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dm_closed i (length env) d),
+  (forall d, forall i k env, Forall (vr_closed i k) env -> dm_closed i (length env) d ->
           exists d', dm_subst_all_k k env d = Some d' /\
                 dm_closed i k d') /\
-  (forall d, forall i k env, Forall (vr_closed i k) env -> forall (Hcl: dms_closed i (length env) d),
+  (forall d, forall i k env, Forall (vr_closed i k) env -> dms_closed i (length env) d ->
           exists d', dms_subst_all_k k env d = Some d' /\
                 dms_closed i k d').
 Proof.
@@ -347,15 +347,15 @@ Proof.
 Qed.
 
 Lemma subst_closed_id_rec3:
-  (forall v i env, vr_env_id env -> forall (Hcl: vr_closed i (length env) v),
+  (forall v i env, vr_env_id env -> vr_closed i (length env) v ->
           vr_subst_all_k (length env) env v = Some v) /\
-  (forall T i env, vr_env_id env -> forall (Hcl: closed i (length env) T),
+  (forall T i env, vr_env_id env -> closed i (length env) T ->
           subst_all_k (length env) env T = Some T) /\
-  (forall t i env, vr_env_id env -> forall (Hcl: tm_closed i (length env) t),
+  (forall t i env, vr_env_id env -> tm_closed i (length env) t ->
           tm_subst_all_k (length env) env t = Some t) /\
-  (forall d i env, vr_env_id env -> forall (Hcl: dm_closed i (length env) d),
+  (forall d i env, vr_env_id env -> dm_closed i (length env) d ->
           dm_subst_all_k (length env) env d = Some d) /\
-  (forall d i env, vr_env_id env -> forall (Hcl: dms_closed i (length env) d),
+  (forall d i env, vr_env_id env -> dms_closed i (length env) d ->
           dms_subst_all_k (length env) env d = Some d).
 Proof.
   apply syntax_mutind; simpl; intros; inverts_closed;
