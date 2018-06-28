@@ -94,215 +94,68 @@ Admitted.
 
 Require Import dot_monads.
 
-(* XXX Substitution needs to pass down the length of the target environment,
-   appropriately incremented, to use instead of length env. *)
-
-Fixpoint vr_subst_all (env: list vr) (v: vr) { struct v }: option vr :=
+Fixpoint vr_subst_all_k k (env: list vr) (v: vr) { struct v }: option vr :=
   match v with
     | VarF x => ret (VarF x)
     | VarB x => index x env
     | VObj dms =>
-      dms' <- dms_subst_all (VarB (length env) :: env) dms;
+      dms' <- dms_subst_all_k (S k) (VarB k :: env) dms;
       ret (VObj dms')
   end
-with subst_all (env: list vr) (T: ty) { struct T }: option ty :=
+with subst_all_k k (env: list vr) (T: ty) { struct T }: option ty :=
   match T with
     | TTop        => ret TTop
     | TBot        => ret TBot
     | TSel v1 l     =>
-      v1' <- vr_subst_all env v1;
+      v1' <- vr_subst_all_k k env v1;
       ret (TSel v1' l)
     | TFun l T1 T2  =>
-      T1' <- subst_all env T1;
-      T2' <- subst_all (VarB (length env) :: env) T2;
+      T1' <- subst_all_k k env T1;
+      T2' <- subst_all_k (S k) (VarB k :: env) T2;
       ret (TFun l T1' T2')
     | TMem l T1 T2  =>
-      T1' <- subst_all env T1;
-      T2' <- subst_all env T2;
+      T1' <- subst_all_k k env T1;
+      T2' <- subst_all_k k env T2;
       ret (TMem l T1' T2')
     | TBind T1    =>
-      T1' <- subst_all (VarB (length env) :: env) T1;
+      T1' <- subst_all_k (S k) (VarB k :: env) T1;
       ret (TBind T1')
     | TAnd T1 T2  =>
-      T1' <- subst_all env T1;
-      T2' <- subst_all env T2;
+      T1' <- subst_all_k k env T1;
+      T2' <- subst_all_k k env T2;
       ret (TAnd T1' T2')
     | TOr T1 T2   =>
-      T1' <- subst_all env T1;
-      T2' <- subst_all env T2;
+      T1' <- subst_all_k k env T1;
+      T2' <- subst_all_k k env T2;
       ret (TOr T1' T2')
   end
-with tm_subst_all (env: list vr) (t: tm) { struct t }: option tm :=
+with tm_subst_all_k k (env: list vr) (t: tm) { struct t }: option tm :=
    match t with
-     | tvar v => v' <- vr_subst_all env v; ret (tvar v')
+     | tvar v => v' <- vr_subst_all_k k env v; ret (tvar v')
      | tapp t1 l t2 =>
-       t1' <- tm_subst_all env t1;
-       t2' <- tm_subst_all env t2;
+       t1' <- tm_subst_all_k k env t1;
+       t2' <- tm_subst_all_k k env t2;
        ret (tapp t1' l t2')
    end
-with dm_subst_all (env: list vr) (d: dm) { struct d }: option dm :=
+with dm_subst_all_k k (env: list vr) (d: dm) { struct d }: option dm :=
    match d with
      | dfun T1 T2 t2 =>
-       T1' <- subst_all env T1;
-       T2' <- subst_all (VarB (length env) :: env) T2;
-       t2' <- tm_subst_all (VarB (length env) :: env) t2;
+       T1' <- subst_all_k k env T1;
+       T2' <- subst_all_k (S k) (VarB k :: env) T2;
+       t2' <- tm_subst_all_k (S k) (VarB k :: env) t2;
        ret (dfun T1' T2' t2')
      | dty T1 =>
-       T1' <- subst_all env T1;
+       T1' <- subst_all_k k env T1;
        ret (dty T1')
    end
-with dms_subst_all (env: list vr) (ds: dms) { struct ds }: option dms :=
+with dms_subst_all_k k (env: list vr) (ds: dms) { struct ds }: option dms :=
    match ds with
      | dnil => ret dnil
      | dcons d ds =>
-       d'  <- dm_subst_all env d;
-       ds' <- dms_subst_all env ds;
+       d'  <- dm_subst_all_k k env d;
+       ds' <- dms_subst_all_k k env ds;
        ret (dcons d' ds')
    end.
-
-Lemma subst_all_success_rec:
-  (forall v, forall i env, forall j, vr_closed i j v -> length env = j -> exists v', vr_subst_all env v = Some v') /\
-  (forall T, forall i env, forall j, closed i j T -> length env = j -> exists T', subst_all env T = Some T') /\
-  (forall t, forall i env, forall j, tm_closed i j t -> length env = j -> exists t', tm_subst_all env t = Some t') /\
-  (forall dm, forall i env, forall j, dm_closed i j dm -> length env = j -> exists dm', dm_subst_all env dm = Some dm') /\
-  (forall T, forall i env, forall j, dms_closed i j T -> length env = j -> exists dms', dms_subst_all env T = Some dms').
-Proof.
-  apply syntax_mutind.
-  (* all: try solve [intros * Hcl * Hlen; simpl in *; inverse Hcl; simpl in *; subst; intuition eauto using index_Forall]. *)
-  all: try solve [intros; simpl in *; inverts_closed; simpl in *; subst; intuition eauto using index_Forall, index_exists].
-  (* all: try solve [intros; simpl in *; inverts_closed; simpl in *; subst; firstorder (ev; simpl; autorewrite with core; eauto 20 using index_Forall, index_exists)]. *)
-    Ltac indNow' Hind env i j :=
-      lets (? & ->): Hind i env j ___; simpl; eauto.
-    Ltac indLater' Hind env i j :=
-      lets (? & ->): Hind i (VarB (length env) :: env) (S j) ___; simpl; eauto.
-  - intros * Hindt; intros; simpl in *; inverts_closed.
-    indLater' Hindt env i j.
-  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
-    (* Ltac guess H := *)
-    (*   repeat match type of H with *)
-    (*          | forall x : ?T, _ => *)
-    (*            let x := fresh "x" in *)
-    (*            evar (x: T); *)
-    (*            let x' := eval unfold x in x *)
-    (*              in specialize (H x') *)
-    (*          end. *)
-
-    (* Ltac firstorder_case_match T := *)
-    (*   match goal with *)
-    (*   | |- context [ match ?x with _ => _ end ] => *)
-    (*     assert (exists y, x = Some y) as (? & ->); T *)
-    (*   end. *)
-    (* firstorder_case_match ltac:(firstorder eauto). *)
-    (* firstorder_case_match idtac. *)
-    (* (* ltac:(guess Hindt1; eauto). *) *)
-    (* guess Hindt1. *)
-    (* eauto. *)
-    (* eauto. *)
-    (* Unshelve. shelve. shelve. all: eauto.  *)
-
-    (* eapply Hindt1; simpl; eauto. *)
-    (* simpl in *. *)
-
-    indNow' Hindt env i j.
-    indLater' Hindt1 env i j.
-  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-    indNow' Hindt1 env i j.
-  - intros * Hindt; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-  - intros * Hindt; intros; simpl in *; inverts_closed.
-    indLater' Hindt env i j.
-  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-    indNow' Hindt1 env i j.
-  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-    indNow' Hindt1 env i j.
-  - intros * Hindt; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-    indNow' Hindt1 env i j.
-  - intros * Hindt * Hindt1 * Hindt2; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-    indLater' Hindt1 env i j.
-    indLater' Hindt2 env i j.
-  - intros * Hindt; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-  - intros * Hindt * Hindt1; intros; simpl in *; inverts_closed.
-    indNow' Hindt env i j.
-    indNow' Hindt1 env i j.
-Qed.
-(* (*   (*   assert (exists T', dms_subst_all env d. *) *) *)
-(* (*   (*   lets ?: Hind ___; eauto. *) *) *)
-(* (*   (*   rewrite Hind. *) *) *)
-(* (*   (*   case_match. *) *) *)
-(* (*   (* inverse HenvCl; intuition eauto using index_Forall)]. *) *) *)
-
-(* Lemma subst_all_success: *)
-(*   forall T, forall i env, forall j, closed i j T -> length env = j -> exists T', subst_all env T = Some T'. *)
-(* Proof. *)
-(*   apply subst_all_success_rec. *)
-(* Qed. *)
-
-(*   (* induction env. *) *)
-(*   (* - admit. *) *)
-(*   (* - intros * HenvCl * Hcl Hlen; *) *)
-(*   (*   simpl in *; subst. *) *)
-(*   (*   inverse HenvCl. *) *)
-
-(*   (* intros HenvCL. *) *)
-(*   (* intros * Hcl Hlen HenvCl. gen i j. *) *)
-(*   (* induction env. admit. *) *)
-(*   (* simpl in *; subst. *) *)
-(*   (* intros * Hcl Hlen HenvCl. *) *)
-(*   (* inverse HenvCl. *) *)
-(*   (* induction v; *) *)
-(*   (* simpl in *; subst; *) *)
-(*   (*   inversion Hcl; subst; *) *)
-(*   (*   eexists; split_conj; simpl; eauto; try omega. *) *)
-(*   (* case_match. *) *)
-(*   (* admit. *) *)
-
-(* Lemma subst_all_closed_upgrade_rec: *)
-(*   (forall l j v, vr_closed l j v -> forall vx, v = vr_open j vx v) /\ *)
-(*   (forall l j T, closed l j T -> forall vx, T = open j vx T) /\ *)
-(*   (forall l j t, tm_closed l j t -> forall vx, t = tm_open j vx t) /\ *)
-(*   (forall l j d, dm_closed l j d -> forall vx, d = dm_open j vx d) /\ *)
-(*   (forall l j ds, dms_closed l j ds -> forall vx, ds = dms_open j vx ds). *)
-(* Proof. *)
-
-(* The lemma that would be needed here is a different one. *)
-(* Lemma etp_closed: forall T k v env, *)
-(*     Forall (dms_closed 0 0) env -> *)
-(*     etp T k v env -> wf env T. *)
-(* Proof. *)
-(*   unfold etp, wf, closed_ty. *)
-(*   intros * Hcl H. *)
-(*   destruct H as (T'' & e'' & Hty & Htm & Hclosed & Hexp). *)
-(*   lets (_ & HclTh & _) : subst_all_closed_upgrade_rec. *)
-(*   lets ? : HclTh T 0 0 env. *)
-(*   (* lets (? & ? & ?) : (proj1 (proj2 subst_all_closed_upgrade_rec)) ___. *) *)
-(*   simp expr_sem in *. ev. *)
-(*   tauto. *)
-(* Qed. *)
-(* Hint Resolve etp_closed. *)
-
-
-(* Fixpoint subst_all_ty (env : venv) (T: ty) := *)
-(*   match env with *)
-(*   | [] => T *)
-(*   | v :: vs => *)
-(*     subst_all_ty vs (open (length vs) (VObj v) T) *)
-(*   end. *)
-
-(* Goal forall l dms, subst_all_ty [dms] (TSel (VarB 0) l) = TSel (VObj dms) l. *)
-(*   easy. *)
-(* Qed. *)
-(* Goal forall l dms0 dms1, subst_all_ty [dms1, dms0] (TSel (VarB 1) l) = TSel (VObj dms1) l. *)
-(*   simpl. *)
-(*   easy. *)
-(* Qed. *)
 
 Lemma steps_closed: forall e v n i k, steps e v n -> tm_closed i k e -> tm_closed i k v.
 Proof. intros * Hst; induction Hst; eauto using step_closed. Qed.
@@ -326,56 +179,55 @@ Proof. unmut_lemma closed_upgrade_rec. Qed.
 Hint Resolve dms_closed_upgrade.
 
 Lemma subst_all_nonTot_res_closed_rec:
-  (forall v i env, Forall (vr_closed i (length env)) env -> forall (Hcl: vr_closed i (length env) v),
-          exists v', vr_subst_all env v = Some v' /\
-                vr_closed i (length env) v') /\
-  (forall T i env, Forall (vr_closed i (length env)) env -> forall (Hcl: closed i (length env) T),
-          exists T', subst_all env T = Some T' /\
-                closed i (length env) T') /\
-  (forall t i env, Forall (vr_closed i (length env)) env -> forall (Hcl: tm_closed i (length env) t),
-          exists t', tm_subst_all env t = Some t' /\
-                tm_closed i (length env) t') /\
-  (forall d i env, Forall (vr_closed i (length env)) env -> forall (Hcl: dm_closed i (length env) d),
-          exists d', dm_subst_all env d = Some d' /\
-                dm_closed i (length env) d') /\
-  (forall d i env, Forall (vr_closed i (length env)) env -> forall (Hcl: dms_closed i (length env) d),
-          exists d', dms_subst_all env d = Some d' /\
-                dms_closed i (length env) d').
+  (forall v, forall i k env, Forall (vr_closed i k) env -> vr_closed i (length env) v ->
+          exists v', vr_subst_all_k k env v = Some v' /\
+                vr_closed i k v') /\
+  (forall T, forall i k env, Forall (vr_closed i k) env -> closed i (length env) T ->
+          exists T', subst_all_k k env T = Some T' /\
+                closed i k T') /\
+  (forall t, forall i k env, Forall (vr_closed i k) env -> tm_closed i (length env) t ->
+          exists t', tm_subst_all_k k env t = Some t' /\
+                tm_closed i k t') /\
+  (forall d, forall i k env, Forall (vr_closed i k) env -> dm_closed i (length env) d ->
+          exists d', dm_subst_all_k k env d = Some d' /\
+                dm_closed i k d') /\
+  (forall d, forall i k env, Forall (vr_closed i k) env -> dms_closed i (length env) d ->
+          exists d', dms_subst_all_k k env d = Some d' /\
+                dms_closed i k d').
 Proof.
-    Ltac smartInd :=
+  apply syntax_mutind; simpl; intros; inverts_closed;
+    repeat
       match goal with
-      | Hind : context [ ?f _ ?s ] |- context [ match ?f ?env ?s with _ => _ end ] =>
-        lets (? & -> & ?): Hind env ___; simpl; eauto
-      end.
-  apply syntax_mutind; simpl; intros;
-      inverts_closed; subst;
-      intuition eauto using index_Forall; repeat smartInd; eauto.
+      | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] =>
+        lets (? & -> & ?): Hind i k env ___
+      end;
+    eauto using index_Forall.
 Qed.
 
 Lemma vr_subst_all_nonTot_res_closed:
-  (forall v i env, Forall (vr_closed i (length env)) env -> forall (Hcl: vr_closed i (length env) v),
-          exists v', vr_subst_all env v = Some v' /\
-                vr_closed i (length env) v').
+  (forall v i k env, Forall (vr_closed i k) env -> forall (Hcl: vr_closed i (length env) v),
+          exists v', vr_subst_all_k k env v = Some v' /\
+                vr_closed i k v').
 Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma subst_all_nonTot_res_closed:
-  (forall T i env, Forall (vr_closed i (length env)) env -> forall (Hcl: closed i (length env) T),
-          exists T', subst_all env T = Some T' /\
-                closed i (length env) T').
+  (forall T i k env, Forall (vr_closed i k) env -> forall (Hcl: closed i (length env) T),
+          exists T', subst_all_k k env T = Some T' /\
+                closed i k T').
 Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma tm_subst_all_nonTot_res_closed:
-  (forall t i env, Forall (vr_closed i (length env)) env -> forall (Hcl: tm_closed i (length env) t),
-          exists t', tm_subst_all env t = Some t' /\
-                tm_closed i (length env) t').
+  (forall t i k env, Forall (vr_closed i k) env -> forall (Hcl: tm_closed i (length env) t),
+          exists t', tm_subst_all_k k env t = Some t' /\
+                tm_closed i k t').
 Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma dm_subst_all_nonTot_res_closed:
-  (forall d i env, Forall (vr_closed i (length env)) env -> forall (Hcl: dm_closed i (length env) d),
-          exists d', dm_subst_all env d = Some d' /\
-                dm_closed i (length env) d').
+  (forall d i k env, Forall (vr_closed i k) env -> forall (Hcl: dm_closed i (length env) d),
+          exists d', dm_subst_all_k k env d = Some d' /\
+                dm_closed i k d').
 Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Lemma dms_subst_all_nonTot_res_closed:
-  (forall d i env, Forall (vr_closed i (length env)) env -> forall (Hcl: dms_closed i (length env) d),
-          exists d', dms_subst_all env d = Some d' /\
-                dms_closed i (length env) d').
+  (forall d i k env, Forall (vr_closed i k) env -> forall (Hcl: dms_closed i (length env) d),
+          exists d', dms_subst_all_k k env d = Some d' /\
+                dms_closed i k d').
 Proof. unmut_lemma subst_all_nonTot_res_closed_rec. Qed.
 Hint Resolve
      vr_subst_all_nonTot_res_closed
@@ -384,21 +236,20 @@ Hint Resolve
      dm_subst_all_nonTot_res_closed
      dms_subst_all_nonTot_res_closed.
 
-Definition evalToSome env e v k j :=
-  (exists t', tm_subst_all (map VObj env) e = Some t' /\ steps t' v j) /\ irred v /\ j <= k.
+Definition evalToSome env e v l k j :=
+  (exists t', tm_subst_all_k l (map VObj env) e = Some t' /\ steps t' v j) /\ irred v /\ j <= k.
 
-Lemma evalToSomeRes_closed: forall env e v n j l,
-    evalToSome env e v n j ->
+Lemma evalToSomeRes_closed: forall env e v n k j l,
+    evalToSome env e v k n j ->
     tm_closed 0 l e ->
     length env = l ->
-    Forall (dms_closed 0 (S l)) env ->
-    tm_closed 0 l v.
+    Forall (dms_closed 0 (S k)) env ->
+    tm_closed 0 k v.
 Proof.
   unfold evalToSome; intros; subst;
-    assert (exists t', tm_subst_all (map VObj env) e = Some t' /\ tm_closed 0 (length (map VObj env)) t')
+    assert (exists t', tm_subst_all_k k (map VObj env) e = Some t' /\ tm_closed 0 k t')
     by (eapply tm_subst_all_nonTot_res_closed; try rewrite map_length; eauto); ev;
       optFuncs_det;
-      rewrite map_length in *;
       eauto using steps_closed.
 Qed.
 Hint Resolve evalToSomeRes_closed.
@@ -423,34 +274,39 @@ Hint Resolve nil_vr_env_id cons_vr_env_id.
 (* Prove that an identity substitution is also an identity when lifted to our
    language syntax. *)
 Lemma subst_closed_id_rec:
-  (forall v i env, vr_env_id env -> forall (Hcl: vr_closed i (length env) v),
-          vr_subst_all env v = Some v) /\
-  (forall T i env, vr_env_id env -> forall (Hcl: closed i (length env) T),
-          subst_all env T = Some T) /\
-  (forall t i env, vr_env_id env -> forall (Hcl: tm_closed i (length env) t),
-          tm_subst_all env t = Some t) /\
-  (forall d i env, vr_env_id env -> forall (Hcl: dm_closed i (length env) d),
-          dm_subst_all env d = Some d) /\
-  (forall d i env, vr_env_id env -> forall (Hcl: dms_closed i (length env) d),
-          dms_subst_all env d = Some d).
+  (forall v i env, vr_env_id env -> vr_closed i (length env) v ->
+          vr_subst_all_k (length env) env v = Some v) /\
+  (forall T i env, vr_env_id env -> closed i (length env) T ->
+          subst_all_k (length env) env T = Some T) /\
+  (forall t i env, vr_env_id env -> tm_closed i (length env) t ->
+          tm_subst_all_k (length env) env t = Some t) /\
+  (forall d i env, vr_env_id env -> dm_closed i (length env) d ->
+          dm_subst_all_k (length env) env d = Some d) /\
+  (forall d i env, vr_env_id env -> dms_closed i (length env) d ->
+          dms_subst_all_k (length env) env d = Some d).
 Proof.
-  apply syntax_mutind; intros; simpl; trivial;
-    inverts_closed; subst; eauto;
-      repeat
-        match goal with
-        | Hind : context [ ?f _ ?s ] |- context [ match ?f ?env ?s with _ => _ end ] =>
-          lets ->: Hind env ___; eauto
-        end.
+  apply syntax_mutind; simpl; intros; inverts_closed;
+    repeat
+      match goal with
+      | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] =>
+        lets ->: Hind i env ___
+      end;
+    eauto.
 Qed.
 
-Lemma tm_subst_closed_id: forall t i env, tm_closed i (length env) t -> vr_env_id env -> tm_subst_all env t = Some t.
+Lemma tm_subst_closed_id: forall t i env, tm_closed i (length env) t -> vr_env_id env -> tm_subst_all_k (length env) env t = Some t.
 Proof. unmut_lemma subst_closed_id_rec. Qed.
 
-Lemma tm_subst_closed_id_nil: forall t i, tm_closed i 0 t -> tm_subst_all [] t = Some t.
-Proof. eauto using tm_subst_closed_id. Qed.
+Lemma tm_subst_closed_id': forall t i l env,
+    l = length env ->
+    tm_closed i l t -> vr_env_id env -> tm_subst_all_k l env t = Some t.
+Proof. intros; subst; eauto using tm_subst_closed_id. Qed.
+
+Lemma tm_subst_closed_id_nil: forall t i, tm_closed i 0 t -> tm_subst_all_k 0 [] t = Some t.
+Proof. eauto using tm_subst_closed_id'. Qed.
 Hint Resolve tm_subst_closed_id_nil.
 
 Hint Constructors steps.
 
-Lemma vl_evalToSome_self: forall v n i, irred v -> tm_closed i 0 v -> evalToSome [] v v n 0.
+Lemma vl_evalToSome_self: forall v n i, irred v -> tm_closed i 0 v -> evalToSome [] v v 0 n 0.
 Proof. unfold evalToSome; intuition eauto. Qed.

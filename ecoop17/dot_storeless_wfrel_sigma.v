@@ -295,7 +295,7 @@ Proof.
   repeat (match goal with
          | H : context [ tm_subst_all_tot _ _ _ ?P ] |- _ => aux_rem_irr_proof H P; unfold wf in *
          end).
-  eauto using steps_closed, dms_to_env_closed.
+  eauto using steps_closed, dms_to_env_closed, Forall_impl, dms_closed_upgrade.
 Qed.
 Hint Resolve evalToRes_closed.
 
@@ -311,7 +311,13 @@ Proof.
   intros * HeVtpT1; unfold etpEnvCore in *.
   ev; split_conj; intros.
 
-  assert (Forall (dms_closed 0 (S (length env))) env) by eauto using env_dms_closed.
+  assert (Forall (dms_closed 0 (S (length env))) env). {
+    eapply Forall_impl.
+    shelve.
+    eauto.
+    Unshelve.
+    eauto using dms_closed_upgrade.
+  }
   assert (HwfV: tm_closed 0 (length env) v) by eauto.
   assert (HwfV2: tm_closed 0 (length G) v) by (erewrite <- wf_length; eauto).
   assert (Henvkj: R_env (k - j) env G) by eauto.
