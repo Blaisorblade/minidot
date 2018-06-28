@@ -337,15 +337,13 @@ Lemma subst_all_nonTot_res_closed_rec3:
           exists d', dms_subst_all_k k env d = Some d' /\
                 dms_closed i k d').
 Proof.
-  Ltac smartInd3 i :=
-    match goal with
-    | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] =>
-      lets (? & -> & ?): Hind i k env ___; simpl; eauto
-    end.
-  apply syntax_mutind; simpl; intros;
-      inverts_closed;
-      subst;
-      repeat smartInd3 i; eauto using index_Forall.
+  apply syntax_mutind; simpl; intros; inverts_closed;
+    repeat
+      match goal with
+      | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] =>
+        lets (? & -> & ?): Hind i k env ___
+      end;
+    eauto using index_Forall.
 Qed.
 
 Lemma subst_closed_id_rec3:
@@ -360,11 +358,11 @@ Lemma subst_closed_id_rec3:
   (forall d i env, vr_env_id env -> forall (Hcl: dms_closed i (length env) d),
           dms_subst_all_k (length env) env d = Some d).
 Proof.
-  apply syntax_mutind; intros; simpl; trivial;
-    inverts_closed; subst; eauto;
-      repeat
-        match goal with
-        | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] =>
-          lets ->: Hind i env ___; eauto
-        end.
+  apply syntax_mutind; simpl; intros; inverts_closed;
+    repeat
+      match goal with
+      | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] =>
+        lets ->: Hind i env ___
+      end;
+    eauto.
 Qed.
