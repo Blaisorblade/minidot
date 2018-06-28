@@ -154,3 +154,149 @@ Proof. to_vl_stp and_stp2. Qed.
 
 Lemma sem_and_stp2 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype_some G (TAnd T1 T2) T2.
 Proof. eauto using vl_subtype_some_to_subtype_some, sem_vl_and_stp2. Qed.
+
+Hint Resolve Nat.le_max_l Nat.le_max_r.
+Lemma some_max_lemma: forall j k,
+  max (S (S k)) (max (S k) j) <=
+  S (max (S k) j).
+Proof.
+  intros;
+  rewrite Nat.succ_max_distr;
+  eapply Nat.max_lub_iff;
+  split_conj; eauto using Nat.max_lub_iff.
+  (* , Nat.le_max_r, Nat.le_max_l. *)
+Qed.
+Hint Resolve some_max_lemma.
+
+Hint Resolve closed_upgrade.
+
+Lemma tm_closed_upgrade: forall i k k1 v,
+  tm_closed i k v -> k <= k1 -> tm_closed i k1 v.
+Proof. unmut_lemma closed_upgrade_rec. Qed.
+Hint Resolve tm_closed_upgrade.
+
+Opaque max.
+
+Lemma subst_all_nonTot_res_closed_rec2:
+  (forall v, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: vr_closed i (length env) v),
+          forall j', j' = max (S (length env)) j ->
+          exists v', vr_subst_all env v = Some v' /\
+                vr_closed i j' v') /\
+  (forall T, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: closed i (length env) T),
+          forall j', j' = max (S (length env)) j ->
+          exists T', subst_all env T = Some T' /\
+                closed i j' T') /\
+  (forall t, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: tm_closed i (length env) t),
+          forall j', j' = max (S (length env)) j ->
+          exists t', tm_subst_all env t = Some t' /\
+                tm_closed i j' t') /\
+  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dm_closed i (length env) d),
+          forall j', j' = max (S (length env)) j ->
+          exists d', dm_subst_all env d = Some d' /\
+                dm_closed i j' d') /\
+  (forall d, forall i j env, Forall (vr_closed i j) env -> forall (Hcl: dms_closed i (length env) d),
+          forall j', j' = max (S (length env)) j ->
+          exists d', dms_subst_all env d = Some d' /\
+                dms_closed i j' d').
+Proof.
+  Ltac smartInd :=
+    match goal with
+    | Hind : context [ ?f _ ?s ] |- context [ match ?f ?env ?s with _ => _ end ] =>
+      lets (? & -> & ?): Hind env ___; simpl; eauto
+    end.
+  apply syntax_mutind; simpl; intros;
+      inverts_closed;
+      assert (S (length env) <= j') by (subst; eauto);
+      (* assert (j <= j') by (subst; eauto); *)
+      subst;
+      repeat smartInd; info_eauto 8 using index_Forall, some_max_lemma.
+      (* (* eauto using index_Forall; *) *)
+      (* all: eauto using index_Forall. *)
+      (* (* assert (S (length env) <= j') by (subst; eauto); *) *)
+      (* (* assert (j <= j') by (subst; eauto); *) *)
+      (* subst; eauto using index_Forall. *)
+      (* (* assert (Forall (vr_closed i j') env) by eauto. *) *)
+      (* (* assert (Forall (vr_closed i j') (VarB (length env) :: env)) by eauto; *) *)
+      (* subst; *)
+      (* (* match goal with *) *)
+      (* (* | H : Forall (vr_closed i j) env |- _ => clear H *) *)
+      (* (* end. *) *)
+      (* all: repeat smartInd; eauto 20 using some_max_lemma. *)
+Qed.
+
+(*   eapply closed_upgrade; eauto. *)
+(*   eapply closed_upgrade; eauto. *)
+(*   eapply closed_upgrade; eauto. *)
+(*   eapply tm_closed_upgrade; eauto. *)
+(*       (* eauto. *) *)
+(*       (* subst. *) *)
+(*       (* eexists;  *) *)
+
+(*       (* rewrite Nat.succ_max_distr. *) *)
+(*       (* eauto using max_r, max_l. *) *)
+(*       (* Transparent max. *) *)
+(*       (* simpl. *) *)
+(*       (* - repeat case_match; injectHyps; eauto. *) *)
+(*       (*   + rewrite H1. *) *)
+(*       (*     replace (max (S n0) n0) with (S n0). omega. *) *)
+(*       (*     symmetry. *) *)
+(*       (*     eauto using max_r, max_l. *) *)
+(*       (*   + *) *)
+(*       (*     SearchAbout max. *) *)
+(*       (*     rewrite Nat.succ_max_distr. *) *)
+(*       (*     rewrite <- H1. eauto. *) *)
+(*       (*   +  *) *)
+(*       (* constructor. *) *)
+(*       (* intuition eauto. *) *)
+(*       (* lets ? : H H1 ___. *) *)
+(*       all: intuition eauto using index_Forall; repeat smartInd; eauto. *)
+(*     (* Ltac indLater' Hind env i j := *) *)
+(*     (*   lets (? & -> & ?): Hind i (S j) (VarB 0 :: env) ___; simpl; eauto. *) *)
+(*     (* Ltac indNow' Hind env i j := *) *)
+(*     (*   lets (? & -> & ?): Hind i j env ___; simpl; eauto. *) *)
+(* Qed. *)
+
+
+Lemma etp_vtp_j: forall e v k j T env,
+    evalToSome env e v k j -> etpEnvSome T k e env -> j <= k -> vtpEnvSome T (k - j) v env.
+Proof.
+  intros.
+  assert (exists v0, Some v = Some v0 /\ vtpEnvSome T (k - j) v0 env). {
+    
+    unfold etpEnvSome, etpEnvSomeCore, vtpEnvSome, vtpEnvSomeCore in *.
+    exists v. intuition eauto.
+Abort.
+(*     eapply tm_subst_all_nonTot_res_closed. *)
+(*     eapply evalToSomeRes_closed. eauto. *)
+(*     unfold evalToSome in *. *)
+(*     ev. *)
+(*     eapply steps_closed. eauto. *)
+(*     eapply tm_subst_all_nonTot_res_closed. *)
+(*     eauto using steps_closed. *)
+(*   } *)
+(*   ev; injectHyps; eauto. *)
+(* Qed. *)
+(* Hint Resolve etp_vtp_j. *)
+
+(* Lemma subtype_to_vl_subtype : forall G T1 T2, *)
+(*     sem_subtype_some G T1 T2 -> sem_vl_subtype_some G T1 T2. *)
+(* Proof. *)
+(*   (* unfold sem_subtype, sem_vl_subtype; intros; intuition eauto; *) *)
+(*   (*   destruct (vl_to_tm v) as [e Heval]; firstorder eauto. *) *)
+(*   unfold sem_subtype_some, sem_vl_subtype_some; intros * (? & ? & Hsub). *)
+(*     split_conj; eauto; *)
+(*       intros * Hcl * Henv * HvT1. *)
+(*     unfold etpEnvSomeCore in *. *)
+(*       firstorder eauto. *)
+(*   (* specialize (Hsub k env Henv e); *) *)
+(*   (*   specialize (Heval env). *) *)
+(*   (*   (* assert (wf G T1) by eauto. *) *) *)
+(*   (* assert (etp T2 k e env) as [? HeT2]. { *) *)
+(*   (*   unfold etp, expr_sem in *; apply Hsub; intuition eauto. *) *)
+(*   (*   exists v; unfold tevalSnOpt in *; ev; eval_det; eauto. *) *)
+(*   (* } *) *)
+(*   (* (* eauto. *) *) *)
+(*   (* (* (* unfold etp, expr_sem, tevalSnOpt, tevalSnOpt, tevalSnmOpt in HeT2. *) *) *) *)
+(*   (* (* (* eauto. *) *) *) *)
+(*   (* (* (* destruct (HeT2 (Some v) 0) as (? & ? & ?); replace (k - 0) with k in * by omega; simpl. eauto. *) *) *) *)
+(* Qed. *)
