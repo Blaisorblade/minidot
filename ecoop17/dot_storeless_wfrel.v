@@ -183,14 +183,38 @@ Proof.
 Qed.
 Hint Resolve etp_vtp_j.
 
+Lemma step_det: forall t u1 u2, step t u1 -> step t u2 -> u1 = u2.
+Proof.
+  intros * H1; gen u2; induction H1;
+    intros * H2; inverse H2; try optFuncs_det; eauto;
+    try match goal with
+        | H : step (tvar (VObj _)) _ |- _ => inversion H
+        end;
+    fequal; eauto.
+Qed.
+Hint Resolve step_det.
+
 Lemma steps_irred_det: forall t v1 v2 j1 j2, steps t v1 j1 -> steps t v2 j2 -> irred v1 -> irred v2 -> v1 = v2 /\ j1 = j2.
-  unfold irred in *.
-Admitted.
+Proof.
+  unfold irred; intros * Hs1 Hs2 Hv1 Hv2; gen j2; induction Hs1; intros; inverse Hs2;
+    try solve [exfalso; eauto | eauto];
+    (* Why do I need parens for `by`'s argument? *)
+    enough (t2 = v2 /\ i = i0) by (intuition eauto);
+    match goal with
+    | H1 : step ?a ?b, H2 : step ?a ?c |- _ =>
+      assert (b = c) as -> by eauto using step_det
+    end; eauto.
+Qed.
+Hint Resolve steps_irred_det.
+
 Lemma subst_env: forall v v' env, tm_subst_all_k 0 [] v = Some v' ->
                              tm_closed 0 0 v ->
                              tm_subst_all_k 0 env v = Some v'.
 Admitted.
 
+(* XXX in this ugly proof script, we're establishing determinacy of evalToSome and using that to
+   show that evalToSome on a value gives the same value.
+   TODO turn those into lemmas. *)
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype_some G T1 T2 -> sem_vl_subtype_some G T1 T2.
 Proof.
