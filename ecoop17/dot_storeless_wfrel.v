@@ -207,14 +207,23 @@ Proof.
 Qed.
 Hint Resolve steps_irred_det.
 
+Lemma evalToSome_det: forall env e l k j1 j2 {v1} {v2},
+    evalToSome env e v1 l k j1 ->
+    evalToSome env e v2 l k j2 ->
+    v1 = v2 /\ j1 = j2.
+Proof. unfold evalToSome; intros; ev; optFuncs_det; eapply steps_irred_det; eauto. Qed.
+Hint Resolve evalToSome_det.
+
 Lemma subst_env: forall v v' env, tm_subst_all_k 0 [] v = Some v' ->
                              tm_closed 0 0 v ->
                              tm_subst_all_k 0 env v = Some v'.
 Admitted.
 
-(* XXX in this ugly proof script, we're establishing determinacy of evalToSome and using that to
-   show that evalToSome on a value gives the same value.
-   TODO turn those into lemmas. *)
+Lemma vtpEnvSomeCoreToEval: forall T k v env, vtpEnvSomeCore T k v env -> tm_closed 0 0 v -> evalToSome env v v 0 k 0.
+  unfold vtpEnvSomeCore, evalToSome; intros; ev;
+    intuition eauto using subst_env.
+Qed.
+
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype_some G T1 T2 -> sem_vl_subtype_some G T1 T2.
 Proof.
@@ -224,29 +233,10 @@ Proof.
     split_conj; eauto;
       intros * Hcl * Henv * HvT1.
     unfold etpEnvSomeCore in *.
-    replace k with (k - 0) by omega.
-    assert (evalToSome env v v 0 k 0). {
-      unfold evalToSome;
-        unfold vtpEnvSomeCore in *;
-        ev; intuition eauto using subst_env.
-      (* assert (exists v', tm_subst_all_k 0 (map VObj env) v = Some v' /\ tm_closed 0 0 v') by eauto; ev. *)
-      (* assert (tm_subst_all_k 0 (map VObj env) v = Some v) by eauto using subst_env. *)
-    }
+    assert (evalToSome env v v 0 k 0) by eauto using vtpEnvSomeCoreToEval.
+    replace k with (k - 0) by omega;
     eapply Hsub with (e := v); eauto; intros.
-    unfold evalToSome in *; ev.
-    optFuncs_det.
-    assert (v0 = v /\ j = 0) as (-> & ->) by eauto using steps_irred_det.
+    assert (v0 = v /\ j = 0) as (-> & ->) by eauto using evalToSome_det.
     replace (k - 0) with k by omega.
     eauto.
-  (* specialize (Hsub k env Henv e); *)
-  (*   specialize (Heval env). *)
-  (*   (* assert (wf G T1) by eauto. *) *)
-  (* assert (etp T2 k e env) as [? HeT2]. { *)
-  (*   unfold etp, expr_sem in *; apply Hsub; intuition eauto. *)
-  (*   exists v; unfold tevalSnOpt in *; ev; eval_det; eauto. *)
-  (* } *)
-  (* (* eauto. *) *)
-  (* (* (* unfold etp, expr_sem, tevalSnOpt, tevalSnOpt, tevalSnmOpt in HeT2. *) *) *)
-  (* (* (* eauto. *) *) *)
-  (* (* (* destruct (HeT2 (Some v) 0) as (? & ? & ?); replace (k - 0) with k in * by omega; simpl. eauto. *) *) *)
 Qed.
