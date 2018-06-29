@@ -116,7 +116,7 @@ Ltac injectHyps := repeat injectHyp.
 
 Ltac optFuncs_det :=
   match goal with
-  | H1 : ?t = Some ?x1, H2 : ?t = Some ?x2 |- _ =>
+  | H1 : ?t = ?x1, H2 : ?t = ?x2 |- _ =>
     let H := fresh "H" in
     rewrite H1 in H2; injectHyps
   end.
