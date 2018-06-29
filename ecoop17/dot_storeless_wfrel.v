@@ -176,6 +176,7 @@ Lemma vtpEnvCoreToEval: forall T k v env, vtpEnvCore T k v env -> tm_closed 0 0 
     intuition eauto using subst_env.
 Qed.
 
+(* TODO First relate vtp and etp? *)
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
 Proof.
@@ -188,3 +189,12 @@ Proof.
         assert (v0 = v /\ j = 0) as (-> & ->) by eauto using evalToSome_det, vtpEnvCoreToEval
     end; subst; replace (k - 0) with k in * by omega; eauto.
 Qed.
+Hint Resolve subtype_to_vl_subtype.
+
+Require Import PropExtensionality.
+Lemma vl_sub_equiv: sem_subtype = sem_vl_subtype.
+Proof.
+  repeat (apply functional_extensionality; intro); apply propositional_extensionality;
+    split; eauto.
+Qed.
+Hint Rewrite vl_sub_equiv.
