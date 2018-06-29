@@ -166,6 +166,58 @@ Lemma evalToSome_det: forall env e l k j1 j2 {v1} {v2},
 Proof. unfold evalToSome; intros; ev; optFuncs_det; eapply steps_irred_det; eauto. Qed.
 Hint Resolve evalToSome_det.
 
+(* Lemma subst_all_upgrade_rec: *)
+(*   (forall v v' i env vx, vr_subst_all_k i env v = Some v' -> *)
+(*                              vr_closed 0 (length env) v -> *)
+(*                              vr_subst_all_k (S i) (vx :: env) v = Some v') /\ *)
+(*   (forall T T' i env vx, subst_all_k i env T = Some T' -> *)
+(*                              closed 0 (length env) T -> *)
+(*                              subst_all_k (S i) (vx :: env) T = Some T') /\ *)
+(*   (forall t t' i env vx, tm_subst_all_k i env t = Some t' -> *)
+(*                              tm_closed 0 (length env) t -> *)
+(*                              tm_subst_all_k (S i) (vx :: env) t = Some t') /\ *)
+(*   (forall d d' i env vx, dm_subst_all_k i env d = Some d' -> *)
+(*                              dm_closed 0 (length env) d -> *)
+(*                              dm_subst_all_k (S i) (vx :: env) d = Some d') /\ *)
+(*   (forall d d' i env vx, dms_subst_all_k i env d = Some d' -> *)
+(*                              dms_closed 0 (length env) d -> *)
+(*                              dms_subst_all_k (S i) (vx :: env) d = Some d'). *)
+(* Proof. apply syntax_mutind; simpl; intros; inverts_closed; injectHyps. *)
+(*        all: trivial. *)
+(*        case_match; beq_nat; subst. omega. trivial. *)
+(*        case_match; injectHyps. *)
+(*        lets ?: H (S i) (VarB i :: env) ___; eauto. *)
+
+(* Lemma subst_env_ext1: forall v v' env vx i, tm_subst_all_k i env v = Some v' -> *)
+(*                              tm_closed 0 0 v -> *)
+(*                              tm_subst_all_k (S i) (vx :: env) v = Some v'. *)
+(* Proof. *)
+(*   induction v; intros; simpl. *)
+(*   - admit. *)
+(*   - *)
+(*       match goal with *)
+(*       | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] => *)
+(*         lets ->: Hind vx ___; eauto *)
+(*       end. *)
+(* . *)
+(*     repeat (case_match; try discriminate). *)
+(*     + *)
+(*       inverts_closed. *)
+
+
+(*       lets ?: IHv1 vx Heqo ___; eauto. *)
+(*       lets ?: IHv2 vx Heqo0 ___; eauto. *)
+(*       now repeat optFuncs_det. *)
+(*     + inverts_closed; lets ? : IHv2 vx Heqo0 ___; eauto; now repeat optFuncs_det. *)
+(*     + inverts_closed; lets ? : IHv1 vx Heqo ___; eauto; now repeat optFuncs_det. *)
+(* Admitted. *)
+
+(* Lemma vtp_extend : forall vx v k env T, *)
+(*   vtp T k v env -> *)
+(*   vtp T k v (vx::env). *)
+(* Proof. *)
+(* Admitted. *)
+
 Lemma subst_env: forall v v' env, tm_subst_all_k 0 [] v = Some v' ->
                              tm_closed 0 0 v ->
                              tm_subst_all_k 0 env v = Some v'.
