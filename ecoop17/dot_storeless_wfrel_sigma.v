@@ -7,8 +7,6 @@ Require Import dot_storeless_subst_aux.
 Require Import dot_storeless_wfrel_aux.
 Require Import tactics.
 
-Require Import dot_storeless_wfrel.
-
 (* Anomaly! *)
 (* Program Lemma index_sigT : forall {X} vs (n : id), n < length vs -> *)
 (*                        {T:X & index (proj1_sig n) vs = Some T}. *)

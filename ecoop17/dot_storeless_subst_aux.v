@@ -11,22 +11,6 @@ Require Import tactics.
 
 Definition wf {A} (G : list A) T := closed 0 (length G) T.
 
-Ltac inverts_if_nonvar x H :=
-    tryif is_var x then fail else inverts H.
-Ltac inverts_closed :=
-  match goal with
-  | H : vr_closed _ _ ?v  |- _ =>
-    inverts_if_nonvar v H
-  | H : closed _ _ ?T     |- _ =>
-    inverts_if_nonvar T H
-  | H : tm_closed _ _ ?t  |- _ =>
-    inverts_if_nonvar t H
-  | H : dm_closed _ _ ?d  |- _ =>
-    inverts_if_nonvar d H
-  | H : dms_closed _ _ ?d |- _ =>
-    inverts_if_nonvar d H
-  end.
-
 Ltac beq_nat :=
   match goal with
   | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
