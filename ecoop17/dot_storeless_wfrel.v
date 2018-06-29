@@ -129,11 +129,6 @@ Qed.
 
 Hint Resolve env_dms_closed.
 
-Lemma tm_closed_upgrade: forall i k k1 v,
-  tm_closed i k v -> k <= k1 -> tm_closed i k1 v.
-Proof. unmut_lemma closed_upgrade_rec. Qed.
-Hint Resolve tm_closed_upgrade.
-
 Lemma vl_subtype_some_to_subtype_some : forall G T1 T2
     (Hsub: sem_vl_subtype_some G T1 T2), sem_subtype_some G T1 T2.
 Proof. unfold sem_subtype_some, sem_vl_subtype_some, etpEnvCore; intuition eauto 10. Qed.

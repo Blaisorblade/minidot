@@ -35,10 +35,20 @@ Ltac beq_nat :=
 
 
 Ltac unmut_lemma H := destruct H; ev; eauto.
+
 Lemma vr_closed_upgrade: forall i k k1 v,
   vr_closed i k v -> k <= k1 -> vr_closed i k1 v.
 Proof. unmut_lemma closed_upgrade_rec. Qed.
-Hint Resolve vr_closed_upgrade.
+Lemma tm_closed_upgrade: forall i k k1 v,
+  tm_closed i k v -> k <= k1 -> tm_closed i k1 v.
+Proof. unmut_lemma closed_upgrade_rec. Qed.
+Lemma dm_closed_upgrade: forall i k k1 v,
+  dm_closed i k v -> k <= k1 -> dm_closed i k1 v.
+Proof. unmut_lemma closed_upgrade_rec. Qed.
+Lemma dms_closed_upgrade: forall i k k1 v,
+  dms_closed i k v -> k <= k1 -> dms_closed i k1 v.
+Proof. unmut_lemma closed_upgrade_rec. Qed.
+Hint Resolve dm_closed_upgrade tm_closed_upgrade vr_closed_upgrade dms_closed_upgrade.
 
 Lemma env_closed_upgrade: forall i k k1 env,
   Forall (vr_closed i k) env ->
@@ -172,11 +182,6 @@ Lemma dms_to_env_closed: forall i k env,
     Forall (vr_closed i k) (map VObj env).
 Proof. eauto using Forall_map. Qed.
 Hint Resolve dms_to_env_closed.
-
-Lemma dms_closed_upgrade: forall i k k1 v,
-  dms_closed i k v -> k <= k1 -> dms_closed i k1 v.
-Proof. unmut_lemma closed_upgrade_rec. Qed.
-Hint Resolve dms_closed_upgrade.
 
 Lemma subst_all_nonTot_res_closed_rec:
   (forall v, forall i k env, Forall (vr_closed i k) env -> vr_closed i (length env) v ->
