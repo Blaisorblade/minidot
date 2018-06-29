@@ -60,9 +60,10 @@ Proof. unfold vtpEnvSome, wf, closed_ty; program_simpl. Qed.
 Hint Resolve vtpEnvSome_closed.
 
 Definition etpEnvSomeCore T k e l env : Prop :=
-  forall v j,
+  forall v j kmj,
     evalToSome env e v l k j ->
-    vtpEnvSomeCore T (k - j) v env.
+    kmj = k - j ->
+    vtpEnvSomeCore T kmj v env.
 
 Definition etpEnvSome T k e l env :=
   tm_closed 0 (length env) e /\ wf env T /\ etpEnvSomeCore T k e l env.
@@ -227,16 +228,12 @@ Qed.
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype_some G T1 T2 -> sem_vl_subtype_some G T1 T2.
 Proof.
-  (* unfold sem_subtype, sem_vl_subtype; intros; intuition eauto; *)
-  (*   destruct (vl_to_tm v) as [e Heval]; firstorder eauto. *)
-  unfold sem_subtype_some, sem_vl_subtype_some; intros * (? & ? & Hsub).
+  unfold sem_subtype_some, sem_vl_subtype_some, etpEnvSomeCore; intros * (? & ? & Hsub);
     split_conj; eauto;
-      intros * Hcl * Henv * HvT1.
-    unfold etpEnvSomeCore in *.
-    assert (evalToSome env v v 0 k 0) by eauto using vtpEnvSomeCoreToEval.
-    replace k with (k - 0) by omega;
-    eapply Hsub with (e := v); eauto; intros.
-    assert (v0 = v /\ j = 0) as (-> & ->) by eauto using evalToSome_det.
-    replace (k - 0) with k by omega.
-    eauto.
+      intros;
+    eapply Hsub with (e := v); omega || eauto using vtpEnvSomeCoreToEval; intros.
+    match goal with
+      | H: evalToSome env v ?v0 0 k j |- _ =>
+        assert (v0 = v /\ j = 0) as (-> & ->) by eauto using evalToSome_det, vtpEnvSomeCoreToEval
+    end; subst; replace (k - 0) with k in * by omega; eauto.
 Qed.
