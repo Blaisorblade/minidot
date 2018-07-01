@@ -92,20 +92,20 @@ Ltac apply_Forall :=
 (* Seems to actually work fine, but this is needed too seldom for now, and can be expensive. *)
 (* Hint Extern 5 => apply_Forall. *)
 
-Lemma step_closed: forall e v i k, step e v -> tm_closed i k e -> tm_closed i k v.
+Lemma step_closed: forall e v i, step e v -> tm_closed i 0 e -> tm_closed i 0 v.
 Proof.
-  intros * Hst ?.
-  induction Hst; repeat inverts_closed; eauto.
-  unfold subst_tm.
-  assert (tm_closed i (S k) t12). {
-    admit.
-  }
-  admit.
-Admitted.
-  (* pose proof (proj1 (proj2 (proj2 closed_subst_rec))) as tm_closed_subst. *)
-  (* eapply (tm_closed_subst t12 0 k). *)
-  (* pose proof (proj1 (proj2 (proj2 closed_open_rec))) as tm_closed_open. *)
-  (* eapply (tm_closed_open t12 0 k). *)
+  destruct closed_open_rec; ev.
+  intros * Hst ?; induction Hst; repeat inverts_closed; eauto;
+    unfold subst_tm, subst_dms in *.
+  match goal with
+  | H: index _ _ = Some ?t |- _ =>
+    assert (dm_closed i 0 t) by eauto using index_dm_closed
+  end; inverts_closed; eauto.
+Qed.
+Hint Resolve step_closed.
+
+Lemma steps_closed: forall e v n i, steps e v n -> tm_closed i 0 e -> tm_closed i 0 v.
+Proof. intros * Hst; induction Hst; eauto using step_closed. Qed.
 
 Require Import dot_monads.
 
@@ -171,9 +171,6 @@ with dms_subst_all (env: list vr) (ds: dms) { struct ds }: option dms :=
        ds' <- dms_subst_all env ds;
        ret (dcons d' ds')
    end.
-
-Lemma steps_closed: forall e v n i k, steps e v n -> tm_closed i k e -> tm_closed i k v.
-Proof. intros * Hst; induction Hst; eauto using step_closed. Qed.
 
 Lemma Forall_map: forall {X Y} (xs: list X) (f: X -> Y) (P : X -> Prop) (Q : Y -> Prop),
     Forall P xs ->
