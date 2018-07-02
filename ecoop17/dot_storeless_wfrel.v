@@ -56,7 +56,7 @@ Inductive R_env (k : nat) : venv -> tenv -> Set :=
     R_env k [] []
 | R_cons : forall T v env G,
     R_env k env G ->
-    vtpEnv (open 0 (VObj v) T) k (tvar (VObj v)) env ->
+    vtpEnv T k (tvar (VObj v)) (v :: env) ->
     R_env k (v :: env) (T :: G)
 .
 Hint Constructors R_env.
