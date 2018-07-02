@@ -281,18 +281,28 @@ Hint Resolve nil_vr_env_id cons_vr_env_id.
 (* Prove that an identity substitution is also an identity when lifted to our
    language syntax. *)
 Lemma subst_closed_id_rec:
-  (forall v i env, vr_env_id env -> vr_closed (length env) i v ->
-          vr_subst_all env v = Some v) /\
-  (forall T i env, vr_env_id env -> closed (length env) i T ->
-          subst_all env T = Some T) /\
-  (forall t i env, vr_env_id env -> tm_closed (length env) i t ->
-          tm_subst_all env t = Some t) /\
-  (forall d i env, vr_env_id env -> dm_closed (length env) i d ->
-          dm_subst_all env d = Some d) /\
-  (forall d i env, vr_env_id env -> dms_closed (length env) i d ->
-          dms_subst_all env d = Some d).
+  (forall v i l env, vr_env_id env ->
+              l = length env ->
+              vr_closed l i v ->
+              vr_subst_all env v = Some v) /\
+  (forall T i l env, vr_env_id env ->
+              l = length env ->
+              closed l i T ->
+              subst_all env T = Some T) /\
+  (forall t i l env, vr_env_id env ->
+              l = length env ->
+              tm_closed l i t ->
+              tm_subst_all env t = Some t) /\
+  (forall d i l env, vr_env_id env ->
+              l = length env ->
+              dm_closed l i d ->
+              dm_subst_all env d = Some d) /\
+  (forall d i l env, vr_env_id env ->
+              l = length env ->
+              dms_closed l i d ->
+              dms_subst_all env d = Some d).
 Proof.
-  apply syntax_mutind; simpl; intros; inverts_closed;
+  apply syntax_mutind; simpl; intros; subst; inverts_closed;
     repeat
       match goal with
       | Hind : context [ ?f _ ?s ], Hcl : _ (length _) ?i ?s  |- context [ match ?f ?env ?s with _ => _ end ] =>
@@ -301,16 +311,41 @@ Proof.
     eauto.
 Qed.
 
-Lemma tm_subst_closed_id: forall t i env, tm_closed (length env) i t -> vr_env_id env -> tm_subst_all env t = Some t.
+Lemma vr_subst_closed_id:
+  forall v i l env, vr_env_id env ->
+              l = length env ->
+              vr_closed l i v ->
+              vr_subst_all env v = Some v.
 Proof. unmut_lemma subst_closed_id_rec. Qed.
-
-Lemma tm_subst_closed_id': forall t i l env,
+Lemma subst_closed_id:
+  forall T i l env, vr_env_id env ->
+               l = length env ->
+               closed l i T ->
+               subst_all env T = Some T.
+Proof. unmut_lemma subst_closed_id_rec. Qed.
+Lemma tm_subst_closed_id:
+  forall t i l env,
+    vr_env_id env ->
     l = length env ->
-    tm_closed l i t -> vr_env_id env -> tm_subst_all env t = Some t.
-Proof. intros; subst; eauto using tm_subst_closed_id. Qed.
+    tm_closed l i t ->
+    tm_subst_all env t = Some t.
+Proof. unmut_lemma subst_closed_id_rec. Qed.
+Lemma dm_subst_closed_id:
+  forall d i l env, vr_env_id env ->
+              l = length env ->
+              dm_closed l i d ->
+              dm_subst_all env d = Some d.
+Proof. unmut_lemma subst_closed_id_rec. Qed.
+Lemma dms_subst_closed_id:
+  forall d i l env, vr_env_id env ->
+              l = length env ->
+              dms_closed l i d ->
+              dms_subst_all env d = Some d.
+Proof. unmut_lemma subst_closed_id_rec. Qed.
+Hint Resolve vr_subst_closed_id subst_closed_id tm_subst_closed_id dm_subst_closed_id dms_subst_closed_id.
 
 Lemma tm_subst_closed_id_nil: forall t i, tm_closed 0 i t -> tm_subst_all [] t = Some t.
-Proof. eauto using tm_subst_closed_id'. Qed.
+Proof. eauto. Qed.
 Hint Resolve tm_subst_closed_id_nil.
 
 Hint Constructors steps.
