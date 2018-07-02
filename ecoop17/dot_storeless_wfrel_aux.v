@@ -461,42 +461,6 @@ Proof.
       eauto.
 Qed.
 
-Definition venv := list dms.
-Definition tenv := list ty.
-Hint Unfold venv.
-Hint Unfold tenv.
-
-Inductive R_env (k : nat) : venv -> tenv -> Set :=
-| R_nil :
-    R_env k [] []
-| R_cons : forall T v env G,
-    R_env k env G ->
-    vtp (open 0 (VObj v) T) k (tvar (VObj v)) ->
-    R_env k (v :: env) (T :: G)
-.
-Hint Constructors R_env.
-
-Lemma R_env_mon: forall G env m n,
-    R_env n env G ->
-    m <= n ->
-    R_env m env G.
-Proof. intros * Henv; induction Henv; eauto. Qed.
-Hint Resolve R_env_mon.
-
-Lemma wf_length : forall k vs ts,
-                    R_env k vs ts ->
-                    (length vs = length ts).
-Proof. intros * H; induction H; simpl; congruence. Qed.
-Hint Resolve wf_length.
-
-Ltac lenG_to_lenEnv :=
-  try match goal with
-  | H: R_env _ ?env ?G |- _ =>
-    replace (length G) with (length env) in * by (eauto using wf_length)
-  end.
-
-Hint Constructors Forall.
-
 Ltac inverts_if_nonvar x H :=
     tryif is_var x then fail else inverts H.
 Ltac inverts_closed :=
@@ -512,11 +476,3 @@ Ltac inverts_closed :=
   | H : dms_closed _ _ ?d |- _ =>
     inverts_if_nonvar d H
   end.
-
-Lemma env_dms_closed: forall k env G l, R_env k env G -> length env = l -> Forall (dms_closed 0 1) env.
-Proof.
-  induction env; intros * Henv Hl; subst; inverts Henv; constructor; simpl; eauto using Forall_impl.
-  assert (tm_closed 0 0 (tvar (VObj a))) by (eauto using vtp_v_closed); repeat inverts_closed; eauto.
-Qed.
-
-Hint Resolve env_dms_closed.
