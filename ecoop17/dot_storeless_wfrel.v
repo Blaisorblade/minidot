@@ -12,14 +12,6 @@ Definition tenv := list ty.
 Hint Unfold venv.
 Hint Unfold tenv.
 
-Program Definition etp T k e :=
-  expr_sem k T (fun k _ => vtp T k) k _ e.
-
-Lemma etp_closed: forall T k v,
-    etp T k v -> @wf ty [] T.
-Proof. unfold etp; intros; simp expr_sem in *; tauto. Qed.
-Hint Resolve etp_closed.
-
 Hint Rewrite map_length.
 
 Definition vtpEnvCore T k v env :=
@@ -33,6 +25,17 @@ Lemma vtpEnv_closed:
   forall T k v env, vtpEnv T k v env -> wf env T.
 Proof. unfold vtpEnv, wf, closed_ty; program_simpl. Qed.
 Hint Resolve vtpEnv_closed.
+
+Lemma vtpEnv_mon: forall T v env m n,
+    vtpEnv T n v env ->
+    m <= n ->
+    vtpEnv T m v env.
+Proof. unfold vtpEnv, vtpEnvCore in *; intros; ev; intuition eauto. Qed.
+Hint Resolve vtpEnv_mon.
+
+Lemma vtpEnv_v_closed: forall T n v env, vtpEnv T n v env -> tm_closed 0 0 v.
+Proof. unfold vtpEnv in *; ev; intuition eauto. Qed.
+Hint Resolve vtpEnv_v_closed.
 
 Definition etpEnvCore T k e env : Prop :=
   forall v j kmj,
@@ -53,7 +56,7 @@ Inductive R_env (k : nat) : venv -> tenv -> Set :=
     R_env k [] []
 | R_cons : forall T v env G,
     R_env k env G ->
-    vtp (open 0 (VObj v) T) k (tvar (VObj v)) ->
+    vtpEnv (open 0 (VObj v) T) k (tvar (VObj v)) env ->
     R_env k (v :: env) (T :: G)
 .
 Hint Constructors R_env.
@@ -82,9 +85,8 @@ Hint Constructors Forall.
 Lemma env_dms_closed: forall k env G l, R_env k env G -> length env = l -> Forall (dms_closed 0 1) env.
 Proof.
   induction env; intros * Henv Hl; subst; inverts Henv; constructor; simpl; eauto using Forall_impl.
-  assert (tm_closed 0 0 (tvar (VObj a))) by (eauto using vtp_v_closed); repeat inverts_closed; eauto.
+  assert (tm_closed 0 0 (tvar (VObj a))) by eauto; repeat inverts_closed; eauto.
 Qed.
-
 Hint Resolve env_dms_closed.
 
 Definition sem_type (G : tenv) (T : ty) (e: tm) :=
