@@ -186,105 +186,6 @@ Proof.
 Qed.
 Hint Resolve etp_vtp_j.
 
-Lemma step_det: forall t u1 u2, step t u1 -> step t u2 -> u1 = u2.
-Proof.
-  intros * H1; gen u2; induction H1;
-    intros * H2; inverse H2; try optFuncs_det; eauto;
-    try match goal with
-        | H : step (tvar (VObj _)) _ |- _ => inversion H
-        end;
-    fequal; eauto.
-Qed.
-Hint Resolve step_det.
-
-Lemma steps_irred_det: forall t v1 v2 j1 j2, steps t v1 j1 -> steps t v2 j2 -> irred v1 -> irred v2 -> v1 = v2 /\ j1 = j2.
-Proof.
-  unfold irred; intros * Hs1 Hs2 Hv1 Hv2; gen j2; induction Hs1; intros; inverse Hs2;
-    try solve [exfalso; eauto | eauto];
-    (* Why do I need parens for `by`'s argument? *)
-    enough (t2 = v2 /\ i = i0) by (intuition eauto);
-    match goal with
-    | H1 : step ?a ?b, H2 : step ?a ?c |- _ =>
-      assert (b = c) as -> by eauto using step_det
-    end; eauto.
-Qed.
-Hint Resolve steps_irred_det.
-
-Lemma evalToSome_det: forall env e k j1 j2 {v1} {v2},
-    evalToSome env e v1 k j1 ->
-    evalToSome env e v2 k j2 ->
-    v1 = v2 /\ j1 = j2.
-Proof. unfold evalToSome; intros; ev; optFuncs_det; eapply steps_irred_det; eauto. Qed.
-Hint Resolve evalToSome_det.
-
-Lemma subst_all_upgrade_rec:
-  (forall v v' env vx i l, vr_subst_all env v = Some v' ->
-                    vr_closed l i v ->
-                    length env = l ->
-                    vr_subst_all (vx :: env) v = Some v') /\
-  (forall T T' env vx i l, subst_all env T = Some T' ->
-                    closed l i T ->
-                    length env = l ->
-                    subst_all (vx :: env) T = Some T') /\
-  (forall t t' env vx i l, tm_subst_all env t = Some t' ->
-                    tm_closed l i t ->
-                    length env = l ->
-                    tm_subst_all (vx :: env) t = Some t') /\
-  (forall d d' env vx i l, dm_subst_all env d = Some d' ->
-                    dm_closed l i d ->
-                    length env = l ->
-                    dm_subst_all (vx :: env) d = Some d') /\
-  (forall d d' env vx i l, dms_subst_all env d = Some d' ->
-                    dms_closed l i d ->
-                    length env = l ->
-                    dms_subst_all (vx :: env) d = Some d').
-Proof.
-  Ltac case_match_hp :=
-    match goal with
-    | H : context [ match ?x with _ => _ end ] |- _ =>
-      destruct x eqn:?
-    end.
-  apply syntax_mutind; simpl; intros; inverts_closed; injectHyps;
-    try solve [trivial | case_match; beq_nat; subst; omega || trivial];
-    repeat case_match_hp; injectHyps; try discriminate;
-      repeat match goal with
-             | Hind : context [ ?f (_ :: _) ?s ] |- context [ match ?f (_ :: _) ?s with _ => _ end ] =>
-               lets -> : Hind ___; eauto
-             end.
-Qed.
-
-Lemma vr_subst_all_upgrade:
-  forall v v' env vx i l, vr_subst_all env v = Some v' ->
-                   vr_closed l i v ->
-                   length env = l ->
-                   vr_subst_all (vx :: env) v = Some v'.
-Proof. unmut_lemma subst_all_upgrade_rec. Qed.
-Lemma subst_all_upgrade:
-  forall T T' env vx i l, subst_all env T = Some T' ->
-                   closed l i T ->
-                   length env = l ->
-                   subst_all (vx :: env) T = Some T'.
-Proof. unmut_lemma subst_all_upgrade_rec. Qed.
-Lemma tm_subst_all_upgrade:
-  forall t t' env vx i l, tm_subst_all env t = Some t' ->
-                   tm_closed l i t ->
-                   length env = l ->
-                   tm_subst_all (vx :: env) t = Some t'.
-Proof. unmut_lemma subst_all_upgrade_rec. Qed.
-Lemma dm_subst_all_upgrade:
-  forall d d' env vx i l, dm_subst_all env d = Some d' ->
-                   dm_closed l i d ->
-                   length env = l ->
-                   dm_subst_all (vx :: env) d = Some d'.
-Proof. unmut_lemma subst_all_upgrade_rec. Qed.
-Lemma dms_subst_all_upgrade:
-  forall d d' env vx i l, dms_subst_all env d = Some d' ->
-                   dms_closed l i d ->
-                   length env = l ->
-                   dms_subst_all (vx :: env) d = Some d'.
-Proof. unmut_lemma subst_all_upgrade_rec. Qed.
-
-Hint Resolve vr_subst_all_upgrade subst_all_upgrade tm_subst_all_upgrade dm_subst_all_upgrade dms_subst_all_upgrade.
 
 (* Lemma subst_env_ext1: forall v v' env vx i, tm_subst_all env v = Some v' -> *)
 (*                              tm_closed 0 0 v -> *)
@@ -309,15 +210,6 @@ Hint Resolve vr_subst_all_upgrade subst_all_upgrade tm_subst_all_upgrade dm_subs
 (*     + inverts_closed; lets ? : IHv2 vx Heqo0 ___; eauto; now repeat optFuncs_det. *)
 (*     + inverts_closed; lets ? : IHv1 vx Heqo ___; eauto; now repeat optFuncs_det. *)
 (* Admitted. *)
-
-
-Lemma subst_env: forall v v' env, tm_subst_all [] v = Some v' ->
-                             tm_closed 0 0 v ->
-                             tm_subst_all env v = Some v'.
-Proof.
-  specialize tm_subst_all_upgrade with (i := 0); induction env; intuition eauto with upgrade.
-Qed.
-Hint Resolve subst_env.
 
 Lemma vtpEnvCoreToEval: forall T k v env, vtpEnvCore T k v env -> tm_closed 0 0 v -> evalToSome env v v k 0.
   unfold vtpEnvCore, evalToSome; intros; ev;
