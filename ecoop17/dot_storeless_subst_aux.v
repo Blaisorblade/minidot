@@ -32,7 +32,8 @@ Proof. unmut_lemma closed_upgrade_rec. Qed.
 Lemma dms_closed_upgrade: forall i k k1 v,
   dms_closed i k v -> k <= k1 -> dms_closed i k1 v.
 Proof. unmut_lemma closed_upgrade_rec. Qed.
-Hint Resolve dm_closed_upgrade tm_closed_upgrade vr_closed_upgrade dms_closed_upgrade.
+
+Hint Resolve vr_closed_upgrade closed_upgrade tm_closed_upgrade dm_closed_upgrade dms_closed_upgrade : loopy.
 
 Lemma vr_closed_upgrade_gh: forall i i1 k v,
   vr_closed i k v -> i <= i1 -> vr_closed i1 k v.
@@ -46,21 +47,43 @@ Proof. unmut_lemma closed_upgrade_gh_rec. Qed.
 Lemma dms_closed_upgrade_gh: forall i i1 k v,
   dms_closed i k v -> i <= i1 -> dms_closed i1 k v.
 Proof. unmut_lemma closed_upgrade_gh_rec. Qed.
-Hint Resolve vr_closed_upgrade_gh closed_upgrade_gh tm_closed_upgrade_gh dm_closed_upgrade_gh dms_closed_upgrade_gh : upgrade.
+Hint Resolve vr_closed_upgrade_gh closed_upgrade_gh tm_closed_upgrade_gh dm_closed_upgrade_gh dms_closed_upgrade_gh : loopy.
 
-Lemma env_closed_upgrade: forall i k k1 env,
-  Forall (vr_closed i k) env ->
-  k <= k1 ->
-  Forall (vr_closed i k1) env.
-Proof. eauto using Forall_impl. Qed.
-Hint Resolve env_closed_upgrade.
+Lemma vr_closed_upgrade_both: forall t i i1 k k1, vr_closed i k t -> i <= i1 -> k <= k1 -> vr_closed i1 k1 t.
+Proof. intuition eauto with loopy. Qed.
+Hint Extern 5 (vr_closed _ _ _) => try_once vr_closed_upgrade_both.
 
-Lemma env_closed_upgrade_gh: forall i i1 k env,
+Lemma closed_upgrade_both: forall t i i1 k k1, closed i k t -> i <= i1 -> k <= k1 -> closed i1 k1 t.
+Proof. intuition eauto with loopy. Qed.
+Hint Extern 5 (closed _ _ _) => try_once closed_upgrade_both.
+
+Lemma tm_closed_upgrade_both: forall t i i1 k k1, tm_closed i k t -> i <= i1 -> k <= k1 -> tm_closed i1 k1 t.
+Proof. intuition eauto with loopy. Qed.
+Hint Extern 5 (tm_closed _ _ _) => try_once tm_closed_upgrade_both.
+
+Lemma dm_closed_upgrade_both: forall t i i1 k k1, dm_closed i k t -> i <= i1 -> k <= k1 -> dm_closed i1 k1 t.
+Proof. intuition eauto with loopy. Qed.
+Hint Extern 5 (dm_closed _ _ _) => try_once dm_closed_upgrade_both.
+
+Lemma dms_closed_upgrade_both: forall t i i1 k k1, dms_closed i k t -> i <= i1 -> k <= k1 -> dms_closed i1 k1 t.
+Proof. intuition eauto with loopy. Qed.
+Hint Extern 5 (dms_closed _ _ _) => try_once dms_closed_upgrade_both.
+
+(* Swap premises to help proof search! *)
+Lemma Forall_impl' : forall A (P Q : A -> Prop) l, Forall P l ->
+                     (forall a, P a -> Q a) ->
+                     Forall Q l.
+Proof. intuition eauto using Forall_impl. Qed.
+Hint Extern 5 (Forall _ _) => try_once Forall_impl'.
+
+Lemma env_closed_upgrade_both: forall i i1 k k1 env,
   Forall (vr_closed i k) env ->
   i <= i1 ->
-  Forall (vr_closed i1 k) env.
-Proof. eauto using Forall_impl with upgrade. Qed.
-Hint Resolve env_closed_upgrade_gh : upgrade.
+  k <= k1 ->
+  Forall (vr_closed i1 k1) env.
+Proof. eauto. Qed.
+
+Hint Extern 5 (Forall (vr_closed _ _) _) => try_once env_closed_upgrade_both.
 
 Hint Constructors Forall.
 
@@ -106,6 +129,7 @@ Hint Resolve step_closed.
 
 Lemma steps_closed: forall e v n i, steps e v n -> tm_closed i 0 e -> tm_closed i 0 v.
 Proof. intros * Hst; induction Hst; eauto using step_closed. Qed.
+Hint Extern 5 (tm_closed _ _ _) => try_once steps_closed.
 
 Lemma step_det: forall t u1 u2, step t u1 -> step t u2 -> u1 = u2.
 Proof.
@@ -126,7 +150,7 @@ Proof.
     enough (t2 = v2 /\ i = i0) by (intuition eauto);
     match goal with
     | H1 : step ?a ?b, H2 : step ?a ?c |- _ =>
-      assert (b = c) as -> by eauto using step_det
+      assert (b = c) as -> by eauto
     end; eauto.
 Qed.
 Hint Resolve steps_irred_det.
@@ -457,6 +481,6 @@ Lemma subst_env: forall v v' env, tm_subst_all [] v = Some v' ->
                              tm_closed 0 0 v ->
                              tm_subst_all env v = Some v'.
 Proof.
-  specialize tm_subst_all_upgrade with (i := 0); induction env; intuition eauto with upgrade.
+  specialize tm_subst_all_upgrade with (i := 0); induction env; intuition eauto.
 Qed.
 Hint Resolve subst_env.

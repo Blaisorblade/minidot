@@ -155,3 +155,27 @@ Hint Resolve inj_S: eq.
 Hint Resolve beq_nat_false: eq.
 Hint Resolve false_beq_nat: eq.
 Hint Resolve beq_nat_true: eq.
+
+(** Support writing external hints for lemmas that must not be applied twice for a goal. *)
+(* The usedLemma and un_usedLemma marker is taken from Crush.v (where they were called done and un_done). *)
+
+(** Devious marker predicate to use for encoding state within proof goals *)
+Definition usedLemma {T : Type} (x : T) := True.
+
+(** After a round of application with the above, we will have a lot of junk [usedLemma] markers to clean up; hence this tactic. *)
+Ltac un_usedLemma :=
+  repeat match goal with
+           | [ H : usedLemma _ |- _ ] => clear H
+         end.
+Ltac markUsed H := assert (usedLemma H) by constructor.
+(* Ltac try_once lm := *)
+(*     match goal with *)
+(*     | H : usedLemma lm |- _ => fail 1 *)
+(*     | _ => markUsed lm; eapply lm; eauto *)
+(*     end; un_usedLemma. *)
+
+Ltac try_once lm :=
+    match goal with
+    | H : usedLemma lm |- _ => fail 1
+    | _ => markUsed lm; eapply lm
+    end.

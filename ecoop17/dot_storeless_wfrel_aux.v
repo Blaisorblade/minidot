@@ -371,8 +371,8 @@ Proof.
     | [ H : val_type _ _ \/ val_type _ _ |- _ ] => destruct H
     end; eauto.
 Qed.
+Hint Extern 5 (vtp _ _ _) => try_once vtp_mon.
 
-Hint Resolve vtp_mon.
   (* - case_or_vtp; eauto. *)
   (*   Hint Constructors or. *)
   (*   intuition (mon_induct_step Hind n). *)
@@ -427,7 +427,7 @@ Lemma val_type_mon: forall T v m n,
     m <= n ->
     val_type (T, m) v.
 Proof. eapply vtp_mon. Qed.
-Hint Resolve val_type_mon.
+Hint Extern 5 (val_type _ _) => try_once val_type_mon.
 
 Lemma mem_stp : forall l L U n v vx,
     vtp (TMem l L U) (S n) (tvar v) ->

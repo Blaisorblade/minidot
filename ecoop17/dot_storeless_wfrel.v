@@ -39,14 +39,14 @@ Lemma vtpEnvCore_mon: forall T v env m n,
     m <= n ->
     vtpEnvCore T m v env.
 Proof. unfold vtpEnvCore; intros; ev; eauto. Qed.
-Hint Resolve vtpEnvCore_mon.
+Hint Extern 5 (vtpEnvCore _ _ _ _) => try_once vtpEnvCore_mon.
 
 Lemma vtpEnv_mon: forall T v env m n,
     vtpEnv T n v env ->
     m <= n ->
     vtpEnv T m v env.
 Proof. unfold vtpEnv; intuition eauto. Qed.
-Hint Resolve vtpEnv_mon.
+Hint Extern 5 (vtpEnv _ _ _ _) => try_once vtpEnv_mon.
 
 Definition etpEnvCore T k e env : Prop :=
   forall v j kmj,
@@ -77,7 +77,7 @@ Lemma R_env_mon: forall G env m n,
     m <= n ->
     R_env m env G.
 Proof. intros * Henv; induction Henv; eauto. Qed.
-Hint Resolve R_env_mon.
+Hint Extern 5 (R_env _ _ _) => try_once R_env_mon.
 
 Lemma wf_length : forall k vs ts,
                     R_env k vs ts ->
@@ -142,11 +142,6 @@ Hint Resolve sem_type_closed
      sem_vl_subtype_closed1
      sem_vl_subtype_closed2.
 
-(* XXX These hints are applied multiple times in a sequence, not good! *)
-(* Remove Hints val_type_mon vtp_mon tm_closed_upgrade R_env_mon. *)
-(* Hint Immediate val_type_mon vtp_mon tm_closed_upgrade R_env_mon. *)
-(* Remove Hints val_type_mon vtp_mon tm_closed_upgrade. *)
-
 Lemma vl_subtype_to_subtype : forall G T1 T2
     (Hsub: sem_vl_subtype G T1 T2), sem_subtype G T1 T2.
 Proof. unfold sem_subtype, sem_vl_subtype, etpEnvCore; intuition eauto. Qed.
@@ -171,8 +166,6 @@ Proof. to_vl_stp and_stp2. Qed.
 
 Lemma sem_and_stp2 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype G (TAnd T1 T2) T2.
 Proof. eauto using vl_subtype_to_subtype, sem_vl_and_stp2. Qed.
-
-Hint Resolve closed_upgrade.
 
 Lemma etp_vtp_core_j:
   forall e v k j kmj l T env,
@@ -276,19 +269,19 @@ Lemma vtp_extend : forall vx v k env T,
   vtpEnv T k v env ->
   vtpEnv T k v (vx::env).
 Proof.
-  unfold vtpEnv, vtpEnvCore, wf; simpl; intros; ev; intuition eauto using map_length with upgrade.
+  unfold vtpEnv, vtpEnvCore, wf; simpl; intros; ev; intuition eauto using map_length.
 Qed.
 
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
 Proof.
   unfold sem_subtype, sem_vl_subtype, wf; intros * (? & ? & Hsub);
-    split_conj; eauto; intros.
-  (* assert (evalToSome env v v k 0) by eauto. *)
-  assert (length env = length G) by eauto.
-  (* assert (tm_closed 0 0 v) by eauto 2. *)
-  assert (tm_closed (length env) 0 v) by eauto with upgrade.
-  eapply Hsub with (e := v); eauto with upgrade.
+    intuition idtac; lenG_to_lenEnv.
+  (* Either: *)
+  (* eapply Hsub with (e := v); eauto 7. *)
+  (* Or, faster: *)
+  assert (tm_closed (length env) 0 v) by eauto.
+  eapply Hsub with (e := v); eauto.
 Qed.
 Hint Resolve subtype_to_vl_subtype.
 
