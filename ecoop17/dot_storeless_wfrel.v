@@ -19,23 +19,34 @@ Definition vtpEnvCore T k v env :=
         vtp T' k v.
 
 Definition vtpEnv T k v env :=
-  tm_closed 0 0 v /\ wf env T /\ vtpEnvCore T k v env.
+  wf env T /\ vtpEnvCore T k v env.
+
+Lemma vtpEnvCore_v_closed: forall T n v env, vtpEnvCore T n v env -> tm_closed 0 0 v.
+Proof. unfold vtpEnvCore; intros; ev; eauto. Qed.
+Hint Resolve vtpEnvCore_v_closed.
+
+Lemma vtpEnv_v_closed: forall T n v env, vtpEnv T n v env -> tm_closed 0 0 v.
+Proof. unfold vtpEnv; intros; intuition eauto 2. Qed.
+Hint Resolve vtpEnv_v_closed.
 
 Lemma vtpEnv_closed:
   forall T k v env, vtpEnv T k v env -> wf env T.
 Proof. unfold vtpEnv, wf, closed_ty; program_simpl. Qed.
 Hint Resolve vtpEnv_closed.
 
+Lemma vtpEnvCore_mon: forall T v env m n,
+    vtpEnvCore T n v env ->
+    m <= n ->
+    vtpEnvCore T m v env.
+Proof. unfold vtpEnvCore; intros; ev; eauto. Qed.
+Hint Resolve vtpEnvCore_mon.
+
 Lemma vtpEnv_mon: forall T v env m n,
     vtpEnv T n v env ->
     m <= n ->
     vtpEnv T m v env.
-Proof. unfold vtpEnv, vtpEnvCore in *; intros; ev; intuition eauto. Qed.
+Proof. unfold vtpEnv; intuition eauto. Qed.
 Hint Resolve vtpEnv_mon.
-
-Lemma vtpEnv_v_closed: forall T n v env, vtpEnv T n v env -> tm_closed 0 0 v.
-Proof. unfold vtpEnv in *; ev; intuition eauto. Qed.
-Hint Resolve vtpEnv_v_closed.
 
 Definition etpEnvCore T k e env : Prop :=
   forall v j kmj,
@@ -44,7 +55,7 @@ Definition etpEnvCore T k e env : Prop :=
     vtpEnvCore T kmj v env.
 
 Definition etpEnv T k e env :=
-  tm_closed 0 (length env) e /\ wf env T /\ etpEnvCore T k e env.
+  tm_closed (length env) 0 e /\ wf env T /\ etpEnvCore T k e env.
 
 Lemma etpEnv_closed: forall T k v env,
     etpEnv T k v env -> wf env T.
@@ -105,7 +116,7 @@ Definition sem_subtype (G : tenv) (T1 T2: ty) :=
 
 Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
   wf G T1 /\ wf G T2 /\
-      forall v (HwfV : tm_closed 0 0 v),
+      forall v,
       forall k env (Henv : R_env k env G),
         vtpEnvCore T1 k v env -> vtpEnvCore T2 k v env.
 
@@ -138,7 +149,7 @@ Hint Resolve sem_type_closed
 
 Lemma vl_subtype_to_subtype : forall G T1 T2
     (Hsub: sem_vl_subtype G T1 T2), sem_subtype G T1 T2.
-Proof. unfold sem_subtype, sem_vl_subtype, etpEnvCore; intuition eauto 10. Qed.
+Proof. unfold sem_subtype, sem_vl_subtype, etpEnvCore; intuition eauto. Qed.
 Hint Resolve vl_subtype_to_subtype.
 
 Hint Unfold wf sem_type sem_subtype sem_vl_subtype.
@@ -161,60 +172,104 @@ Proof. to_vl_stp and_stp2. Qed.
 Lemma sem_and_stp2 : forall G T1 T2, wf G T1 -> wf G T2 -> sem_subtype G (TAnd T1 T2) T2.
 Proof. eauto using vl_subtype_to_subtype, sem_vl_and_stp2. Qed.
 
-Hint Resolve Nat.le_max_l Nat.le_max_r.
-Lemma some_max_lemma: forall j k,
-  max (S (S k)) (max (S k) j) <=
-  S (max (S k) j).
-Proof.
-  intros;
-  rewrite Nat.succ_max_distr;
-  eapply Nat.max_lub_iff;
-  split_conj; eauto using Nat.max_lub_iff.
-  (* , Nat.le_max_r, Nat.le_max_l. *)
-Qed.
-Hint Resolve some_max_lemma.
-
 Hint Resolve closed_upgrade.
 
-Lemma etp_vtp_j: forall e v k j T env,
-    evalToSome env e v k j -> etpEnv T k e env -> j <= k -> vtpEnv T (k - j) v env.
+Lemma etp_vtp_core_j:
+  forall e v k j kmj l T env,
+  evalToSome env e v k j ->
+  tm_closed l 0 e -> wf env T -> etpEnvCore T k e env ->
+  l = length env ->
+  kmj = k - j ->
+  wf env T /\ vtpEnvCore T kmj v env.
 Proof.
-  intros.
-  unfold etpEnv, etpEnvCore, vtpEnv, vtpEnvCore in *; ev.
-  assert (exists T', subst_all (map VObj env) T = Some T' /\ vtp T' (k - j) v) by eauto; ev;
-    intuition eauto.
+  unfold etpEnv, etpEnvCore, vtpEnv, vtpEnvCore; intros; ev;
+    assert (exists T', subst_all (map VObj env) T = Some T' /\ vtp T' (k - j) v) by eauto; ev;
+      intuition eauto.
 Qed.
+Hint Resolve etp_vtp_core_j.
+
+Hint Extern 5 (_ = _ :> nat) => ineq_solver.
+Lemma etp_vtp_core:
+  forall e v k T env,
+  evalToSome env e v k 0 ->
+  tm_closed (length env) 0 e -> wf env T -> etpEnvCore T k e env ->
+  wf env T /\ vtpEnvCore T k v env.
+Proof. eauto. Qed.
+Hint Resolve etp_vtp_core.
+
+Lemma etp_vtp_j: forall e v k j l T env,
+    evalToSome env e v k j -> etpEnv T k e env ->
+    l = k - j ->
+    vtpEnv T l v env.
+Proof. unfold etpEnv, vtpEnv; intros; ev; eauto. Qed.
 Hint Resolve etp_vtp_j.
 
+Lemma etp_vtp: forall e v k T env,
+    evalToSome env e v k 0 -> etpEnv T k e env -> vtpEnv T k v env.
+Proof. eauto 2. Qed.
+Hint Resolve etp_vtp.
 
-(* Lemma subst_env_ext1: forall v v' env vx i, tm_subst_all env v = Some v' -> *)
-(*                              tm_closed 0 0 v -> *)
-(*                              tm_subst_all (vx :: env) v = Some v'. *)
+(* I think these lemmas are all false, so vtp_env_j needs its local closure assumption. *)
+
+(* Lemma tm_subst_all_closed_inv: forall e e' env l, tm_closed 0 0 e' -> tm_subst_all env e = Some e' -> length env = l -> tm_closed l  0 e. Admitted. *)
+(* Lemma steps_closed_inv: forall e v j, steps e v j -> tm_closed 0 0 v -> tm_closed 0 0 e. Admitted. *)
+(* Lemma step_closed_inv: forall e v, step e v -> tm_closed 0 0 v -> tm_closed 0 0 e. *)
 (* Proof. *)
-(*   induction v; intros; simpl. *)
-(*   - admit. *)
-(*   - *)
-(*       match goal with *)
-(*       | Hind : context [ ?f _ _ ?s ] |- context [ match ?f ?k ?env ?s with _ => _ end ] => *)
-(*         lets ->: Hind vx ___; eauto *)
-(*       end. *)
-(* . *)
-(*     repeat (case_match; try discriminate). *)
-(*     + *)
-(*       inverts_closed. *)
+(*   intros; induction H; repeat inverts_closed; eauto; unfold subst_tm in *; *)
+(*     destruct t12; simpl in *; try discriminate; inverts H1. *)
+(*   - repeat constructor. *)
+(*   - inverts H1; admit. *)
+(*   - unfold subst_tm in *. destruct t12; simpl in *; try discriminate; inverts H1. *)
 
-
-(*       lets ?: IHv1 vx Heqo ___; eauto. *)
-(*       lets ?: IHv2 vx Heqo0 ___; eauto. *)
-(*       now repeat optFuncs_det. *)
-(*     + inverts_closed; lets ? : IHv2 vx Heqo0 ___; eauto; now repeat optFuncs_det. *)
-(*     + inverts_closed; lets ? : IHv1 vx Heqo ___; eauto; now repeat optFuncs_det. *)
-(* Admitted. *)
-
-Lemma vtpEnvCoreToEval: forall T k v env, vtpEnvCore T k v env -> tm_closed 0 0 v -> evalToSome env v v k 0.
-  unfold vtpEnvCore, evalToSome; intros; ev;
-    intuition eauto.
+Lemma vtp_etp_core_j: forall e v T env k j kmj l,
+    vtpEnvCore T kmj v env ->
+    wf env T ->
+    tm_closed l 0 e ->
+    evalToSome env e v k j ->
+    kmj = k - j ->
+    l = length env ->
+    etpEnvCore T k e env.
+Proof.
+  unfold etpEnvCore, vtpEnvCore; intros; ev; subst;
+  match goal with
+  | H0: evalToSome ?env ?e ?v0 ?k ?j0, H1: evalToSome ?env ?e ?v1 ?k ?j1
+    |- _ =>
+    assert (v1 = v0 /\ j1 = j0) as (-> & ->) by eauto
+  end; intuition eauto.
 Qed.
+Hint Resolve vtp_etp_core_j.
+
+Lemma vtp_etp_core: forall e v T env k l,
+    vtpEnvCore T k v env ->
+    wf env T ->
+    tm_closed l 0 e ->
+    evalToSome env e v k 0 ->
+    l = length env ->
+    etpEnvCore T k e env.
+Proof. eauto. Qed.
+Hint Resolve vtp_etp_core.
+
+Lemma vtp_etp_j: forall e v T env k j kmj l,
+    vtpEnv T kmj v env ->
+    tm_closed l 0 e ->
+    evalToSome env e v k j ->
+    kmj = k - j ->
+    l = length env ->
+    etpEnv T k e env.
+Proof. unfold etpEnv, vtpEnv; intros; subst; intuition eauto. Qed.
+Hint Resolve vtp_etp_j.
+
+Lemma vtp_etp: forall e v T env k l,
+    vtpEnv T k v env ->
+    tm_closed l 0 e ->
+    evalToSome env e v k 0 ->
+    l = length env ->
+    etpEnv T k e env.
+Proof. eauto. Qed.
+Hint Resolve vtp_etp.
+
+Lemma vtpEnvCoreToEval: forall T k v env, vtpEnvCore T k v env -> evalToSome env v v k 0.
+Proof. unfold vtpEnvCore, evalToSome; intros; ev; intuition eauto 7. Qed.
 Hint Resolve vtpEnvCoreToEval.
 
 Lemma vtp_extend : forall vx v k env T,
@@ -224,18 +279,16 @@ Proof.
   unfold vtpEnv, vtpEnvCore, wf; simpl; intros; ev; intuition eauto using map_length with upgrade.
 Qed.
 
-(* TODO First relate vtp and etp? *)
 Lemma subtype_to_vl_subtype : forall G T1 T2,
     sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
 Proof.
-  unfold sem_subtype, sem_vl_subtype, etpEnvCore; intros * (? & ? & Hsub);
-    split_conj; eauto;
-      intros;
-    eapply Hsub with (e := v); omega || eauto with upgrade; intros.
-    match goal with
-      | H: evalToSome env v ?v0 k j |- _ =>
-        assert (v0 = v /\ j = 0) as (-> & ->) by eauto
-    end; subst; replace (k - 0) with k in * by omega; eauto.
+  unfold sem_subtype, sem_vl_subtype, wf; intros * (? & ? & Hsub);
+    split_conj; eauto; intros.
+  (* assert (evalToSome env v v k 0) by eauto. *)
+  assert (length env = length G) by eauto.
+  (* assert (tm_closed 0 0 v) by eauto 2. *)
+  assert (tm_closed (length env) 0 v) by eauto with upgrade.
+  eapply Hsub with (e := v); eauto with upgrade.
 Qed.
 Hint Resolve subtype_to_vl_subtype.
 
