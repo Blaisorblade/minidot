@@ -56,7 +56,7 @@ Definition m A := (option (option A * nat)).
 
 Definition timeout {A} : m A := None.
 
-Definition step {A} (k : nat) (x: m A) : m A :=
+Definition logStep {A} (k : nat) (x: m A) : m A :=
   match x with
   | None => None
   | Some (v, k') => Some (v, k + k')

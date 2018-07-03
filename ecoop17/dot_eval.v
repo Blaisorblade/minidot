@@ -8,9 +8,8 @@ Require Import dot_monads.
 None             means timeout
 Some None        means stuck
 Some (Some v))   means result v
-Could use do-notation to clean up syntax.
+Can use do-notation to clean up syntax.
 *)
-(* TODO: Step-index this semantics, following the step-indexing by Rompf. *)
 Fixpoint teval (t: tm) (n: nat) (env: venv): option (option vl) :=
   match n with
     | 0 => None
@@ -120,11 +119,11 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
       match vf with
       | vty _ _ => error
       | vabs env2 _ tbody =>
-        step 1 (tevalSM tbody n (va :: env2))
+        logStep 1 (tevalSM tbody n (va :: env2))
       end
     | tunpack tx ty =>
       vx <- tevalSM tx n env;
-      step 1 (tevalSM ty n (vx::env))
+      logStep 1 (tevalSM ty n (vx::env))
     end
   end.
 
@@ -146,7 +145,7 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
                 | Some (None, k2) => Some (None, k1 + k2)
                 | Some (Some (vty _ _), k2) => Some (None, k1 + k2)
                 | Some (Some (vabs env2 _ ey), k2) =>
-                  step (k1 + k2 + 1) (tevalS ey n (vx::env2))
+                  logStep (k1 + k2 + 1) (tevalS ey n (vx::env2))
               end
           end
         | tunpack ex ey =>
@@ -154,7 +153,7 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
             | None => None
             | Some (None, k) => Some (None, k)
             | Some (Some vx, k1) =>
-              step (k1 + 1) (tevalS ey n (vx::env))
+              logStep (k1 + 1) (tevalS ey n (vx::env))
             (* | res => res *)
           end
       end
@@ -162,7 +161,7 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
 
 Theorem evalMs_equiv: forall n env t, tevalSM t n env = tevalS t n env.
 Proof.
-  intros; revert env t; induction n; simpl_unfold_monad; unfold step; try reflexivity;
+  intros; revert env t; induction n; simpl_unfold_monad; unfold logStep; try reflexivity;
     intros;
     repeat
       (try better_case_match;
@@ -282,7 +281,7 @@ Qed.
 (*     rewrite Hevaln2 in *. *)
 
 (*     do 3 better_case_match; auto. *)
-(*     unfold step in *. *)
+(*     unfold logStep in *. *)
 
 (*     assert (exists optV0 j0, tevalS t0 n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]] by admit. *)
 (*     assert (tevalS t0 m' (v :: l) = tevalS t0 n (v :: l)) as -> by (rewrite Hevaln0; auto). *)
@@ -294,7 +293,7 @@ Qed.
 (*     rewrite Hevaln1 in *. *)
 
 (*     case_match; auto. *)
-(*     unfold step in *. *)
+(*     unfold logStep in *. *)
 
 (*     assert (exists optV2, tevalS e2 n (v::env) = Some optV2) as [[optV2 j2] Hevaln2] by admit. *)
 (*     assert (tevalS e2 m' (v::env) = tevalS e2 n (v::env)) as -> by (rewrite Hevaln2; auto). *)
