@@ -17,56 +17,34 @@ Ltac beq_nat :=
   | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
   end.
 
+Lemma closed_upgrade_both_rec:
+  (forall i k v1, vr_closed i k v1 -> forall i1 k1, i <= i1 -> k <= k1 -> vr_closed i1 k1 v1) /\
+  (forall i k T1, closed i k T1 -> forall i1 k1, i <= i1 -> k <= k1 -> closed i1 k1 T1) /\
+  (forall i k t1, tm_closed i k t1 -> forall i1 k1, i <= i1 -> k <= k1 -> tm_closed i1 k1 t1) /\
+  (forall i k d1, dm_closed i k d1 -> forall i1 k1, i <= i1 -> k <= k1 -> dm_closed i1 k1 d1) /\
+  (forall i k ds1, dms_closed i k ds1 -> forall i1 k1, i <= i1 -> k <= k1 -> dms_closed i1 k1 ds1).
+Proof. apply closed_mutind; eauto. Qed.
 
 Ltac unmut_lemma H := destruct H; ev; eauto.
 
-Lemma vr_closed_upgrade: forall i k k1 v,
-  vr_closed i k v -> k <= k1 -> vr_closed i k1 v.
-Proof. unmut_lemma closed_upgrade_rec. Qed.
-Lemma tm_closed_upgrade: forall i k k1 v,
-  tm_closed i k v -> k <= k1 -> tm_closed i k1 v.
-Proof. unmut_lemma closed_upgrade_rec. Qed.
-Lemma dm_closed_upgrade: forall i k k1 v,
-  dm_closed i k v -> k <= k1 -> dm_closed i k1 v.
-Proof. unmut_lemma closed_upgrade_rec. Qed.
-Lemma dms_closed_upgrade: forall i k k1 v,
-  dms_closed i k v -> k <= k1 -> dms_closed i k1 v.
-Proof. unmut_lemma closed_upgrade_rec. Qed.
-
-Hint Resolve vr_closed_upgrade closed_upgrade tm_closed_upgrade dm_closed_upgrade dms_closed_upgrade : loopy.
-
-Lemma vr_closed_upgrade_gh: forall i i1 k v,
-  vr_closed i k v -> i <= i1 -> vr_closed i1 k v.
-Proof. unmut_lemma closed_upgrade_gh_rec. Qed.
-Lemma tm_closed_upgrade_gh: forall i i1 k v,
-  tm_closed i k v -> i <= i1 -> tm_closed i1 k v.
-Proof. unmut_lemma closed_upgrade_gh_rec. Qed.
-Lemma dm_closed_upgrade_gh: forall i i1 k v,
-  dm_closed i k v -> i <= i1 -> dm_closed i1 k v.
-Proof. unmut_lemma closed_upgrade_gh_rec. Qed.
-Lemma dms_closed_upgrade_gh: forall i i1 k v,
-  dms_closed i k v -> i <= i1 -> dms_closed i1 k v.
-Proof. unmut_lemma closed_upgrade_gh_rec. Qed.
-Hint Resolve vr_closed_upgrade_gh closed_upgrade_gh tm_closed_upgrade_gh dm_closed_upgrade_gh dms_closed_upgrade_gh : loopy.
-
 Lemma vr_closed_upgrade_both: forall t i i1 k k1, vr_closed i k t -> i <= i1 -> k <= k1 -> vr_closed i1 k1 t.
-Proof. intuition eauto with loopy. Qed.
+Proof. unmut_lemma closed_upgrade_both_rec. Qed.
 Hint Extern 5 (vr_closed _ _ _) => try_once vr_closed_upgrade_both.
 
 Lemma closed_upgrade_both: forall t i i1 k k1, closed i k t -> i <= i1 -> k <= k1 -> closed i1 k1 t.
-Proof. intuition eauto with loopy. Qed.
+Proof. unmut_lemma closed_upgrade_both_rec. Qed.
 Hint Extern 5 (closed _ _ _) => try_once closed_upgrade_both.
 
 Lemma tm_closed_upgrade_both: forall t i i1 k k1, tm_closed i k t -> i <= i1 -> k <= k1 -> tm_closed i1 k1 t.
-Proof. intuition eauto with loopy. Qed.
+Proof. unmut_lemma closed_upgrade_both_rec. Qed.
 Hint Extern 5 (tm_closed _ _ _) => try_once tm_closed_upgrade_both.
 
 Lemma dm_closed_upgrade_both: forall t i i1 k k1, dm_closed i k t -> i <= i1 -> k <= k1 -> dm_closed i1 k1 t.
-Proof. intuition eauto with loopy. Qed.
+Proof. unmut_lemma closed_upgrade_both_rec. Qed.
 Hint Extern 5 (dm_closed _ _ _) => try_once dm_closed_upgrade_both.
 
 Lemma dms_closed_upgrade_both: forall t i i1 k k1, dms_closed i k t -> i <= i1 -> k <= k1 -> dms_closed i1 k1 t.
-Proof. intuition eauto with loopy. Qed.
+Proof. unmut_lemma closed_upgrade_both_rec. Qed.
 Hint Extern 5 (dms_closed _ _ _) => try_once dms_closed_upgrade_both.
 
 (* Swap premises to help proof search! *)
