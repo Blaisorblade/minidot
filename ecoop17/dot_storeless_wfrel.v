@@ -292,47 +292,142 @@ Proof.
 Qed.
 Hint Rewrite vl_sub_equiv.
 
-Lemma subst_all_open_swap: forall T env v n T0,
-    subst_all env T = Some T0 ->
-    (Forall (vr_closed 0 0) env) ->
-    exists T1,
-    subst_all (v :: env) (open n (VarF (length env)) T) = Some T1 /\
-    open n v T0 = T1.
-Proof.
-  induction T; simpl; intros; injectHyps; simpl in *; trivial;
-    repeat case_match_hp; injectHyps; try discriminate; simpl; eexists; split_conj; fequal; eauto.
+(* Shorter proof than the one in storeless_tidy. *)
+(* Lemma index_max : forall X vs n (T: X), *)
+(*                        index n vs = Some T -> *)
+(*                        n < length vs. *)
+(* Proof. *)
+(*   induction vs; intros * H; inversion H; simpl; case_match; beq_nat; subst; unfold lt in *; eauto. *)
+(* Qed. *)
+Hint Resolve index_max.
 
+Lemma index_open_swap: forall x env v vx n,
+    index x env = Some v ->
+    Forall (vr_closed 0 0) env ->
+    index x (vx :: env) = Some v /\
+    v = vr_open n vx v.
+Proof.
+  intros; simpl;
+    assert (vr_closed 0 0 v) by apply_Forall;
+    assert (x < length env) by eauto;
+    case_match; beq_nat; subst; try omega;
+      unmut_lemma closed_no_open_rec; intuition eauto.
+Qed.
+Hint Resolve index_open_swap.
+
+Lemma subst_all_open_swap_rec:
+  (forall v v0 env vx n l,
+      vr_subst_all env v = Some v0 ->
+      Forall (vr_closed 0 0) env ->
+      length env = l ->
+      exists v1,
+        vr_subst_all (vx :: env) (vr_open n (VarF l) v) = Some v1 /\
+        v1 = vr_open n vx v0) /\
+  (forall T T0 env vx n l,
+      subst_all env T = Some T0 ->
+      Forall (vr_closed 0 0) env ->
+      length env = l ->
+      exists T1,
+        subst_all (vx :: env) (open n (VarF l) T) = Some T1 /\
+        open n vx T0 = T1) /\
+  (forall t t0 env vx n l,
+      tm_subst_all env t = Some t0 ->
+      Forall (vr_closed 0 0) env ->
+      length env = l ->
+      exists t1,
+        tm_subst_all (vx :: env) (tm_open n (VarF l) t) = Some t1 /\
+        t1 = tm_open n vx t0) /\
+  (forall d d0 env vx n l,
+      dm_subst_all env d = Some d0 ->
+      Forall (vr_closed 0 0) env ->
+      length env = l ->
+      exists d1,
+        dm_subst_all (vx :: env) (dm_open n (VarF l) d) = Some d1 /\
+        d1 = dm_open n vx d0) /\
+  (forall d d0 env vx n l,
+      dms_subst_all env d = Some d0 ->
+      Forall (vr_closed 0 0) env ->
+      length env = l ->
+      exists d1,
+        dms_subst_all (vx :: env) (dms_open n (VarF l) d) = Some d1 /\
+        d1 = dms_open n vx d0).
+Proof.
+  apply syntax_mutind; cbn -[index]; intros; injectHyps; eauto; simpl in *;
+    repeat case_match_hp; injectHyps; try discriminate;
+    simpl; eexists; split_conj; fequal; trivial;
+      try solve [repeat (better_case_match; beq_nat; subst; simpl); eauto].
+
+  (* repeat (better_case_match; try beq_nat; subst; try beq_nat; simpl); eauto. *)
+  (* try solve [repeat (better_case_match; try beq_nat; subst; try beq_nat; simpl); eauto]. *)
   all: repeat match goal with
-              | Hind : context [ ?f (_ :: _) (open _ _ ?T) ] |- context [ match ?f (_ :: _) (open ?n ?l ?T) with _ => _ end ] =>
-                lets (? & -> & ?) : Hind n ___; eauto; ev
+              | Hind : context [ ?f (_ :: _) (?sth_open _ _ ?T) ] |- context [ match ?f (_ :: _) (?sth_open ?n ?l ?T) with _ => _ end ] =>
+                lets (? & -> & ?) : Hind n ___; eauto
               end; repeat fequal; eauto.
-  (* eauto; ev; optFuncs_det; eauto *)
-  (* Now we must make this mutually recursive in all syntax! *)
-Admitted.
+Qed.
+
+Lemma vr_subst_all_open_swap: forall v v0 env vx n l,
+    vr_subst_all env v = Some v0 ->
+    Forall (vr_closed 0 0) env ->
+    length env = l ->
+    exists v1,
+      vr_subst_all (vx :: env) (vr_open n (VarF l) v) = Some v1 /\
+      v1 = vr_open n vx v0.
+Proof. unmut_lemma subst_all_open_swap_rec. Qed.
+Lemma subst_all_open_swap: forall T T0 env vx n l,
+    subst_all env T = Some T0 ->
+    Forall (vr_closed 0 0) env ->
+    length env = l ->
+    exists T1,
+      subst_all (vx :: env) (open n (VarF l) T) = Some T1 /\
+      open n vx T0 = T1.
+Proof. unmut_lemma subst_all_open_swap_rec. Qed.
+Lemma tm_subst_all_open_swap: forall t t0 env vx n l,
+    tm_subst_all env t = Some t0 ->
+    Forall (vr_closed 0 0) env ->
+    length env = l ->
+    exists t1,
+      tm_subst_all (vx :: env) (tm_open n (VarF l) t) = Some t1 /\
+      t1 = tm_open n vx t0.
+Proof. unmut_lemma subst_all_open_swap_rec. Qed.
+Lemma dm_subst_all_open_swap: forall d d0 env vx n l,
+    dm_subst_all env d = Some d0 ->
+    Forall (vr_closed 0 0) env ->
+    length env = l ->
+    exists d1,
+      dm_subst_all (vx :: env) (dm_open n (VarF l) d) = Some d1 /\
+      d1 = dm_open n vx d0.
+Proof. unmut_lemma subst_all_open_swap_rec. Qed.
+Lemma dms_subst_all_open_swap: forall d d0 env vx n l,
+    dms_subst_all env d = Some d0 ->
+    Forall (vr_closed 0 0) env ->
+    length env = l ->
+    exists d1,
+      dms_subst_all (vx :: env) (dms_open n (VarF l) d) = Some d1 /\
+      d1 = dms_open n vx d0.
+Proof. unmut_lemma subst_all_open_swap_rec. Qed.
+
+Hint Resolve
+     vr_subst_all_open_swap
+     subst_all_open_swap
+     tm_subst_all_open_swap
+     dm_subst_all_open_swap
+     dms_subst_all_open_swap.
 
 (* Awkward to state with vtp? *)
 Lemma vtp_tbind_i: forall env v T n,
-    closed_ty 0 (length env) (TBind T) ->
-    Forall (dms_closed 0 1) env ->
-    (* Arguably shouldn't be needed, but I'll need some tricky binding lemma otherwise! *)
     vtpEnv (open 0 (VarF (length env)) T) n (tvar (VObj v)) (v :: env) ->
+    Forall (dms_closed 0 1) env ->
+    closed_ty 0 (length env) (TBind T) -> (* Ensures that TBind T doesn't mention `VarF (length env)`. *)
     vtpEnv (TBind T) n (tvar (VObj v)) env.
 Proof.
-  unfold vtpEnv, vtpEnvCore; intros * Hc Hvtp; inverse Hc; simp val_type in *; ev; intuition eauto.
-  simpl in *. ev.
-  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') as (? & Hsubst & ?) by eauto;
-    rewrite Hsubst.
-  (* eapply subst_all_nonTot_res_closed; eauto. *)
-  (* eapply Forall_impl'; eauto. *)
-  (* intros. *)
-  (* destruct a. admit. admit. constructor. *)
-  (* case_match. *)
-  unfold vtp in *.
-  eexists; intuition eauto.
-  simp val_type in *.
-  unfold closed_ty; intuition eauto.
-  enough (open 0 (VObj v) x0 = x) as -> by eauto.
-  (* assert (Forall (vr_closed 0 0) (map VObj env)) by eauto. *)
-  eapply subst_all_open_swap; try rewrite map_length; eauto.
+  unfold vtpEnv, vtpEnvCore, vtp, closed_ty; simpl; intros; inverts_closed; simp val_type in *; split_conj; eauto.
+  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') as (T'base & Hsubst & ?) by eauto;
+    rewrite Hsubst;
+    eexists; split_conj; trivial;
+      simp val_type in *;
+      split_conj; trivial.
+  (* Or *)
+  (* rewrite val_type_unfold_eq; simpl. *)
+  assert (exists T', subst_all (VObj v :: map VObj env) (open 0 (VarF (length env)) T) = Some T' /\ open 0 (VObj v) T'base = T') by eauto (* subst_all_open_swap *);
+    ev; optFuncs_det; assumption.
 Qed.
-
