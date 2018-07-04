@@ -93,9 +93,9 @@ Ltac lenG_to_lenEnv :=
 
 Hint Constructors Forall.
 
-Lemma env_dms_closed: forall k env G l, R_env k env G -> length env = l -> Forall (dms_closed 0 1) env.
+Lemma env_dms_closed: forall k env G, R_env k env G -> Forall (dms_closed 0 1) env.
 Proof.
-  induction env; intros * Henv Hl; subst; inverts Henv; constructor; simpl; eauto using Forall_impl.
+  induction env; intros * Henv; subst; inverts Henv; constructor; simpl; eauto using Forall_impl.
   assert (tm_closed 0 0 (tvar (VObj a))) by eauto; repeat inverts_closed; eauto.
 Qed.
 Hint Resolve env_dms_closed.
