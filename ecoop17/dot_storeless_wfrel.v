@@ -292,3 +292,48 @@ Proof.
     split; eauto.
 Qed.
 Hint Rewrite vl_sub_equiv.
+
+Lemma subst_all_open_swap: forall T env v n T0,
+    subst_all env T = Some T0 ->
+    (Forall (vr_closed 0 0) env) ->
+    exists T1,
+    subst_all (v :: env) (open n (VarF (length env)) T) = Some T1 /\
+    open n v T0 = T1.
+Proof.
+  induction T; simpl; intros; injectHyps; simpl in *; trivial;
+    repeat case_match_hp; injectHyps; try discriminate; simpl; eexists; split_conj; fequal; eauto.
+
+  all: repeat match goal with
+              | Hind : context [ ?f (_ :: _) (open _ _ ?T) ] |- context [ match ?f (_ :: _) (open ?n ?l ?T) with _ => _ end ] =>
+                lets (? & -> & ?) : Hind n ___; eauto; ev
+              end; repeat fequal; eauto.
+  (* eauto; ev; optFuncs_det; eauto *)
+  (* Now we must make this mutually recursive in all syntax! *)
+Admitted.
+
+(* Awkward to state with vtp? *)
+Lemma vtp_tbind_i: forall env v T n,
+    closed_ty 0 (length env) (TBind T) ->
+    Forall (dms_closed 0 1) env ->
+    (* Arguably shouldn't be needed, but I'll need some tricky binding lemma otherwise! *)
+    vtpEnv (open 0 (VarF (length env)) T) n (tvar (VObj v)) (v :: env) ->
+    vtpEnv (TBind T) n (tvar (VObj v)) env.
+Proof.
+  unfold vtpEnv, vtpEnvCore; intros * Hc Hvtp; inverse Hc; simp val_type in *; ev; intuition eauto.
+  simpl in *. ev.
+  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') as (? & Hsubst & ?) by eauto;
+    rewrite Hsubst.
+  (* eapply subst_all_nonTot_res_closed; eauto. *)
+  (* eapply Forall_impl'; eauto. *)
+  (* intros. *)
+  (* destruct a. admit. admit. constructor. *)
+  (* case_match. *)
+  unfold vtp in *.
+  eexists; intuition eauto.
+  simp val_type in *.
+  unfold closed_ty; intuition eauto.
+  enough (open 0 (VObj v) x0 = x) as -> by eauto.
+  (* assert (Forall (vr_closed 0 0) (map VObj env)) by eauto. *)
+  eapply subst_all_open_swap; try rewrite map_length; eauto.
+Qed.
+
