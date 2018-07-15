@@ -5,7 +5,6 @@ Require Import tactics.
 Require Import dot_storeless_tidy.
 Require Import dot_storeless_subst_aux.
 Require Import dot_storeless_wfrel_aux.
-Require Import tactics.
 
 Definition venv := list dms.
 Definition tenv := list ty.
