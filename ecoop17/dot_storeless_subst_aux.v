@@ -11,12 +11,6 @@ Require Import tactics.
 
 Definition wf {A} (G : list A) T := closed (length G) 0 T.
 
-Ltac beq_nat :=
-  match goal with
-  | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
-  | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
-  end.
-
 Lemma closed_upgrade_both_rec:
   (forall i k v1, vr_closed i k v1 -> forall i1 k1, i <= i1 -> k <= k1 -> vr_closed i1 k1 v1) /\
   (forall i k T1, closed i k T1 -> forall i1 k1, i <= i1 -> k <= k1 -> closed i1 k1 T1) /\

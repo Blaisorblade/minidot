@@ -179,3 +179,11 @@ Ltac try_once lm :=
     | H : usedLemma lm |- _ => fail 1
     | _ => markUsed lm; eapply lm
     end.
+
+Ltac beq_nat :=
+  match goal with
+  | H : (?a =? ?a) = false |- _ => rewrite Nat.eqb_refl in H; discriminate H
+  | H : (?a <> ?a) |- _ => exfalso; eapply H; trivial
+  | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
+  | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
+  end.
