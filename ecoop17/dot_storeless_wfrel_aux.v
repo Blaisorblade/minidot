@@ -207,6 +207,8 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
     val_type (pair (TOr T1 T2) n) v :=
                                              closed_ty 0 0 T1 /\ closed_ty 0 0 T2 /\
                                              (val_type (pair T1 n) v \/ val_type (pair T2 n) v);
+    val_type (pair (TLater T1) 0) v := irred v /\ closed_ty 0 0 T1 /\ tm_closed 0 0 v;
+    val_type (pair (TLater T1) (S n)) v := val_type (pair T1 n) v;
     val_type (pair T n) v := False.
 
 Solve Obligations with valTypeObligationsSSReflection. (* Works *)
@@ -256,12 +258,14 @@ Lemma vtp_closed: forall T n v,
     vtp T n v -> closed_ty 0 0 T.
 Proof.
   unfold vtp, closed_ty;
-    intros *; vtp_induction T n; intros;
+    intros *; vtp_induction T n; intros * Hind Hvtp;
       destruct T;
       destruct v;
-      simp val_type in *; ev;
+      destruct n;
+      simpl_vtp; ev;
         try eauto || easy.
-  all: (destruct v0 || destruct v; simp val_type in *; ev; now eauto).
+  all: try (constructors; eapply (Hind T n); eauto).
+  all: (destruct v0 || destruct v; simpl_vtp; ev; now eauto).
 Qed.
 
 Lemma vtp_v_closed : forall T n v, vtp T n v -> tm_closed 0 0 v.
@@ -269,29 +273,30 @@ Lemma vtp_v_closed : forall T n v, vtp T n v -> tm_closed 0 0 v.
   (* - admit. *)
   (* - ev; clear Hcall. simp expr_sem in *. *)
   (*   admit. *)
-  unfold vtp;
-    intros *; vtp_induction T n; intros * Hind; intros;
+  intros *; vtp_induction T n; intros * Hind; intros;
     destruct T;
     destruct v;
-    simp val_type in *; ev;
+    destruct n;
+    simpl_vtp; ev;
       try eauto || easy.
-  all: try solve [destruct v; simp val_type in *; ev; now eauto].
-  all: try solve [destruct v0; simp val_type in *; ev; now eauto].
-  all: try (destruct v0; simp val_type in *; ev; eauto).
+
   Ltac indSearch Hind :=
     match goal with
     | H : val_type (?T1, ?n1) _ |- _ =>
       lets ?: Hind H; eauto
     end.
+  (* simpl_vtp would fail here. *)
   all: try match goal with
     | H : ?A \/ ?B |- _ => destruct H
-    end; indSearch Hind.
+    end; try indSearch Hind.
+  (* all: try solve [destruct v0 || destruct v; simp val_type in *; intuition eauto]. *)
+  all: try solve [destruct v0 || destruct v; simp val_type in *; contradiction || ev; eauto].
 Qed.
 Hint Resolve vtp_v_closed.
 
 Example ex3: forall T n, closed 0 1 T -> vtp (TMem 0 TBot TTop) n (tvar (VObj (dcons (dty T) dnil))).
 Proof.
-  intros; autounfold; simp val_type; intuition eauto; simpl;
+  intros; simpl_vtp; intuition eauto; simpl;
     eexists; intuition idtac; simp val_type in *; now eauto.
 Qed.
 
@@ -355,6 +360,7 @@ Qed.
   (* (*   repeat better_case_match; ev; eauto 6; *) *)
   (* (*     contradiction. *) *)
 
+Hint Resolve vtp_closed.
 Lemma vtp_mon: forall T v m n,
     vtp T n v ->
     m <= n ->
@@ -363,7 +369,8 @@ Proof.
   unfold vtp.
   intros *. revert m.
   funind (val_type (T, n) v) Hcall.
-  all: intros; simp val_type; ev;
+  all: intros;
+    simp val_type; ev;
     unfold closed_ty in *;
     simp expr_sem in *;
     repeat split_conj; eauto; try easy.
@@ -380,6 +387,10 @@ Proof.
   - match goal with
     | [ H : val_type _ _ \/ val_type _ _ |- _ ] => destruct H
     end; eauto.
+  - assert (m = 0) as -> by omega; simpl_vtp; intuition eauto.
+  - match goal with
+    | H : m <= _ |- _ => inverse H; simpl_vtp; try case_match; subst; split_conj; eauto
+    end.
 Qed.
 Hint Extern 5 (vtp _ _ _) => try_once vtp_mon.
 
