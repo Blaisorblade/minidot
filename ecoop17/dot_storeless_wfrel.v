@@ -420,11 +420,11 @@ Lemma vtp_tbind_i: forall env v T n,
     closed_ty 0 (length env) (TBind T) -> (* Ensures that TBind T doesn't mention `VarF (length env)`. *)
     vtpEnv (TBind T) n (tvar (VObj v)) env.
 Proof.
-  unfold vtpEnv, vtpEnvCore, vtp, closed_ty; simpl; intros; inverts_closed; simp val_type in *; split_conj; eauto.
+  unfold vtpEnv, vtpEnvCore, vtp, closed_ty; simpl; intros; inverts_closed; simpl_vtp; split_conj; eauto.
   assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') as (T'base & Hsubst & ?) by eauto;
     rewrite Hsubst;
     eexists; split_conj; trivial;
-      simp val_type in *;
+      simpl_vtp;
       split_conj; trivial.
   (* Or *)
   (* rewrite val_type_unfold_eq; simpl. *)

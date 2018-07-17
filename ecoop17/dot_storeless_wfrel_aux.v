@@ -229,10 +229,20 @@ Defined.
 
 Definition vtp T n v := val_type (T, n) v.
 Hint Unfold vtp.
+
+Transparent val_type_unfold.
+Ltac simpl_vtp :=
+  unfold vtp in *; try match goal with
+  | H : context [ val_type (?T, ?n) _ ] |- _ =>
+    tryif is_var T then fail else
+      rewrite (val_type_unfold_eq (T, n)) in H; cbn [val_type_unfold] in H
+  | |- context [ val_type (?T, ?n) _ ] =>
+    tryif is_var T then fail else
+      rewrite (val_type_unfold_eq (T, n)); cbn [val_type_unfold]
+  end.
+
 Example ex0 : forall n v, irred v -> tm_closed 0 0 v -> vtp TTop n v.
-Proof.
-  intros; autounfold; now simp val_type.
-Qed.
+Proof. intros; now simpl_vtp. Qed.
 
 Lemma vtp_irred: forall T k v, vtp T k v -> irred v.
 Proof.
