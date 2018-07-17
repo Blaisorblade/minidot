@@ -163,6 +163,9 @@ with subst_all (env: list vr) (T: ty) { struct T }: option ty :=
       T1' <- subst_all env T1;
       T2' <- subst_all env T2;
       ret (TOr T1' T2')
+    | TLater T1    =>
+      T1' <- subst_all env T1;
+      ret (TLater T1')
   end
 with tm_subst_all (env: list vr) (t: tm) { struct t }: option tm :=
    match t with

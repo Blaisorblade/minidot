@@ -31,6 +31,11 @@ with ty : Type :=
   | TBind  : ty -> ty
   | TAnd   : ty -> ty -> ty
   | TOr    : ty -> ty -> ty
+  (* Beware: TLater was added later to this code, and there aren't enough typing
+     rules involving it; it's only meant for use in the semantic typing/logical
+     relation defined later.
+     TODO: move away the typing rules altogether. *)
+  | TLater : ty -> ty
 with  tm : Type :=
   | tvar  : vr -> tm
   | tapp  : tm -> lb -> tm -> tm
@@ -98,6 +103,9 @@ with closed: nat -> nat -> ty -> Prop :=
     closed i k T1 ->
     closed i k T2 ->
     closed i k (TOr T1 T2)
+| cl_later: forall i k T1,
+    closed i k T1 ->
+    closed i k (TLater T1)
 with tm_closed: nat -> nat -> tm -> Prop :=
 | clt_var: forall i k v1,
     vr_closed i k v1 ->
@@ -140,6 +148,7 @@ with open (k: nat) (u: vr) (T: ty) { struct T }: ty :=
     | TBind T1    => TBind (open (S k) u T1)
     | TAnd T1 T2  => TAnd (open k u T1) (open k u T2)
     | TOr T1 T2   => TOr (open k u T1) (open k u T2)
+    | TLater T1   => TLater (open k u T1)
   end
 with tm_open (k: nat) (u: vr) (t: tm) { struct t }: tm :=
    match t with
@@ -173,6 +182,7 @@ with subst (u : vr) (T : ty) {struct T} : ty :=
     | TBind T2     => TBind (subst u T2)
     | TAnd T1 T2   => TAnd (subst u T1) (subst u T2)
     | TOr T1 T2    => TOr (subst u T1) (subst u T2)
+    | TLater T1    => TLater (subst u T1)
   end
 with tm_subst (u : vr) (t : tm) { struct t } : tm :=
    match t with
@@ -344,7 +354,9 @@ with stp: tenv -> ty -> ty -> nat -> Prop :=
     stp GH T1 T2 n1 ->
     stp GH T2 T3 n2 ->
     stp GH T1 T3 (S (n1+n2))
-
+| stp_later : forall GH T1 T2 n1,
+    stp GH T1 T2 n1 ->
+    stp GH (TLater T1) (TLater T2) (S n1)
 
 with htp: tenv -> id -> ty -> nat -> Prop :=
 | htp_var: forall GH x TX n1,
@@ -1220,6 +1232,9 @@ Proof.
   - eapply IHS1. eauto. omega.
   - econstructor. eapply IHS1. eauto. omega. eapply IHS1. eauto. omega.
   - eapply IHS1. eauto. omega.
+  - Hint Constructors closed.
+    constructor.
+    eapply IHS1; eauto || omega.
   (* stp right *)
   - eauto.
   - econstructor.
@@ -1246,6 +1261,7 @@ Proof.
   - econstructor. eauto. eapply IHS2. eauto. omega.
   - eapply IHS2. eauto. omega.
   - eapply IHS2. eauto. omega.
+  - constructor. subst. eapply IHS2; eauto || omega.
   (* vtp right *)
   - econstructor.
   - change 0 with (length ([]:tenv)) at 1. econstructor. eapply IHS1. eauto. omega. eapply IHS2. eauto. omega.
@@ -1384,6 +1400,7 @@ Fixpoint tsize (T: ty) { struct T }: nat :=
     | TBind T1    => S (tsize T1)
     | TAnd T1 T2  => S (tsize T1 + tsize T2)
     | TOr T1 T2   => S (tsize T1 + tsize T2)
+    | TLater T1   => S (tsize T1)
   end.
 
 Lemma open_preserves_size: forall T v j,
@@ -1422,6 +1439,10 @@ Proof.
     destruct (IHn GH T0 H1). omega.
     destruct (IHn GH T2 H2). omega.
     eexists. eapply stp_or1. eapply stp_or21. eauto. eauto. eapply stp_or22. eauto. eauto.
+  - Case "TLater".
+    destruct (IHn GH T0 H1); try omega.
+    Hint Constructors stp.
+    eexists; eauto 10.
 Grab Existential Variables.
 apply 0.
 Qed.
@@ -1619,6 +1640,7 @@ with splice n (T : ty) {struct T} : ty :=
     | TBind T2     => TBind (splice n T2)
     | TAnd T1 T2   => TAnd (splice n T1) (splice n T2)
     | TOr T1 T2    => TOr (splice n T1) (splice n T2)
+    | TLater T1    => TLater (splice n T1)
   end
 with tm_splice n (t : tm) {struct t} : tm :=
   match t with
@@ -1969,6 +1991,9 @@ Proof.
     eapply stp_trans.
     eapply IHstp. eauto. omega.
     eapply IHstp. eauto. omega.
+  - Case "tlater".
+    constructor.
+    eapply IHstp; eauto || omega.
   - Case "htp_var".
     unfold splice_var.
     case_eq (le_lt_dec (length G0) x1); intros E LE.
@@ -2170,6 +2195,7 @@ Proof.
   - eapply stp_or1. eapply IHn. eauto. omega. eapply IHn. eauto. omega.
 
   - eapply stp_trans. eapply IHn. eauto. omega. eapply IHn. eauto. omega.
+  - constructor; eapply IHn; eauto || omega.
   (* htp *)
   - econstructor. eapply index_extend. eauto. eapply closed_upgrade_gh. eauto. omega.
   - eapply htp_bind. eapply IHn. eauto. omega. eapply closed_upgrade_gh. eauto. omega.
@@ -2582,6 +2608,12 @@ Proof.
     assert (stpd (map (substt x) GH) (substt x T3) (substt x T2)).
     eapply IHn; eauto. omega.
     eu. eu. repeat eexists. eapply stp_trans. eauto. eauto.
+  - Case "later".
+    assert (stpd (map (substt x) GH) (substt x T0) (substt x T3)). {
+      eapply IHn. eauto.  omega.
+      intros; eauto.
+    }
+    eu. repeat eexists. constructor; eauto.
 
 Grab Existential Variables.
 apply 0. apply 0. apply 0. apply 0. apply 0. apply 0.
@@ -2804,6 +2836,8 @@ Proof.
       edestruct IHn_stp as [? IH2].
       eapply H1. omega. eauto. eauto. eauto.
       eexists. eapply stp_trans. eapply IH1. eapply IH2.
+    + SCase "later".
+      edestruct IHn_stp as [? IH1]; info_eauto || omega.
 Grab Existential Variables.
 apply 0. apply 0. apply 0. apply 0. apply 0.
 Qed.
@@ -2849,6 +2883,9 @@ Proof.
       assert (vtpdd m1 x T0) as LHS. eapply IHn. eauto. eauto. eauto. omega. eauto. eu.
       assert (vtpdd x0 x T3) as BB. eapply IHn. eapply LHS. eauto. omega. omega. eauto. eu.
       repeat eexists. eauto. omega.
+    + SCase "later".
+      solve by inversion.
+
   - Case "mem". inversion H0; subst; invty.
     + SCase "top". repeat eexists. eapply vtp_top. eauto. eauto.
     + SCase "mem". invty. subst.
@@ -2874,6 +2911,8 @@ Proof.
       assert (vtpdd m1 x T5) as LHS. eapply IHn. eauto. eauto. eauto. omega. eauto. eu.
       assert (vtpdd x0 x T3) as BB. eapply IHn. eapply LHS. eauto. omega. omega. eauto. eu.
       repeat eexists. eauto. omega.
+    + SCase "later".
+      solve by inversion.
   - Case "fun". inversion H0; subst; invty.
     + SCase "top". repeat eexists. eapply vtp_top. eauto. eauto.
     + SCase "fun". invty. subst.
@@ -2902,6 +2941,9 @@ Proof.
       assert (vtpdd m1 x T7) as LHS. eapply IHn. eauto. eauto. eauto. omega. eauto. eu.
       assert (vtpdd x0 x T3) as BB. eapply IHn. eapply LHS. eauto. omega. omega. eauto. eu.
       repeat eexists. eauto. omega.
+    + SCase "later".
+      solve by inversion.
+
   - Case "bind".
     inversion H0; subst; invty.
     + SCase "top". repeat eexists. eapply vtp_top.
@@ -2967,6 +3009,8 @@ Proof.
       assert (vtpdd (S m) x T4) as LHS. eapply IHn. eauto. eauto. eauto. omega. eauto. eu.
       assert (vtpdd x0 x T3) as BB. eapply IHn. eapply LHS. eauto. omega. omega. eauto. eu.
       repeat eexists. eauto. omega.
+    + SCase "later".
+      solve by inversion.
   - Case "ssel2". subst. inversion H0; subst; invty.
     + SCase "top". repeat eexists. eapply vtp_top.
       eapply vtp_closed1. eauto. eauto.
