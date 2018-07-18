@@ -431,3 +431,42 @@ Proof.
   assert (exists T', subst_all (VObj v :: map VObj env) (open 0 (VarF (length env)) T) = Some T' /\ open 0 (VObj v) T'base = T') by eauto (* subst_all_open_swap *);
     ev; optFuncs_det; assumption.
 Qed.
+
+Ltac lenG_to_lenEnv ::=
+  match goal with
+  | H: R_env _ ?env ?G |- _ =>
+    (* Progress avoids the ambiguity with multiple R_env hyps. *)
+    progress replace (length G) with (length env) in * by (eauto using wf_length)
+  end.
+
+(* Oh, this isn't quite vtp_tbind_i. *)
+Lemma t_bind_i: forall G T v,
+  sem_type (TLater (open 0 (VarF (length G)) T) :: G) (open 0 (VarF (length G)) T) (tvar (VObj v)) ->
+  tm_closed 0 (length G) (tvar (VObj v)) ->
+  closed (length G) 1 T ->
+  sem_type G (TBind T) (tvar (VObj v)).
+Proof.
+  unfold sem_type, etpEnvCore, vtpEnvCore; simpl; intros; intuition eauto.
+  subst.
+  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') by
+    (eapply subst_all_nonTot_res_closed;
+    lenG_to_lenEnv;
+    eauto).
+  assert (j = 0) as -> by admit.
+  assert (v0 = (tvar (VObj v))) as -> by admit.
+  remember (v :: env) as env'.
+  (* Loeb induction needed for *THIS* step! *)
+  assert (R_env k env' (TLater (open 0 (VarF (length G)) T) :: G)) by admit.
+  assert (evalToSome env' (tvar (VObj v)) (tvar (VObj v)) k 0) by admit.
+  lets ?: H4 H6 H7 ___; eauto.
+  replace (k - 0) with k in * by omega.
+  ev.
+  better_case_match; eexists; intuition eauto.
+  simpl_vtp.
+  split_conj; eauto.
+  subst env'. simpl in *.
+  enough (open 0 (VObj v) x0 = x) as -> by eauto.
+  replace (length G) with (length env) in * by eauto.
+  assert (exists T', subst_all (VObj v :: map VObj env) (open 0 (VarF (length env)) T) = Some T' /\ open 0 (VObj v) x0 = T') by eauto (* subst_all_open_swap *);
+    ev; optFuncs_det; eauto.
+Admitted.
