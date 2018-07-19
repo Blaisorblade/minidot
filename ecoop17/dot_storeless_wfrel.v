@@ -439,34 +439,102 @@ Ltac lenG_to_lenEnv ::=
     progress replace (length G) with (length env) in * by (eauto using wf_length)
   end.
 
-(* Oh, this isn't quite vtp_tbind_i. *)
-Lemma t_bind_i: forall G T v,
+Lemma loeb_vtp: forall T v,
+    (forall j, vtp (TLater T) j v -> vtp T j v) ->
+    irred v -> closed 0 0 T -> tm_closed 0 0 v ->
+    forall j, vtp T j v.
+Proof.
+  unfold vtp; intros * Hloeb **; induction j;
+    [ pose (l := 0) | pose (l := (S j)) ];
+    lets ? : Hloeb l; subst l;
+      simpl_vtp; eauto.
+Qed.
+
+Lemma loeb_vtp_2: forall T v k,
+    (forall j, j <= k -> vtp (TLater T) j v -> vtp T j v) ->
+    irred v -> closed 0 0 T -> tm_closed 0 0 v ->
+    forall j, j <= k -> vtp T j v.
+Proof.
+  unfold vtp; induction k;
+    [ pose (l := 0) | pose (l := (S k)) ];
+    intros * Hloeb **; try assert (j = 0) as -> by eauto;
+    lets ? : Hloeb l; subst l;
+      simpl_vtp; eauto.
+Qed.
+
+(* This wants to be T-{}-I, but XXX we really need definition typing to express it.
+   The proof is inspired by the one for the right theorem, tho
+   this is not quite the right statement: we forbid v from using itself *through
+   the environment*, it can only do that through VObj. So this doesn't let us go from proofs about v to proofs about VObj v. *)
+Lemma t_new_i: forall G T v,
   sem_type (TLater (open 0 (VarF (length G)) T) :: G) (open 0 (VarF (length G)) T) (tvar (VObj v)) ->
-  tm_closed 0 (length G) (tvar (VObj v)) ->
+  tm_closed (length G) 0 (tvar (VObj v)) ->
   closed (length G) 1 T ->
   sem_type G (TBind T) (tvar (VObj v)).
 Proof.
-  unfold sem_type, etpEnvCore, vtpEnvCore; simpl; intros; intuition eauto.
-  subst.
-  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') by
-    (eapply subst_all_nonTot_res_closed;
-    lenG_to_lenEnv;
-    eauto).
-  assert (j = 0) as -> by admit.
-  assert (v0 = (tvar (VObj v))) as -> by admit.
-  remember (v :: env) as env'.
+  unfold sem_type, etpEnvCore, vtpEnvCore; simpl;
+    intros * (? & ? & HvType) **; split_conj; eauto; intros * Henv v0 **; subst; lenG_to_lenEnv.
+  (* XXX we have too many copies, but this removes too much, so remove the original hints. *)
+  (* Remove Hints ex_intro. *)
+  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') as (T' & ?) by eauto 6.
+  ev; better_case_match; eexists; split_conj; trivial.
+
+  (* Should be separate lemma on evaluation of objects. *)
+  assert (exists d, dms_subst_all (map VObj env) v = Some d /\ evalToSome env (tvar (VObj v)) (tvar (VObj d)) k 0 /\ dms_closed 0 1 d) as (d & Hsubst & Heval & ?). {
+    unfold evalToSome in *; ev;
+    simpl in *; repeat better_case_match; try discriminate; injectHyps.
+    match goal with
+    | H: steps _ _ _ |- _ => inverse H
+    end; try solve by inversion.
+    assert (exists d', dms_subst_all (map VObj env) v = Some d' /\ dms_closed 0 1 d'). {
+      eapply dms_subst_all_nonTot_res_closed; eauto.
+      rewrite map_length.
+      inverts_closed.
+      inverts_closed.
+      repeat inverts_closed; eauto.
+    }
+    ev; optFuncs_det; eexists; split_conj; eauto.
+  }
+  assert (v0 = tvar (VObj d) /\ j = 0) by eauto; ev; subst.
+  (* assert (j = 0) as -> by admit. *)
+  remember (d :: env) as env'.
+  assert (tm_subst_all (map VObj env) (tvar (VObj v)) = Some (tvar (VObj d))). {
+    simpl; better_case_match; trivial.
+  }
+  assert (map VObj env' = VObj d :: map VObj env) as Hrew by (subst; auto).
+
+  (* environment weakening for evalToSome. *)
+  assert (evalToSome env' (tvar (VObj v)) (tvar (VObj d)) k 0) as Heval'. {
+    unfold evalToSome in *; rewrite Hrew;
+      ev; split_conj; eauto.
+  }
+
+  assert (exists T'', subst_all (map VObj env') (open 0 (VarF (length env)) T) = Some T'' /\ open 0 (VObj d) T' = T'') as (T'' & ?) by (subst; simpl; eauto); ev.
+  (* assert (open 0 (VObj d) T' = T''). *)
+  (* lenG_to_lenEnv. *)
+  (* (* replace (length G) with (length env) in * by eauto. *) *)
+  (* assert (exists T0, subst_all (VObj d :: map VObj env) (open 0 (VarF (length env)) T) = Some T0 /\ open 0 (VObj d) T' = T0) by eauto (* subst_all_open_swap *). *)
+  (*   ev; optFuncs_det; eauto. *)
+  simpl_vtp; split_conj; trivial.
   (* Loeb induction needed for *THIS* step! *)
-  assert (R_env k env' (TLater (open 0 (VarF (length G)) T) :: G)) by admit.
-  assert (evalToSome env' (tvar (VObj v)) (tvar (VObj v)) k 0) by admit.
-  lets ?: H4 H6 H7 ___; eauto.
-  replace (k - 0) with k in * by omega.
-  ev.
-  better_case_match; eexists; intuition eauto.
-  simpl_vtp.
-  split_conj; eauto.
-  subst env'. simpl in *.
-  enough (open 0 (VObj v) x0 = x) as -> by eauto.
-  replace (length G) with (length env) in * by eauto.
-  assert (exists T', subst_all (VObj v :: map VObj env) (open 0 (VarF (length env)) T) = Some T' /\ open 0 (VObj v) x0 = T') by eauto (* subst_all_open_swap *);
-    ev; optFuncs_det; eauto.
-Admitted.
+  (* Loeb induction shows P assuming Later P => P. For us, it shows vtp T k assuing 
+   *)
+  assert (closed 0 0 (open 0 (VObj d) T')) by
+    (unfold evalToSome in *; eauto using closed_open).
+  assert (irred (tvar (VObj d))) by
+    (unfold evalToSome in *; ev; eauto).
+
+  eapply loeb_vtp_2 with (k := k); eauto.
+  intros * ? Hvtp.
+  assert (R_env j env' (TLater (open 0 (VarF (length G)) T) :: G)). {
+    subst.
+    econstructor; eauto.
+    lenG_to_lenEnv.
+    unfold vtpEnv, vtpEnvCore, wf; split_conj; simpl; eauto using closed_open.
+    better_case_match.
+    eexists; split_conj; eauto.
+  }
+  lets (? & ?) : HvType j env' (tvar (VObj d)) 0 ___; lenG_to_lenEnv; eauto; ev.
+  - unfold evalToSome in *; intuition eauto.
+  - optFuncs_det; split_conj; eauto.
+Qed.
