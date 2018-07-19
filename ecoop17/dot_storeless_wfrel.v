@@ -100,7 +100,7 @@ Qed.
 Hint Resolve env_dms_closed.
 
 Definition sem_type (G : tenv) (T : ty) (e: tm) :=
-  wf G T /\ tm_closed 0 (length G) e /\
+  wf G T /\ tm_closed (length G) 0 e /\
       forall k env (Henv: R_env k env G), etpEnvCore T k e env.
 
 Lemma sem_type_closed : forall G T e,
