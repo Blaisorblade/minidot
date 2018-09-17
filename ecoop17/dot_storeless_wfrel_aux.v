@@ -167,6 +167,7 @@ Equations expr_sem n (T : ty) (A : pretype_dom n) k (p : k <= n) (t : tm) : Prop
     (* then evaluation did not get stuck and the result satisfies A. *)
     A (k - j) _ v.
 
+Definition for_object_type ds := dms_to_list (subst_dms ds ds).
 
 Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
   val_type Tn t by rec Tn val_type_termRel :=
@@ -209,8 +210,84 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
     val_type (pair (TLater T1) (S n)) v := val_type (pair T1 n) v;
     val_type (pair T n) v := False.
 
+(* with *)
+(* dms_type (Tn: ty * nat) (ds : list dm) : Prop := *)
+(*   dms_type (pair (TFun l T1 T2) n) ds := *)
+(*     exists U1 U2 t, *)
+(*       index l ds = Some (dfun U1 U2 t) /\ *)
+(*       (forall vyds k (Hj: k < n), *)
+(*           val_type (pair T1 k) (tvar (VObj vyds)) -> *)
+(*           expr_sem k *)
+(*                    (open 0 (VObj vyds) T2) *)
+(*                    (fun kj p t => val_type (pair (open 0 (VObj vyds) T2) kj) t) *)
+(*                    k *)
+(*                    (le_n k) *)
+(*                    (subst_tm vyds t)); *)
+(*   dms_type (pair T n) d := False. *)
+
 Hint Extern 5 (val_type_termRel _ _) =>
   smaller_types || smaller_n.
+
+(* Local Obligation Tactic := valTypeObligationsSSReflection. *)
+(* Solve Obligations with valTypeObligationsSSReflection. *)
+
+(* Solve Obligations of val_type with valTypeObligationsSSReflection. *)
+(* Preterm. *)
+(* (* Solve Obligations with valTypeObligationsSSReflection. *) *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. valTypeObligationsSSReflection. *)
+
+(* Qed. *)
+(* (* Print dms_type. *) *)
+(* (* Preterm of dms_type. *) *)
+(* Print dms_type_obligation_17. *)
+(* Next Obligation. *)
+(*   valTypeObligationsSSReflection. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Solve Obligations with valTypeObligationsSSReflection. *)
+(* Solve Obligations of dms_type_functional with valTypeObligationsSSReflection. *)
+
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
+(* Next Obligation. Qed. *)
 
 Solve Obligations with valTypeObligationsSSReflection. (* Works *)
 (* Solve All Obligations. (* No effect *) *)
@@ -228,6 +305,42 @@ Defined.
 
 Definition vtp T n v := val_type (T, n) v.
 Hint Unfold vtp.
+
+Equations ds_type (Tn: ty * nat) (ds : list dm) : Prop :=
+  ds_type Tn t by rec Tn val_type_termRel :=
+  ds_type (pair (TFun l T1 T2) n) ds :=
+    exists U1 U2 t,
+      index l ds = Some (dfun U1 U2 t) /\
+      (forall vyds k (Hj: k < n),
+          val_type (pair T1 k) (tvar (VObj vyds)) ->
+          expr_sem k
+                   (open 0 (VObj vyds) T2)
+                   (fun kj p t => val_type (open 0 (VObj vyds) T2, kj) t)
+                   k _ (subst_tm vyds t));
+
+  ds_type (pair (TMem l L U) n) ds :=
+    exists TX,
+      index l ds = Some (dty TX) /\
+      (forall vy j (Hj: j <= n),
+          val_type (pair L j) vy -> val_type (pair U j) vy) /\
+      (forall vy j (Hj: j < n),
+          val_type (pair L j) vy -> val_type (pair TX j) vy) /\
+      (forall vy j (Hj: j < n),
+          val_type (pair TX j) vy -> val_type (pair U j) vy);
+  ds_type (pair (TAnd T1 T2) n) ds := ds_type (pair T1 n) ds /\ ds_type (pair T2 n) ds;
+  ds_type (pair T n) ds := False.
+Solve Obligations with valTypeObligationsSSReflection.
+
+Hint Constructors ds_type_ind.
+Next Obligation.
+  Transparent ds_type_unfold.
+  Ltac loop ::= (subst; progress (better_case_match; simp ds_type); loop) || idtac.
+  apply ind_args with (T := t) (n := n); clear t n; intros * Hind;
+    rewrite ds_type_unfold_eq; unfold ds_type_unfold; loop; eauto.
+    (* rewrite val_type_unfold_eq in *. unfold val_type_unfold in *. simpl. auto. *)
+  (* - constructors; rewrite val_type_unfold_eq in *; unfold val_type_unfold in *; easy. *)
+  Opaque ds_type_unfold.
+Defined.
 
 (* Relies on val_type_unfold being Transparent. *)
 Ltac simpl_vtp :=
