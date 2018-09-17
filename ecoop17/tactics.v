@@ -11,8 +11,12 @@ Ltac inverse H := (inversion H; subst).
 Ltac ev := repeat match goal with
                     | H: exists _, _ |- _ => destruct H
                     | H: _ /\  _ |- _ => destruct H
-           end.
-
+                    | H : exists2 _, _ & _ |- _ => destruct H
+                    | H : { _ | _ } |- _ => destruct H
+                    | H : { _ | _ & _ } |- _ => destruct H
+                    | H : { _ & _ } |- _ => destruct H
+                    | H : { _ : _ & _ & _ } |- _ => destruct H
+                  end.
 
 (* From coq_stdpp *)
 Ltac case_match :=
