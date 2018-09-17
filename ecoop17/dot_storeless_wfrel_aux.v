@@ -109,8 +109,6 @@ Ltac valTypeObligationsSSReflectionCore :=
 Ltac valTypeObligationsSSReflection :=
   program_simpl; valTypeObligationsSSReflectionCore.
 
-Local Obligation Tactic := valTypeObligationsSSReflection.
-
 Lemma wf_val_type_termRel : well_founded val_type_termRel.
 Proof. apply measure_wf; apply wf_lexprod; intro; apply lt_wf. Qed.
 Hint Resolve wf_val_type_termRel.
@@ -211,28 +209,27 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
     val_type (pair (TLater T1) (S n)) v := val_type (pair T1 n) v;
     val_type (pair T n) v := False.
 
+Hint Extern 5 (val_type_termRel _ _) =>
+  smaller_types || smaller_n.
+
 Solve Obligations with valTypeObligationsSSReflection. (* Works *)
 (* Solve All Obligations. (* No effect *) *)
 (* Next Obligation. Qed. (* Works for 1 obligation. *) *)
 
 Hint Constructors val_type_ind.
-Hint Extern 5 (val_type_termRel _ _) =>
-  smaller_types || smaller_n.
-
+Transparent val_type_unfold.
 Next Obligation.
-  Transparent val_type_unfold.
   Ltac loop := (subst; progress (better_case_match; simp val_type); loop) || idtac.
   apply ind_args with (T := t) (n := n); clear t n; intros * Hind;
     rewrite val_type_unfold_eq; unfold val_type_unfold; loop; eauto.
     (* rewrite val_type_unfold_eq in *. unfold val_type_unfold in *. simpl. auto. *)
   (* - constructors; rewrite val_type_unfold_eq in *; unfold val_type_unfold in *; easy. *)
-  Opaque val_type_unfold.
 Defined.
 
 Definition vtp T n v := val_type (T, n) v.
 Hint Unfold vtp.
 
-Transparent val_type_unfold.
+(* Relies on val_type_unfold being Transparent. *)
 Ltac simpl_vtp :=
   unfold vtp in *; try match goal with
   | H : context [ val_type (?T, ?n) _ ] |- _ =>
