@@ -24,7 +24,6 @@ Hint Constructors closed.
 Hint Constructors dms_closed.
 Hint Constructors dm_closed.
 Hint Constructors tm_closed.
-Hint Constructors dm_closed.
 
 (*******************)
 (* Small-step semantics *)
