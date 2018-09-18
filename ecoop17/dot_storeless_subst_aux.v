@@ -129,6 +129,19 @@ Hint Resolve steps_irred_det.
 
 Require Import dot_monads.
 
+
+Lemma Forall_map: forall {X Y} (xs: list X) (f: X -> Y) (P : X -> Prop) (Q : Y -> Prop),
+    Forall P xs ->
+    (forall a, P a -> Q (f a)) ->
+    Forall Q (map f xs).
+Proof. intros * Hforall; induction xs; simpl; inverts Hforall; eauto. Qed.
+Hint Resolve Forall_map.
+
+Lemma dms_to_env_closed: forall i k env,
+    Forall (dms_closed i (S k)) env ->
+    Forall (vr_closed i k) (map VObj env).
+Proof. eauto using Forall_map. Qed.
+Hint Resolve dms_to_env_closed.
 Fixpoint vr_subst_all (env: list vr) (v: vr) { struct v }: option vr :=
   match v with
     | VarF x => index x env
@@ -194,19 +207,6 @@ with dms_subst_all (env: list vr) (ds: dms) { struct ds }: option dms :=
        ds' <- dms_subst_all env ds;
        ret (dcons d' ds')
    end.
-
-Lemma Forall_map: forall {X Y} (xs: list X) (f: X -> Y) (P : X -> Prop) (Q : Y -> Prop),
-    Forall P xs ->
-    (forall a, P a -> Q (f a)) ->
-    Forall Q (map f xs).
-Proof. intros * Hforall; induction xs; simpl; inverts Hforall; eauto. Qed.
-Hint Resolve Forall_map.
-
-Lemma dms_to_env_closed: forall i k env,
-    Forall (dms_closed i (S k)) env ->
-    Forall (vr_closed i k) (map VObj env).
-Proof. eauto using Forall_map. Qed.
-Hint Resolve dms_to_env_closed.
 
 Lemma subst_all_nonTot_res_closed_rec:
   (forall v, forall i k env, Forall (vr_closed i k) env -> vr_closed (length env) k v ->
