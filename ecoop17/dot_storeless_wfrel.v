@@ -460,13 +460,12 @@ Hint Resolve
 Lemma vtp_tbind_i: forall env v T n,
     vtpEnv (open 0 (VarF (length env)) T) n (tvar (VObj v)) (v :: env) ->
     Forall (dms_closed 0 1) env ->
-    closed_ty 0 (length env) (TBind T) -> (* Ensures that TBind T doesn't mention `VarF (length env)`. *)
+    closed (length env) 0 (TBind T) -> (* Ensures that TBind T doesn't mention `VarF (length env)`. *)
     vtpEnv (TBind T) n (tvar (VObj v)) env.
 Proof.
-  unfold vtpEnv, vtpEnvCore, vtp, closed_ty; intros; inverts_closed;
+  unfold vtpEnv, vtpEnvCore, vtp; intros; inverts_closed;
     intuition eauto;
       rewrite val_type_unfold_eq; simpl; split_conj;
-        unfold closed_ty;
         try erewrite <- subst_par_open_swap; eauto.
 Qed.
 

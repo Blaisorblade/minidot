@@ -14,10 +14,6 @@ Notation tsize_flat := tsize.
 Lemma open_preserves_size': forall T v j,
     tsize_flat (open j v T) = tsize_flat T.
 Proof. symmetry. eapply open_preserves_size. Qed.
-Definition vl := tm.
-
-Definition closed_ty i j T := closed j i T.
-Hint Unfold closed_ty.
 
 Hint Constructors vr_closed.
 Hint Constructors closed.
@@ -36,10 +32,7 @@ Inductive steps t0 : tm -> nat -> Prop :=
 (*******************)
 (* Define language infrastructure. *)
 
-(* Definition env_prop := list vl ->  Prop. *)
-(* Hint Unfold env_prop. *)
-
-Definition vl_prop := vl -> Prop.
+Definition vl_prop := tm -> Prop.
 Hint Unfold vl_prop.
 
 Definition pretype_dom n :=
@@ -115,7 +108,7 @@ Instance WF_val_type_termRel: WellFounded val_type_termRel := wf_val_type_termRe
 
 (* Program Definition expr_sem {n} T (A : pretype_dom n) k (p : k <= n) t : Prop := *)
 (*   (* If evaluation terminates in at most k steps without running out of fuel, *) *)
-(*   closed_ty 0 0 T /\ *)
+(*   closedy 0 0 T /\ *)
 (*   forall v j, *)
 (*     steps t v j -> *)
 (*     irred v -> *)
@@ -158,7 +151,7 @@ Ltac vtp_induction T n :=
 Equations expr_sem n (T : ty) (A : pretype_dom n) k (p : k <= n) (t : tm) : Prop :=
   expr_sem n T A k p t :=
   (* If evaluation terminates in at most k steps without running out of fuel, *)
-  closed_ty 0 0 T /\
+  closed 0 0 T /\
   forall v j,
     steps t v j ->
     irred v ->
@@ -184,7 +177,7 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
                                           (fun kj p t => val_type (open 0 (VObj vyds) T2, kj) t)
                                           k _ (subst_tm vyds t));
     val_type (pair (TMem l L U) n) (tvar (VObj ds)) :=
-                                       closed_ty 0 0 L /\ closed_ty 0 0 U /\ dms_closed 0 1 ds /\
+                                       closed 0 0 L /\ closed 0 0 U /\ dms_closed 0 1 ds /\
                                        exists TX, index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) /\
                                              (forall vy j (Hj: j <= n),
                                                  val_type (pair L j) vy -> val_type (pair U j) vy) /\
@@ -199,13 +192,13 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
                                          exists TX, index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) /\
                                                forall j (Hj: j < n), val_type (TX, j) v;
     val_type (pair (TBind T) n) (tvar (VObj ds)) :=
-                                           closed_ty 1 0 T /\
+                                           closed 0 1 T /\
                                            val_type (pair (open 0 (VObj ds) T) n) (tvar (VObj ds));
     val_type (pair (TAnd T1 T2) n) v := val_type (pair T1 n) v /\ val_type (pair T2 n) v;
     val_type (pair (TOr T1 T2) n) v :=
-                                             closed_ty 0 0 T1 /\ closed_ty 0 0 T2 /\
+                                             closed 0 0 T1 /\ closed 0 0 T2 /\
                                              (val_type (pair T1 n) v \/ val_type (pair T2 n) v);
-    val_type (pair (TLater T1) 0) v := irred v /\ closed_ty 0 0 T1 /\ tm_closed 0 0 v;
+    val_type (pair (TLater T1) 0) v := irred v /\ closed 0 0 T1 /\ tm_closed 0 0 v;
     val_type (pair (TLater T1) (S n)) v := val_type (pair T1 n) v;
     val_type (pair T n) v := False.
 
@@ -364,9 +357,9 @@ Qed.
 Hint Resolve vtp_irred.
 
 Lemma vtp_closed: forall T n v,
-    vtp T n v -> closed_ty 0 0 T.
+    vtp T n v -> closed 0 0 T.
 Proof.
-  unfold vtp, closed_ty;
+  unfold vtp;
     intros *; vtp_induction T n; intros * Hind Hvtp;
       destruct T;
       destruct v;
@@ -480,7 +473,6 @@ Proof.
   funind (val_type (T, n) v) Hcall.
   all: intros;
     simp val_type; ev;
-    unfold closed_ty in *;
     simp expr_sem in *;
     repeat split_conj; eauto; try easy.
 
@@ -523,7 +515,7 @@ Hint Extern 5 (vtp _ _ _) => try_once vtp_mon.
   (* eexists. *)
   (* repeat eexists; eauto. *)
   (* - clear Hcall. *)
-  (*   unfold closed_ty in *. eapply closed_open; simpl. assumption. *)
+  (*   eapply closed_open; simpl. assumption. *)
   (* eauto using closed_open, closed_upgrade. *)
   (* Check closed_open. *)
   (* Check closed_upgrade. *)
