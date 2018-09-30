@@ -327,36 +327,35 @@ Proof.
     simpl; intros; subst; inverts_closed; try f_equal; eauto.
 Qed.
 
-Lemma vr_subst_par_closed_id:
-  forall v i l env, vr_env_id_par env ->
-              l = length env ->
-              vr_closed l i v ->
-              vr_subst_par (env_to_sigma env) v = v.
+Lemma vr_subst_par_closed_id: forall v i l env,
+    vr_env_id_par env ->
+    l = length env ->
+    vr_closed l i v ->
+    vr_subst_par (env_to_sigma env) v = v.
 Proof. unmut_lemma subst_par_closed_id_rec. Qed.
-Lemma subst_par_closed_id:
-  forall T i l env, vr_env_id_par env ->
-               l = length env ->
-               closed l i T ->
-               subst_par (env_to_sigma env) T = T.
+Lemma subst_par_closed_id: forall T i l env,
+    vr_env_id_par env ->
+    l = length env ->
+    closed l i T ->
+    subst_par (env_to_sigma env) T = T.
 Proof. unmut_lemma subst_par_closed_id_rec. Qed.
-Lemma tm_subst_par_closed_id:
-  forall t i l env,
+Lemma tm_subst_par_closed_id: forall t i l env,
     vr_env_id_par env ->
     l = length env ->
     tm_closed l i t ->
     tm_subst_par (env_to_sigma env) t = t.
 Proof. unmut_lemma subst_par_closed_id_rec. Qed.
-Lemma dm_subst_par_closed_id:
-  forall d i l env, vr_env_id_par env ->
-              l = length env ->
-              dm_closed l i d ->
-              dm_subst_par (env_to_sigma env) d = d.
+Lemma dm_subst_par_closed_id: forall d i l env,
+    vr_env_id_par env ->
+    l = length env ->
+    dm_closed l i d ->
+    dm_subst_par (env_to_sigma env) d = d.
 Proof. unmut_lemma subst_par_closed_id_rec. Qed.
-Lemma dms_subst_par_closed_id:
-  forall d i l env, vr_env_id_par env ->
-              l = length env ->
-              dms_closed l i d ->
-              dms_subst_par (env_to_sigma env) d = d.
+Lemma dms_subst_par_closed_id: forall d i l env,
+    vr_env_id_par env ->
+    l = length env ->
+    dms_closed l i d ->
+    dms_subst_par (env_to_sigma env) d = d.
 Proof. unmut_lemma subst_par_closed_id_rec. Qed.
 Hint Resolve vr_subst_par_closed_id subst_par_closed_id tm_subst_par_closed_id dm_subst_par_closed_id dms_subst_par_closed_id.
 
@@ -404,42 +403,43 @@ Proof.
   all: try solve [f_equal; eauto | case_match; beq_nat; subst; omega || trivial ].
 Qed.
 
-Lemma vr_subst_par_upgrade:
-  forall v v' env vx i l, vr_subst_par (env_to_sigma env) v = v' ->
-                   vr_closed l i v ->
-                   length env = l ->
-                   vr_subst_par (env_to_sigma (vx :: env)) v = v'.
+Lemma vr_subst_par_upgrade: forall v v' env vx i l,
+    vr_subst_par (env_to_sigma env) v = v' ->
+    vr_closed l i v ->
+    length env = l ->
+    vr_subst_par (env_to_sigma (vx :: env)) v = v'.
 Proof. unmut_lemma subst_par_upgrade_rec. Qed.
-Lemma subst_par_upgrade:
-  forall T T' env vx i l, subst_par (env_to_sigma env) T = T' ->
-                   closed l i T ->
-                   length env = l ->
-                   subst_par (env_to_sigma (vx :: env)) T = T'.
+Lemma subst_par_upgrade: forall T T' env vx i l,
+    subst_par (env_to_sigma env) T = T' ->
+    closed l i T ->
+    length env = l ->
+    subst_par (env_to_sigma (vx :: env)) T = T'.
 Proof. unmut_lemma subst_par_upgrade_rec. Qed.
-Lemma tm_subst_par_upgrade:
-  forall t t' env vx i l, tm_subst_par (env_to_sigma env) t = t' ->
-                   tm_closed l i t ->
-                   length env = l ->
-                   tm_subst_par (env_to_sigma (vx :: env)) t = t'.
+Lemma tm_subst_par_upgrade: forall t t' env vx i l,
+    tm_subst_par (env_to_sigma env) t = t' ->
+    tm_closed l i t ->
+    length env = l ->
+    tm_subst_par (env_to_sigma (vx :: env)) t = t'.
 Proof. unmut_lemma subst_par_upgrade_rec. Qed.
-Lemma dm_subst_par_upgrade:
-  forall d d' env vx i l, dm_subst_par (env_to_sigma env) d = d' ->
-                   dm_closed l i d ->
-                   length env = l ->
-                   dm_subst_par (env_to_sigma (vx :: env)) d = d'.
+Lemma dm_subst_par_upgrade: forall d d' env vx i l,
+    dm_subst_par (env_to_sigma env) d = d' ->
+    dm_closed l i d ->
+    length env = l ->
+    dm_subst_par (env_to_sigma (vx :: env)) d = d'.
 Proof. unmut_lemma subst_par_upgrade_rec. Qed.
-Lemma dms_subst_par_upgrade:
-  forall d d' env vx i l, dms_subst_par (env_to_sigma env) d = d' ->
-                   dms_closed l i d ->
-                   length env = l ->
-                   dms_subst_par (env_to_sigma (vx :: env)) d = d'.
+Lemma dms_subst_par_upgrade: forall d d' env vx i l,
+    dms_subst_par (env_to_sigma env) d = d' ->
+    dms_closed l i d ->
+    length env = l ->
+    dms_subst_par (env_to_sigma (vx :: env)) d = d'.
 Proof. unmut_lemma subst_par_upgrade_rec. Qed.
 
 Hint Resolve vr_subst_par_upgrade subst_par_upgrade tm_subst_par_upgrade dm_subst_par_upgrade dms_subst_par_upgrade.
 
-Lemma subst_par_env: forall v v' env, tm_subst_par (env_to_sigma []) v = v' ->
-                             tm_closed 0 0 v ->
-                             tm_subst_par (env_to_sigma env) v = v'.
+Lemma subst_par_env: forall v v' env,
+    tm_subst_par (env_to_sigma []) v = v' ->
+    tm_closed 0 0 v ->
+    tm_subst_par (env_to_sigma env) v = v'.
 Proof.
   specialize tm_subst_par_upgrade with (i := 0); induction env; intuition eauto.
 Qed.
