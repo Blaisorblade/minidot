@@ -13,13 +13,6 @@ Hint Unfold tenv.
 
 Hint Rewrite map_length.
 
-(* XXX belongs to the subst_aux. *)
-Notation subst_par' env := (subst_par (dmEnv_to_sigma env)).
-Notation vr_subst_par' env := (vr_subst_par (dmEnv_to_sigma env)).
-Notation tm_subst_par' env := (tm_subst_par (dmEnv_to_sigma env)).
-Notation dm_subst_par' env := (dm_subst_par (dmEnv_to_sigma env)).
-Notation dms_subst_par' env := (dms_subst_par (dmEnv_to_sigma env)).
-
 Definition vtpEnvCore T k v env :=
   vtp (subst_par' env T) k v.
 

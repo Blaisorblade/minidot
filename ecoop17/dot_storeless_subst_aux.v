@@ -11,6 +11,25 @@ Require Import tactics.
 
 Definition wf {A} (G : list A) T := closed (length G) 0 T.
 
+Ltac unmut_lemma H := destruct H; ev; eauto.
+
+(* Lemma closed_no_open: *)
+(*   (forall l j T, closed l j T -> forall vx, T = open j vx T) /\ *)
+Lemma vr_closed_no_open:
+  forall l j v, vr_closed l j v -> forall vx, v = vr_open j vx v.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+Lemma tm_closed_no_open:
+  forall l j t, tm_closed l j t -> forall vx, t = tm_open j vx t.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+Lemma dm_closed_no_open:
+  forall l j d, dm_closed l j d -> forall vx, d = dm_open j vx d.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+Lemma dms_closed_no_open:
+  forall l j ds, dms_closed l j ds -> forall vx, ds = dms_open j vx ds.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+
+Hint Resolve vr_closed_no_open tm_closed_no_open dm_closed_no_open dms_closed_no_open.
+
 Lemma closed_upgrade_both_rec:
   (forall i k v1, vr_closed i k v1 -> forall i1 k1, i <= i1 -> k <= k1 -> vr_closed i1 k1 v1) /\
   (forall i k T1, closed i k T1 -> forall i1 k1, i <= i1 -> k <= k1 -> closed i1 k1 T1) /\
@@ -18,8 +37,6 @@ Lemma closed_upgrade_both_rec:
   (forall i k d1, dm_closed i k d1 -> forall i1 k1, i <= i1 -> k <= k1 -> dm_closed i1 k1 d1) /\
   (forall i k ds1, dms_closed i k ds1 -> forall i1 k1, i <= i1 -> k <= k1 -> dms_closed i1 k1 ds1).
 Proof. apply closed_mutind; eauto. Qed.
-
-Ltac unmut_lemma H := destruct H; ev; eauto.
 
 Lemma vr_closed_upgrade_both: forall t i i1 k k1, vr_closed i k t -> i <= i1 -> k <= k1 -> vr_closed i1 k1 t.
 Proof. unmut_lemma closed_upgrade_both_rec. Qed.
@@ -165,6 +182,14 @@ Fixpoint env_to_sigma (env: list vr) (n: id): vr :=
     | x :: xs  => if beq_nat n (length xs) then x else env_to_sigma xs n
   end.
 
+(* XXX use below. *)
+Notation dmEnv_to_sigma env := (env_to_sigma (map VObj env)).
+
+Notation subst_par' env := (subst_par (dmEnv_to_sigma env)).
+Notation vr_subst_par' env := (vr_subst_par (dmEnv_to_sigma env)).
+Notation tm_subst_par' env := (tm_subst_par (dmEnv_to_sigma env)).
+Notation dm_subst_par' env := (dm_subst_par (dmEnv_to_sigma env)).
+Notation dms_subst_par' env := (dms_subst_par (dmEnv_to_sigma env)).
 
 Lemma env_to_sigma_Forall:
   forall (env : list vr) i P, Forall P env -> i < length env ->
