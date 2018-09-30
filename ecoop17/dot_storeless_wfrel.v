@@ -515,8 +515,6 @@ Proof.
   (* XXX we have too many copies, but this removes too much, so remove the original hints. *)
   (* Remove Hints ex_intro. *)
   assert (closed 0 1 (subst_par' env T)) by eauto 6.
-  simpl_vtp.
-  (* better_case_match. split_conj; trivial. *)
 
   (* Should be separate lemma on evaluation of objects. *)
   assert (exists d, dms_subst_par' env v = d /\ evalToSomePar env (tvar (VObj v)) (tvar (VObj d)) k 0 /\ dms_closed 0 1 d) as (d & Hsubst & Heval & ?). {
@@ -530,11 +528,7 @@ Proof.
       rewrite map_length.
       repeat inverts_closed; eauto.
     }
-    ev; eexists; split_conj; eauto.
-    (* eexists; split_conj; eauto. *)
-    (* erewrite env_to_sigma_open_swap'. *)
-    (* eauto. *)
-    (* optFuncs_det. eexists; split_conj; eauto. *)
+    ev; eexists; iauto.
   }
   assert (v0 = tvar (VObj d) /\ j = 0) as [-> ->] by eauto; ev.
   remember (d :: env) as env'.
@@ -549,19 +543,9 @@ Proof.
     unfold evalToSomePar in *; rewrite Hrew; erewrite tm_subst_par_upgrade; eauto.
   }
 
+  simpl_vtp; split_conj; eauto.
   assert (exists T'', subst_par' env' (open 0 (VarF (length env)) T) = T'' /\ open 0 (VObj d) (subst_par' env T) = T'') as (T'' & ? & ->) by (subst env'; eauto).
   split_conj; eauto.
-  (* eexists; eauto. *)
-  (* (* erewrite subst_par_upgrade; eauto. *) *)
-  (* split. *)
-  (* eapply subst_par_open_swap. *)
-  (* rewrite Hrew. *)
-  (*   by (subst; simpl; eauto); ev. *)
-  (* assert (open 0 (VObj d) T' = T''). *)
-  (* lenG_to_lenEnv. *)
-  (* (* replace (length G) with (length env) in * by eauto. *) *)
-  (* assert (exists T0, subst_all (VObj d :: map VObj env) (open 0 (VarF (length env)) T) = Some T0 /\ open 0 (VObj d) T' = T0) by eauto (* subst_all_open_swap *). *)
-  (*   ev; optFuncs_det; eauto. *)
   (* Loeb induction needed for *THIS* step! *)
   (* Loeb induction shows P assuming Later P => P. For us, it shows vtp T k assuing 
    *)
@@ -575,15 +559,10 @@ Proof.
   eapply loeb_vtp_2 with (k := k); eauto.
   intros * ? Hvtp.
   assert (R_env j env' (TLater (open 0 (VarF (length G)) T) :: G)). {
-    subst.
-    econstructor; eauto.
-    lenG_to_lenEnv.
+    subst; lenG_to_lenEnv; econstructor; eauto 2.
     unfold vtpEnv, vtpEnvCore, wf; split_conj; simpl; eauto using closed_open.
-    (* better_case_match. *)
-    (* eexists; split_conj; eauto. *)
   }
-  (* edestruct (HvType j env'). *)
   lets ? : HvType j env' (tvar (VObj d)) 0 ___; lenG_to_lenEnv; eauto; ev.
-  - unfold evalToSomePar in *; intuition eauto.
+  - unfold evalToSomePar in *; iauto.
   - subst; split_conj; eauto.
 Qed.
