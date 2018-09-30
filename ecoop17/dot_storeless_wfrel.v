@@ -15,6 +15,10 @@ Hint Rewrite map_length.
 
 (* XXX belongs to the subst_aux. *)
 Notation subst_par' env := (subst_par (dmEnv_to_sigma env)).
+Notation vr_subst_par' env := (vr_subst_par (dmEnv_to_sigma env)).
+Notation tm_subst_par' env := (tm_subst_par (dmEnv_to_sigma env)).
+Notation dm_subst_par' env := (dm_subst_par (dmEnv_to_sigma env)).
+Notation dms_subst_par' env := (dms_subst_par (dmEnv_to_sigma env)).
 
 Definition vtpEnvCore T k v env :=
   vtp (subst_par' env T) k v.
@@ -58,7 +62,7 @@ Hint Extern 5 (vtpEnv _ _ _ _) => try_once vtpEnv_mon.
 
 (* Definition etpEnvCore T k e env : Prop := *)
 (*   forall v j kmj, *)
-(*     evalToSome env e v k j -> *)
+(*     evalToSomePar env e v k j -> *)
 (*     kmj = k - j -> *)
 (*     vtpEnvCore T kmj v env. *)
 
@@ -67,7 +71,7 @@ Hint Extern 5 (vtpEnv _ _ _ _) => try_once vtpEnv_mon.
 
 Definition etpEnvCore T k e env : Prop :=
   forall v j kmj,
-    evalToSome env e v k j ->
+    evalToSomePar env e v k j ->
     kmj = k - j ->
     vtpEnvCore T kmj v env.
 
@@ -191,7 +195,7 @@ Proof. eauto using vl_subtype_to_subtype, sem_vl_and_stp2. Qed.
 
 Lemma etp_vtp_core_j:
   forall e v k j kmj l T env,
-  evalToSome env e v k j ->
+  evalToSomePar env e v k j ->
   tm_closed l 0 e -> wf env T -> etpEnvCore T k e env ->
   l = length env ->
   kmj = k - j ->
@@ -207,21 +211,21 @@ Hint Resolve etp_vtp_core_j.
 Hint Extern 5 (_ = _ :> nat) => ineq_solver.
 Lemma etp_vtp_core:
   forall e v k T env,
-  evalToSome env e v k 0 ->
+  evalToSomePar env e v k 0 ->
   tm_closed (length env) 0 e -> wf env T -> etpEnvCore T k e env ->
   wf env T /\ vtpEnvCore T k v env.
 Proof. eauto. Qed.
 Hint Resolve etp_vtp_core.
 
 Lemma etp_vtp_j: forall e v k j l T env,
-    evalToSome env e v k j -> etpEnv T k e env ->
+    evalToSomePar env e v k j -> etpEnv T k e env ->
     l = k - j ->
     vtpEnv T l v env.
 Proof. unfold etpEnv, vtpEnv; iauto. Qed.
 Hint Resolve etp_vtp_j.
 
 Lemma etp_vtp: forall e v k T env,
-    evalToSome env e v k 0 -> etpEnv T k e env -> vtpEnv T k v env.
+    evalToSomePar env e v k 0 -> etpEnv T k e env -> vtpEnv T k v env.
 Proof. eauto 2. Qed.
 Hint Resolve etp_vtp.
 
@@ -241,14 +245,14 @@ Lemma vtp_etp_core_j: forall e v T env k j kmj l,
     vtpEnvCore T kmj v env ->
     wf env T ->
     tm_closed l 0 e ->
-    evalToSome env e v k j ->
+    evalToSomePar env e v k j ->
     kmj = k - j ->
     l = length env ->
     etpEnvCore T k e env.
 Proof.
   unfold etpEnvCore, vtpEnvCore; intros; ev; subst;
   match goal with
-  | H0: evalToSome ?env ?e ?v0 ?k ?j0, H1: evalToSome ?env ?e ?v1 ?k ?j1
+  | H0: evalToSomePar ?env ?e ?v0 ?k ?j0, H1: evalToSomePar ?env ?e ?v1 ?k ?j1
     |- _ =>
     assert (v1 = v0 /\ j1 = j0) as (-> & ->) by eauto
   end; intuition eauto.
@@ -259,7 +263,7 @@ Lemma vtp_etp_core: forall e v T env k l,
     vtpEnvCore T k v env ->
     wf env T ->
     tm_closed l 0 e ->
-    evalToSome env e v k 0 ->
+    evalToSomePar env e v k 0 ->
     l = length env ->
     etpEnvCore T k e env.
 Proof. eauto. Qed.
@@ -268,7 +272,7 @@ Hint Resolve vtp_etp_core.
 Lemma vtp_etp_j: forall e v T env k j kmj l,
     vtpEnv T kmj v env ->
     tm_closed l 0 e ->
-    evalToSome env e v k j ->
+    evalToSomePar env e v k j ->
     kmj = k - j ->
     l = length env ->
     etpEnv T k e env.
@@ -278,14 +282,21 @@ Hint Resolve vtp_etp_j.
 Lemma vtp_etp: forall e v T env k l,
     vtpEnv T k v env ->
     tm_closed l 0 e ->
-    evalToSome env e v k 0 ->
+    evalToSomePar env e v k 0 ->
     l = length env ->
     etpEnv T k e env.
 Proof. eauto. Qed.
 Hint Resolve vtp_etp.
 
-Lemma vtpEnvCoreToEval: forall T k v env, vtpEnvCore T k v env -> evalToSome env v v k 0.
-Proof. unfold vtpEnvCore, evalToSome; intros; ev; intuition eauto 7. Qed.
+(* Lemma vtpEnvCoreToEval: forall T k v env, vtpEnvCore T k v env -> evalToSome env v v k 0. *)
+(* Proof. unfold vtpEnvCore, evalToSomePar. intros; ev. intuition eauto 7. Qed. *)
+(* Hint Resolve vtpEnvCoreToEval. *)
+
+Lemma vtpEnvCoreToEval: forall T k v env, vtpEnvCore T k v env -> evalToSomePar env v v k 0.
+Proof.
+  unfold vtpEnvCore, evalToSomePar; intros; ev;
+    assert (tm_subst_par' env v = v) as -> by eauto; eauto.
+Qed.
 Hint Resolve vtpEnvCoreToEval.
 
 Lemma vtp_extend : forall vx v k env T,
@@ -389,90 +400,6 @@ Proof.
               end; repeat fequal; eauto.
 Qed.
 
-(* XXX belongs to the subst_aux. *)
-Notation vr_subst_par' env := (vr_subst_par (dmEnv_to_sigma env)).
-Notation tm_subst_par' env := (tm_subst_par (dmEnv_to_sigma env)).
-Notation dm_subst_par' env := (dm_subst_par (dmEnv_to_sigma env)).
-Notation dms_subst_par' env := (dms_subst_par (dmEnv_to_sigma env)).
-
-Lemma subst_par_open_swap_rec:
-  (forall v v0 env vx n l l',
-      vr_subst_par' env v = v0 ->
-      Forall (dms_closed 0 0) env ->
-      length env = l ->
-      vr_closed l l' v ->
-      vr_subst_par' (vx :: env) (vr_open n (VarF l) v) = vr_open n (VObj vx) v0) /\
-  (forall T T0 env vx n l,
-      subst_par' env T = T0 ->
-      Forall (dms_closed 0 0) env ->
-      length env = l ->
-      subst_par' (vx :: env) (open n (VarF l) T) = open n (VObj vx) T0) /\
-  (forall t t0 env vx n l,
-      tm_subst_par' env t = t0 ->
-      Forall (dms_closed 0 0) env ->
-      length env = l ->
-      tm_subst_par' (vx :: env) (tm_open n (VarF l) t) = tm_open n (VObj vx) t0) /\
-  (forall d d0 env vx n l,
-      dm_subst_par' env d = d0 ->
-      Forall (dms_closed 0 0) env ->
-      length env = l ->
-      dm_subst_par' (vx :: env) (dm_open n (VarF l) d) = dm_open n (VObj vx) d0) /\
-  (forall d d0 env vx n l,
-      dms_subst_par' env d = d0 ->
-      Forall (dms_closed 0 0) env ->
-      length env = l ->
-      dms_subst_par' (vx :: env) (dms_open n (VarF l) d) = dms_open n (VObj vx) d0).
-Proof.
-  apply syntax_mutind; cbn -[index]; intros; subst; injectHyps; repeat inverts_closed.
-  all: fequal; eauto.
-  all:
-    (* simpl in *; *)
-    (* repeat case_match_hp; injectHyps; try discriminate; *)
-    simpl;
-    split_conj; fequal; trivial;
-      try solve [repeat (better_case_match; beq_nat; subst; simpl); eauto].
-
-  admit.
-  repeat (better_case_match; beq_nat; subst; simpl); try rewrite map_length in *; eauto.
-  contradiction.
-  eapply H; eauto.
-  admit.
-  eapply H; eauto.
-  (* repeat (better_case_match; beq_nat; subst; simpl); eauto. *)
-  (* all: rewrite map_length in *; try inverts_closed. *)
-  (* omega. *)
-  (* assert (exists v, dmEnv_to_sigma env i = VObj v) as [v H] by admit. rewrite H. *)
-  (* simpl. *)
-  (* fequal. *)
-
-  (* apply_Forall. *)
-  (* eauto. *)
-  (* rewrite  *)
-  (* constructor. *)
-  (* assert (vr_closed 0 0 ((dmEnv_to_sigma env) i)). *)
-  (* apply_Forall. *)
-  (* unfold dmEnv_to_sigma. *)
-  (* destruct env; simpl in *; try omega. *)
-  (* rewrite map_length in *. *)
-  (* better_case_match; beq_nat; subst. *)
-  (* inverts H0. *)
-  (* eauto. *)
-  (* apply_Forall. *)
-  (* index_Forall'. *)
-  (* simpl. *)
-  (* constructor. *)
-  (* red. *)
-  (* subst; better_case_match; beq_nat. subst. *)
-
-  (* repeat (better_case_match; try beq_nat; subst; try beq_nat; simpl); eauto. *)
-  (* try solve [repeat (better_case_match; try beq_nat; subst; try beq_nat; simpl); eauto]. *)
-  all: repeat match goal with
-              | Hind : context [ ?f (_ :: _) (?sth_open _ _ ?T) ] |- context [ match ?f (_ :: _) (?sth_open ?n ?l ?T) with _ => _ end ] =>
-                lets (? & -> & ?) : Hind n ___; eauto
-              end;
-    repeat fequal; eauto.
-Qed.
-
 Lemma vr_subst_all_open_swap: forall v v0 env vx n l,
     vr_subst_all env v = Some v0 ->
     Forall (vr_closed 0 0) env ->
@@ -521,6 +448,152 @@ Hint Resolve
      dm_subst_all_open_swap
      dms_subst_all_open_swap.
 
+(* XXX Belong in _tidty.v *)
+(* Lemma closed_no_open: *)
+(*   (forall l j T, closed l j T -> forall vx, T = open j vx T) /\ *)
+Lemma vr_closed_no_open:
+  forall l j v, vr_closed l j v -> forall vx, v = vr_open j vx v.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+Lemma tm_closed_no_open:
+  forall l j t, tm_closed l j t -> forall vx, t = tm_open j vx t.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+Lemma dm_closed_no_open:
+  forall l j d, dm_closed l j d -> forall vx, d = dm_open j vx d.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+Lemma dms_closed_no_open:
+  forall l j ds, dms_closed l j ds -> forall vx, ds = dms_open j vx ds.
+Proof. unmut_lemma closed_no_open_rec. Qed.
+
+Hint Resolve vr_closed_no_open tm_closed_no_open dm_closed_no_open dms_closed_no_open.
+
+(* Improved versions of env_to_sigma_Forall'.*)
+Lemma env_to_sigma_Forall':
+  forall (env : list vr) i P v, Forall P env -> i < length env -> v = env_to_sigma env i ->
+                            P v.
+Proof. intros; subst; eapply env_to_sigma_Forall; eauto. Qed.
+Ltac apply_env_Forall :=
+  match goal with
+  | H: Forall ?P ?env |- ?P _ => try solve [eapply (env_to_sigma_Forall' _ _ _ _ H); eauto]
+  end.
+Hint Extern 5 => apply_env_Forall.
+
+Lemma env_to_sigma_open_swap: forall x env v vx n,
+    env_to_sigma env x = v ->
+    x < length env ->
+    Forall (vr_closed 0 0) env ->
+    env_to_sigma (vx :: env) x = v /\
+    v = vr_open n vx v.
+Proof.
+  intros; simpl; split_conj.
+  - better_case_match; beq_nat; omega || eauto.
+  - assert (vr_closed 0 0 v) by eauto; eauto.
+Qed.
+Hint Resolve env_to_sigma_open_swap.
+
+Lemma env_to_sigma_open_swap'': forall x env v vx n,
+    env_to_sigma env x = v ->
+    x < length env ->
+    Forall (vr_closed 0 0) env ->
+    v = vr_open n vx v.
+Proof. intros; eapply env_to_sigma_open_swap; eauto. Qed.
+Hint Resolve env_to_sigma_open_swap''.
+
+(* Lemma env_to_sigma_open_swap': forall x env v vx n, *)
+(*     env_to_sigma env x = v -> *)
+(*     x < length env -> *)
+(*     Forall (vr_closed 0 0) env -> *)
+(*     env_to_sigma (vx :: env) x = vr_open n vx (env_to_sigma (vx :: env) x). *)
+(* Proof. *)
+(*   intros; simpl; split_conj. *)
+(*   - better_case_match; beq_nat; try omega. *)
+(*     assert (vr_closed 0 0 v) by eauto; subst; eauto. *)
+(* Qed. *)
+(* Hint Resolve env_to_sigma_open_swap'. *)
+
+Lemma subst_par_open_swap_rec:
+  (forall v v0 env vx n l l',
+      vr_subst_par' env v = v0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      vr_closed l l' v ->
+      vr_subst_par' (vx :: env) (vr_open n (VarF l) v) = vr_open n (VObj vx) v0) /\
+  (forall T T0 env vx n l l',
+      subst_par' env T = T0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      closed l l' T ->
+      subst_par' (vx :: env) (open n (VarF l) T) = open n (VObj vx) T0) /\
+  (forall t t0 env vx n l l',
+      tm_subst_par' env t = t0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      tm_closed l l' t ->
+      tm_subst_par' (vx :: env) (tm_open n (VarF l) t) = tm_open n (VObj vx) t0) /\
+  (forall d d0 env vx n l l',
+      dm_subst_par' env d = d0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      dm_closed l l' d ->
+      dm_subst_par' (vx :: env) (dm_open n (VarF l) d) = dm_open n (VObj vx) d0) /\
+  (forall d d0 env vx n l l',
+      dms_subst_par' env d = d0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      dms_closed l l' d ->
+      dms_subst_par' (vx :: env) (dms_open n (VarF l) d) = dms_open n (VObj vx) d0).
+Proof.
+  Hint Extern 5 False => omega.
+  apply syntax_mutind; cbn -[index]; intros; subst; injectHyps;
+  eauto; repeat inverts_closed; simpl; fequal; eauto;
+    rewrite map_length; repeat (better_case_match; beq_nat; subst; simpl); eauto; omega.
+Qed.
+
+Lemma vr_subst_par_open_swap: forall v v0 env vx n l l',
+      vr_subst_par' env v = v0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      vr_closed l l' v ->
+      vr_subst_par' (vx :: env) (vr_open n (VarF l) v) = vr_open n (VObj vx) v0.
+Proof. unmut_lemma subst_par_open_swap_rec. Qed.
+Lemma subst_par_open_swap: forall T T0 env vx n l l',
+      subst_par' env T = T0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      closed l l' T ->
+      subst_par' (vx :: env) (open n (VarF l) T) = open n (VObj vx) T0.
+Proof. unmut_lemma subst_par_open_swap_rec. Qed.
+Lemma tm_subst_par_open_swap:
+  forall t t0 env vx n l l',
+      tm_subst_par' env t = t0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      tm_closed l l' t ->
+      tm_subst_par' (vx :: env) (tm_open n (VarF l) t) = tm_open n (VObj vx) t0.
+Proof. unmut_lemma subst_par_open_swap_rec. Qed.
+Lemma dm_subst_par_open_swap:
+  forall d d0 env vx n l l',
+      dm_subst_par' env d = d0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      dm_closed l l' d ->
+      dm_subst_par' (vx :: env) (dm_open n (VarF l) d) = dm_open n (VObj vx) d0.
+Proof. unmut_lemma subst_par_open_swap_rec. Qed.
+Lemma dms_subst_par_open_swap:
+  forall d d0 env vx n l l',
+      dms_subst_par' env d = d0 ->
+      Forall (dms_closed 0 1) env ->
+      length env = l ->
+      dms_closed l l' d ->
+      dms_subst_par' (vx :: env) (dms_open n (VarF l) d) = dms_open n (VObj vx) d0.
+Proof. unmut_lemma subst_par_open_swap_rec. Qed.
+
+Hint Resolve
+     vr_subst_par_open_swap
+     subst_par_open_swap
+     tm_subst_par_open_swap
+     dm_subst_par_open_swap
+     dms_subst_par_open_swap.
+
 (* Awkward to state with vtp? *)
 Lemma vtp_tbind_i: forall env v T n,
     vtpEnv (open 0 (VarF (length env)) T) n (tvar (VObj v)) (v :: env) ->
@@ -528,18 +601,14 @@ Lemma vtp_tbind_i: forall env v T n,
     closed_ty 0 (length env) (TBind T) -> (* Ensures that TBind T doesn't mention `VarF (length env)`. *)
     vtpEnv (TBind T) n (tvar (VObj v)) env.
 Proof.
-  unfold vtpEnv, vtpEnvCore, vtp, closed_ty; simpl; intros; inverts_closed; simpl_vtp; split_conj; eauto.
-  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') as (T'base & Hsubst & ?) by eauto;
-    rewrite Hsubst;
-    eexists; split_conj; trivial;
-      simpl_vtp;
-      split_conj; trivial.
-  (* Or *)
-  (* rewrite val_type_unfold_eq; simpl. *)
-  assert (exists T', subst_all (VObj v :: map VObj env) (open 0 (VarF (length env)) T) = Some T' /\ open 0 (VObj v) T'base = T') by eauto (* subst_all_open_swap *);
-    ev; optFuncs_det; assumption.
+  unfold vtpEnv, vtpEnvCore, vtp, closed_ty; intros; inverts_closed;
+    intuition eauto;
+      rewrite val_type_unfold_eq; simpl; split_conj;
+        unfold closed_ty;
+        try erewrite <- subst_par_open_swap; eauto.
 Qed.
 
+(* Upgrade the other definition. *)
 Ltac lenG_to_lenEnv ::=
   match goal with
   | H: R_env _ ?env ?G |- _ =>
@@ -581,56 +650,67 @@ Lemma t_new_i: forall G T v,
   sem_type G (TBind T) (tvar (VObj v)).
 Proof.
   unfold sem_type, etpEnvCore, vtpEnvCore; simpl;
-    intros * (? & ? & HvType) **; split_conj; eauto; intros * Henv v0 **; subst; lenG_to_lenEnv.
+    intros * (? & ? & HvType) **; split_conj; eauto; intros * Henv v0 * Heval0 **; subst; lenG_to_lenEnv.
   (* XXX we have too many copies, but this removes too much, so remove the original hints. *)
   (* Remove Hints ex_intro. *)
-  assert (exists T', subst_all (map VObj env) T = Some T' /\ closed 0 1 T') as (T' & ?) by eauto 6.
-  ev; better_case_match; eexists; split_conj; trivial.
+  assert (closed 0 1 (subst_par' env T)) by eauto 6.
+  simpl_vtp.
+  (* better_case_match. split_conj; trivial. *)
 
   (* Should be separate lemma on evaluation of objects. *)
-  assert (exists d, dms_subst_all (map VObj env) v = Some d /\ evalToSome env (tvar (VObj v)) (tvar (VObj d)) k 0 /\ dms_closed 0 1 d) as (d & Hsubst & Heval & ?). {
-    unfold evalToSome in *; ev;
+  assert (exists d, dms_subst_par' env v = d /\ evalToSomePar env (tvar (VObj v)) (tvar (VObj d)) k 0 /\ dms_closed 0 1 d) as (d & Hsubst & Heval & ?). {
+    unfold evalToSomePar in *. ev;
     simpl in *; repeat better_case_match; try discriminate; injectHyps.
     match goal with
     | H: steps _ _ _ |- _ => inverse H
     end; try solve by inversion.
-    assert (exists d', dms_subst_all (map VObj env) v = Some d' /\ dms_closed 0 1 d'). {
-      eapply dms_subst_all_nonTot_res_closed; eauto.
+    assert (dms_closed 0 1 (dms_subst_par' env v)). {
+      eapply dms_subst_par_nonTot_res_closed; eauto.
       rewrite map_length.
-      inverts_closed.
-      inverts_closed.
       repeat inverts_closed; eauto.
     }
-    ev; optFuncs_det; eexists; split_conj; eauto.
+    ev; eexists; split_conj; eauto.
+    (* eexists; split_conj; eauto. *)
+    (* erewrite env_to_sigma_open_swap'. *)
+    (* eauto. *)
+    (* optFuncs_det. eexists; split_conj; eauto. *)
   }
-  assert (v0 = tvar (VObj d) /\ j = 0) by eauto; ev; subst.
-  (* assert (j = 0) as -> by admit. *)
+  assert (v0 = tvar (VObj d) /\ j = 0) as [-> ->] by eauto; ev.
   remember (d :: env) as env'.
-  assert (tm_subst_all (map VObj env) (tvar (VObj v)) = Some (tvar (VObj d))). {
-    simpl; better_case_match; trivial.
+  assert (tm_subst_par' env (tvar (VObj v)) = tvar (VObj d)). {
+    inversion Heval. match goal with | H: steps _ _ _ |- _ => inverts H end.
+    auto.
   }
   assert (map VObj env' = VObj d :: map VObj env) as Hrew by (subst; auto).
 
-  (* environment weakening for evalToSome. *)
-  assert (evalToSome env' (tvar (VObj v)) (tvar (VObj d)) k 0) as Heval'. {
-    unfold evalToSome in *; rewrite Hrew;
-      ev; split_conj; eauto.
+  (* environment weakening for evalToSomePar . *)
+  assert (evalToSomePar env' (tvar (VObj v)) (tvar (VObj d)) k 0) as Heval'. {
+    unfold evalToSomePar in *; rewrite Hrew; erewrite tm_subst_par_upgrade; eauto.
   }
 
-  assert (exists T'', subst_all (map VObj env') (open 0 (VarF (length env)) T) = Some T'' /\ open 0 (VObj d) T' = T'') as (T'' & ?) by (subst; simpl; eauto); ev.
+  assert (exists T'', subst_par' env' (open 0 (VarF (length env)) T) = T'' /\ open 0 (VObj d) (subst_par' env T) = T'') as (T'' & ? & ->) by (subst env'; eauto).
+  split_conj; eauto.
+  (* eexists; eauto. *)
+  (* (* erewrite subst_par_upgrade; eauto. *) *)
+  (* split. *)
+  (* eapply subst_par_open_swap. *)
+  (* rewrite Hrew. *)
+  (*   by (subst; simpl; eauto); ev. *)
   (* assert (open 0 (VObj d) T' = T''). *)
   (* lenG_to_lenEnv. *)
   (* (* replace (length G) with (length env) in * by eauto. *) *)
   (* assert (exists T0, subst_all (VObj d :: map VObj env) (open 0 (VarF (length env)) T) = Some T0 /\ open 0 (VObj d) T' = T0) by eauto (* subst_all_open_swap *). *)
   (*   ev; optFuncs_det; eauto. *)
-  simpl_vtp; split_conj; trivial.
+  simpl_vtp; split_conj. trivial.
   (* Loeb induction needed for *THIS* step! *)
   (* Loeb induction shows P assuming Later P => P. For us, it shows vtp T k assuing 
    *)
-  assert (closed 0 0 (open 0 (VObj d) T')) by
-    (unfold evalToSome in *; eauto using closed_open).
   assert (irred (tvar (VObj d))) by
-    (unfold evalToSome in *; ev; eauto).
+    (unfold evalToSomePar in *; ev; eauto).
+  assert (closed 0 0 T'') by (
+    subst;
+    (* eapply subst_par_nonTot_res_closed; *)
+    eauto 8 using closed_open).
 
   eapply loeb_vtp_2 with (k := k); eauto.
   intros * ? Hvtp.
@@ -639,10 +719,11 @@ Proof.
     econstructor; eauto.
     lenG_to_lenEnv.
     unfold vtpEnv, vtpEnvCore, wf; split_conj; simpl; eauto using closed_open.
-    better_case_match.
-    eexists; split_conj; eauto.
+    (* better_case_match. *)
+    (* eexists; split_conj; eauto. *)
   }
-  lets (? & ?) : HvType j env' (tvar (VObj d)) 0 ___; lenG_to_lenEnv; eauto; ev.
-  - unfold evalToSome in *; intuition eauto.
-  - optFuncs_det; split_conj; eauto.
+  (* edestruct (HvType j env'). *)
+  lets ? : HvType j env' (tvar (VObj d)) 0 ___; lenG_to_lenEnv; eauto; ev.
+  - unfold evalToSomePar in *; intuition eauto.
+  - subst; split_conj; eauto.
 Qed.
