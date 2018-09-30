@@ -412,7 +412,6 @@ Lemma subst_par_open_swap_rec:
       dms_closed l l' d ->
       dms_subst_par' (vx :: env) (dms_open n (VarF l) d) = dms_open n (VObj vx) d0).
 Proof.
-  Hint Extern 5 False => omega.
   apply syntax_mutind; cbn -[index]; intros; subst; injectHyps;
   eauto; repeat inverts_closed; simpl; fequal; eauto;
     rewrite map_length; repeat (better_case_match; beq_nat; subst; simpl); eauto; omega.
@@ -571,7 +570,6 @@ Proof.
   (* (* replace (length G) with (length env) in * by eauto. *) *)
   (* assert (exists T0, subst_all (VObj d :: map VObj env) (open 0 (VarF (length env)) T) = Some T0 /\ open 0 (VObj d) T' = T0) by eauto (* subst_all_open_swap *). *)
   (*   ev; optFuncs_det; eauto. *)
-  simpl_vtp; split_conj. trivial.
   (* Loeb induction needed for *THIS* step! *)
   (* Loeb induction shows P assuming Later P => P. For us, it shows vtp T k assuing 
    *)
