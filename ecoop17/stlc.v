@@ -289,37 +289,71 @@ Proof.
   - unfold2tevalSnmOpt; unfold tevalSnmOpt; intros; step_eval; trivial.
   - unfold etp0 in *; simp vtp0; eauto.
 Qed.
-(* Hint Resolve fund_t_abs. *)
 
+(* XXX Most of the proof would be simplified by having appSubtermsEval. Prove them in mutual recursion? *)
 Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
 Proof.
   induction n; intros * Heval * Hmn; try solve [inverse Heval].
   lets [m' ->]: n_to_Sn Hmn.
   generalize dependent optV.
   generalize dependent n.
-  induction e; auto; intros.
+  destruct e; auto; intros.
   -
-    (* This is the job of inv_mbind or similar. *)
-    assert (exists optV1, tevalS e1 n env = Some optV1) as [[optV1 j1] Hevaln1] by admit.
-    assert (exists optV2, tevalS e2 n env = Some optV2) as [[optV2 j2] Hevaln2] by admit.
+    assert (m' >= n) as Hmn' by omega.
+    simpl in *; unfold logStep in *.
+    Ltac tevalS_det n m' IHn := match goal with
+    | H1: tevalS ?e n ?env = Some ?r1, H2 : tevalS ?e m' ?env = ?r2 |- _ =>
+      let H := fresh "H" in
+      assert (tevalS e m' env = Some r1) as H by (eapply IHn; eauto);
+        rewrite H in *; clear H; injectHyps; try discriminate
+    end.
+    repeat (better_case_match; subst; try discriminate; injectHyps; eauto); repeat tevalS_det n m' IHn; eauto.
+Qed.
+
+Lemma tevalS_mono_old: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
+Proof.
+  induction n; intros * Heval * Hmn; try solve [inverse Heval].
+  lets [m' ->]: n_to_Sn Hmn.
+  generalize dependent optV.
+  generalize dependent n.
+  destruct e; auto; intros.
+  -
+    assert (m' >= n) as Hmn' by omega.
+    simpl in *; unfold logStep in *.
+
+    assert (exists r, tevalS e2 n env = Some r) as [[optV2 j2] Hevaln2]. {
+      (* This is the job of inv_mbind or similar? *)
+      repeat better_case_match; subst; try discriminate; injectHyps; eauto.
+    }
+
     (* Here auto uses the induction hypothesis! *)
-    simpl in *.
-    assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto).
     assert (tevalS e2 m' env = tevalS e2 n env) as -> by (rewrite Hevaln2; auto).
-    rewrite Hevaln1 in *.
     rewrite Hevaln2 in *.
 
-    do 3 better_case_match; auto.
-    unfold logStep in *.
+    (* Under the hypotheses, tevalS e1 can fail! We can dispose of that case easily: *)
+    better_case_match; auto; subst.
 
-    assert (exists optV0 j0, tevalS t n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]] by admit.
+    assert (exists r, tevalS e1 n env = Some r) as [[optV1 j1] Hevaln1]. {
+      repeat better_case_match; subst; try discriminate; injectHyps; eauto.
+    }
+    (* Here auto uses the induction hypothesis! *)
+    assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto).
+    rewrite Hevaln1 in *.
+
+    unfold logStep in *.
+    do 2 (better_case_match; auto).
+
+    assert (exists optV0 j0, tevalS t n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]]. {
+      repeat better_case_match; subst; try discriminate; injectHyps; eauto.
+    }
     assert (tevalS t m' (v :: l) = tevalS t n (v :: l)) as -> by (rewrite Hevaln0; auto).
     rewrite Hevaln0 in *; injectHyps; auto.
-Admitted.
+Qed.
 
 Lemma appSubtermsEval: forall env t1 t2 v j,
     tevalSn env (tapp t1 t2) v j ->
     exists env1 tf j1 v2 j2 j3, tevalSn env t1 (vabs env1 tf) j1 /\ tevalSn env t2 v2 j2 /\ tevalSn (v2 :: env1) tf v j3.
+Proof.
   unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
   intros * [nm Hev].
   lets Hev2 : Hev (S nm) __; eauto. clear Hev.
