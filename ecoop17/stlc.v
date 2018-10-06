@@ -204,7 +204,7 @@ Module strong_norm.
     repeat eexists; intros; try step_eval; eauto.
     Unshelve. exact 0.
   Qed.
-Module End.
+End strong_norm.
 
 Module LR_Type_Soundness.
 (* Only expr_sem0 changes here. *)
@@ -403,4 +403,4 @@ Qed.
 Theorem fundamental: forall G t T, has_type G t T -> sem_type G T t.
 Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_abs, fund_t_app. Qed.
 
-Module End.
+End LR_Type_Soundness.
