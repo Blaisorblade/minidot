@@ -211,8 +211,8 @@ Module LR_Type_Soundness.
 
 (* Maybe make both normal definitions, or at least Program Definitions? Let's limit equations weird rules? *)
 Definition expr_sem0 (A : vl_prop) (t : tm) (env: venv): Prop :=
-  forall v j,
-    tevalSn env t v j -> A v.
+  forall optV j,
+    tevalSnOpt env t optV j -> exists v, optV = Some v /\ A v.
 
 (* Non-step-indexed unary logical relation. *)
 Equations vtp0 (T: ty) (v : vl) : Prop :=
@@ -223,7 +223,12 @@ Next Obligation. Qed.
 Next Obligation. Qed.
 
 Example ex0 : vtp0 (TFun TBase TBase) (vabs [] (tvar 0)).
-Proof. simp vtp0; unfold expr_sem0; eauto. Qed.
+Proof.
+  simp vtp0; unfold expr_sem0;
+    intros * H * [nm Hev]; exists v; intuition eauto;
+      specialize (Hev (S nm)); simpl in *;
+        lets ? : Hev __; injectHyps; eauto.
+Qed.
 
 Inductive R_env : venv -> tenv -> Set :=
   (* (env: venv) (G: tenv) : Set := *)
@@ -245,7 +250,7 @@ Qed.
 Hint Constructors R_env.
 
 Program Definition etp0 T e env :=
-  @expr_sem0 (fun v => vtp0 T v) e env.
+  expr_sem0 (fun v => vtp0 T v) e env.
 
 (* Semantic typing *)
 Definition sem_type (G : tenv) (T : ty) (e: tm) :=
@@ -253,9 +258,14 @@ Definition sem_type (G : tenv) (T : ty) (e: tm) :=
     R_env env G ->
     etp0 T e env.
 
+Hint Extern 5 => injectHyps.
+
 Lemma etp_vtp: forall e v j nm T env,
     tevalSnm env e v j nm -> etp0 T e env -> vtp0 T v.
-Proof. unfold etp0 in *; intros; simp expr_sem0 in *; eauto. Qed.
+Proof.
+  unfold etp0, expr_sem0; unfold2tevalSnmOpt;
+    intros * ? (? & ? & ?); eauto.
+Qed.
 Hint Resolve etp_vtp.
 
 Ltac eval_det :=
@@ -290,6 +300,36 @@ Proof.
   - unfold etp0 in *; simp vtp0; eauto.
 Qed.
 
+Ltac lenG_to_lenEnv :=
+  try match goal with
+  | H: R_env ?env ?G |- _ =>
+    replace (length G) with (length env) in * by (eauto using wf_length)
+  end.
+
+Lemma R_env_to_vtp0: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp0 T v.
+Proof.
+  intros * HT Hv Henv. induction Henv; simpl in *;
+  [ discriminate |
+    lenG_to_lenEnv;
+    repeat (better_case_match; beq_nat); eauto].
+Qed.
+Hint Resolve R_env_to_vtp0.
+
+Lemma R_env_to_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v.
+  intros * HT Henv; induction Henv; simpl in *;
+  [ discriminate |
+    lenG_to_lenEnv;
+    repeat (better_case_match; beq_nat); eauto].
+Qed.
+Hint Resolve R_env_to_success.
+
+Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
+Proof.
+  unfold sem_type, etp0, expr_sem0; intros.
+  pose proof (teval_var env x); eval_det; subst.
+  edestruct R_env_to_success; eauto.
+Qed.
+
 (* XXX Most of the proof would be simplified by having appSubtermsEval. Prove them in mutual recursion? *)
 Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
 Proof.
@@ -307,7 +347,7 @@ Proof.
       assert (tevalS e m' env = Some r1) as H by (eapply IHn; eauto);
         rewrite H in *; clear H; injectHyps; try discriminate
     end.
-    repeat (better_case_match; subst; try discriminate; injectHyps; eauto); repeat tevalS_det n m' IHn; eauto.
+    repeat (better_case_match; subst; try discriminate; eauto); repeat tevalS_det n m' IHn; eauto.
 Qed.
 
 Lemma tevalS_mono_old: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
@@ -362,41 +402,89 @@ Proof.
   repeat eexists; firstorder eauto using tevalS_mono.
 Qed.
 
+Lemma appSubtermsEval2: forall env t1 t2 optV j,
+    tevalSnOpt env (tapp t1 t2) optV j ->
+    exists optV2 j2, tevalSnOpt env t2 optV2 j2.
+Proof.
+  unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
+  intros * [nm Hev].
+  lets Hev2 : Hev (S nm) __; eauto. clear Hev.
+  simpl in Hev2. unfold logStep in *.
+  repeat better_case_match; subst; try discriminate; injectHyps;
+  repeat eexists; firstorder eauto using tevalS_mono.
+Qed.
+
+(* Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2). *)
+(* Proof. *)
+(*   unfold sem_type; simpl; intros * Hfun Harg * Henv. *)
+(*   unfold etp0, expr_sem0 in *. *)
+(*   intros * HappEv. *)
+
+(*   pose proof appSubtermsEval _ _ _ _ _ HappEv as (env1 & tf & j1 & v2 & j2 & j3 & Heval1 & Heval2 & HevalV). *)
+
+(*   specialize (Hfun env Henv _ _ Heval1). *)
+(*   specialize (Harg env Henv _ _ Heval2). *)
+(*   simp vtp0 in Hfun. *)
+(*   (* unfold expr_sem0 in Hfun. *) *)
+(*   eapply Hfun; eauto. *)
+(* Qed. *)
+
+Hint Resolve tevalS_mono.
+(* This is a mess. Automate reasoning that expr_sem0 implies successful evaluation! And appSubtermsEval* are hacks. *)
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
   unfold sem_type; simpl; intros * Hfun Harg * Henv.
   unfold etp0, expr_sem0 in *.
   intros * HappEv.
 
-  pose proof appSubtermsEval _ _ _ _ _ HappEv as (env1 & tf & j1 & v2 & j2 & j3 & Heval1 & Heval2 & HevalV).
-
-  specialize (Hfun env Henv _ _ Heval1).
+  pose proof appSubtermsEval2 _ _ _ _ _ HappEv as (optV2 & j2 & Heval2).
   specialize (Harg env Henv _ _ Heval2).
-  simp vtp0 in Hfun.
-  (* unfold expr_sem0 in Hfun. *)
-  eapply Hfun; eauto.
-Qed.
+  destruct Harg as [v2 [-> Hvtp2]].
+  specialize (Hfun env Henv).
+  unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
+  destruct Heval2 as [nm2 Heval2].
+  destruct HappEv as [nmR HappEv].
 
-Ltac lenG_to_lenEnv :=
-  try match goal with
-  | H: R_env ?env ?G |- _ =>
-    replace (length G) with (length env) in * by (eauto using wf_length)
-  end.
+  remember (max (S nmR) (S nm2)) as nm;
+  assert (nm > nmR) by (subst; eauto using Nat.le_max_l, Nat.le_max_r);
+  assert (nm > nm2) by (subst; eauto using Nat.le_max_l, Nat.le_max_r).
 
-Lemma R_env_to_vtp0: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp0 T v.
-Proof.
-  intros * HT Hv Henv. induction Henv; simpl in *;
-  [ discriminate |
-    lenG_to_lenEnv;
-    repeat (better_case_match; beq_nat); injectHyps; subst; eauto].
-Qed.
+  lets HappEv2: HappEv (S nm) __; eauto.
+  simpl in HappEv2.
+  lets Heval2': Heval2 nm __; eauto.
+  rewrite Heval2' in *.
+  unfold logStep in *.
+  destruct (tevalS t1 nm env) as [(optV1 & j1)|] eqn:?; try discriminate; simpl in *.
+  specialize (Hfun optV1 j1).
+  destruct Hfun as (v1 & -> & Hv1); try (exists nm; eauto).
+  better_case_match; subst v1.
+  repeat better_case_match; try discriminate; injectHyps.
+  simp vtp0 in *; unfold expr_sem0 in *; unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
+  eauto.
 
-Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
-Proof.
-  unfold sem_type, etp0, expr_sem0; unfold2tevalSnmOpt; intros.
-  pose proof (teval_var env x); eval_det; subst.
-  eapply R_env_to_vtp0; eauto. (* Or *)
-  (* eauto 3 using R_env_to_vtp0. *)
+  (* repeat better_case_match; subst; injectHyps; *)
+  (*   remember (max (S nmR) (S nm2)) as nm; try discriminate. *)
+  (* admit. *)
+  (* - exfalso. *)
+
+  (* Ltac stepEvalHyp H Hn := *)
+  (*   let nm := fresh "nm" in *)
+  (*   let P := fresh "Hev" in *)
+  (*   destruct H as [nm P]; lets Hn : P (S nm) __; eauto; clear P. *)
+  (* Ltac matchEval := *)
+  (*   match goal with *)
+  (*   | H: exists nm, forall n, n > nm -> _ |- _ => *)
+  (*     let Hn := fresh "Hev" in *)
+  (*     stepEvalHyp H Hn *)
+  (*   end. *)
+  (* (* matchEval. *) *)
+  (* (* stepEvalHyp HappEv HappEvn; simpl in HappEvn. *) *)
+  (* (* stepEvalHyp Heval2 Hev2. rewrite Hev2 in *. *) *)
+
+  (* specialize (Hfun _ _ Heval1). *)
+  (* simp vtp0 in Hfun. *)
+  (* (* unfold expr_sem0 in Hfun. *) *)
+  (* eapply Hfun; eauto. *)
 Qed.
 
 (* Fundamental property. Proved by induction on typing derivations. *)
@@ -407,6 +495,12 @@ Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_abs, fund_t_a
 Theorem sound_bad: forall G t T env v j, has_type G t T ->
     R_env env G ->
     tevalSn env t v j -> vtp0 T v.
-Proof. intros; eapply fundamental; eauto. Qed.
+Proof. intros; edestruct fundamental; ev; eauto. Qed.
+
+Theorem sound: forall G t T env optV j, has_type G t T ->
+    R_env env G ->
+    tevalSnOpt env t optV j ->
+    exists v, optV = Some v /\ vtp0 T v.
+Proof. intros; edestruct fundamental; ev; eauto. Qed.
 
 End LR_Type_Soundness.
