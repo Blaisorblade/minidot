@@ -403,4 +403,10 @@ Qed.
 Theorem fundamental: forall G t T, has_type G t T -> sem_type G T t.
 Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_abs, fund_t_app. Qed.
 
+(* Only about successful evaluations, not about runtime errors! *)
+Theorem sound_bad: forall G t T env v j, has_type G t T ->
+    R_env env G ->
+    tevalSn env t v j -> vtp0 T v.
+Proof. intros; eapply fundamental; eauto. Qed.
+
 End LR_Type_Soundness.
