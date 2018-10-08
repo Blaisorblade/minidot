@@ -33,16 +33,16 @@ Ltac case_match :=
    branches. *)
 Ltac better_case_match :=
   match goal with
-  | H : context [ match ?x with _ => _ end ] , H1 : ?y = ?x |- _ =>
+  | H : context [ match ?x with _ => _ end ] , H1 : _ = ?x |- _ =>
     rewrite <- H1 in H
-  | H : context [ match ?x with _ => _ end ] , H1 : ?x = ?y |- _ =>
+  | H : context [ match ?x with _ => _ end ] , H1 : ?x _ |- _ =>
     rewrite H1 in H
   | H : context [ match ?x with _ => _ end ] |- _ =>
     destruct x eqn:?
 
-  | H1 : ?y = ?x |- context [ match ?x with _ => _ end ] =>
+  | H1 : _ = ?x |- context [ match ?x with _ => _ end ] =>
     rewrite <- H1
-  | H1 : ?x = ?y |- context [ match ?x with _ => _ end ] =>
+  | H1 : ?x = _ |- context [ match ?x with _ => _ end ] =>
     rewrite H1
   | |- context [ match ?x with _ => _ end ] =>
     destruct x eqn:?
@@ -120,7 +120,7 @@ Ltac injectHyps := repeat injectHyp.
 
 Ltac optFuncs_det :=
   match goal with
-  | H1 : ?t = ?x1, H2 : ?t = ?x2 |- _ =>
+  | H1 : ?t = _, H2 : ?t = _ |- _ =>
     let H := fresh "H" in
     rewrite H1 in H2; injectHyps
   end.

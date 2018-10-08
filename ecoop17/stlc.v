@@ -16,7 +16,7 @@ Inductive vl : Set :=
 Inductive ty : Set :=
 | TFun : ty -> ty -> ty
 | TBase : ty.
-                   
+
 Notation tenv := (list ty).
 Notation venv := (list vl).
 
@@ -105,55 +105,114 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
       end
   end.
 
+Ltac better_case_match_ex := try better_case_match; try beq_nat; injectHyps; try discriminate.
 Theorem evalMs_equiv: forall n env t, tevalSM t n env = tevalS t n env.
 Proof.
   intros; revert env t; induction n; simpl_unfold_monad; unfold logStep; try reflexivity;
     intros;
-    repeat
-      (try better_case_match;
-       injectHyps;
+    repeat progress
+      (try better_case_match_ex;
        repeat fequalSafe;
        repeat rewrite IHn in *;
-       try (reflexivity || discriminate || omega)).
+       try abstract (reflexivity || discriminate || omega)).
 Qed.
+(** Define "evaluation with enough fuel".
+    We can show that adding more fuel to evaluation that doesn't time out gives
+    the same result. But we can also build that in our assumptions.
+ *)
 Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalS e n env = Some (optV, k).
 Definition tevalSnm env e v k nm := tevalSnmOpt env e (Some v) k nm.
 Definition tevalSnOpt env e optV k := exists nm, tevalSnmOpt env e optV k nm.
 Definition tevalSn env e v k := tevalSnOpt env e (Some v) k.
 
-Hint Unfold tevalSnOpt tevalSnm tevalSn.
-(* Hint Unfold tevalSnmOpt. *)
+Hint Transparent tevalSnOpt tevalSnm tevalSn.
 Ltac unfold2tevalSnmOpt := unfold tevalSn, tevalSnOpt, tevalSnm in *.
 Ltac unfoldTeval := unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
 
-Hint Extern 5 => injectHyps.
-(* Hint Extern 5 => optFuncs_det. *)
+Ltac n_is_succ_hp :=
+  ev; match goal with
+  | H : forall n, n > ?nm -> _ |- _ =>
+    let H2 := fresh "H" in
+    lets ? : H (S nm) __; eauto; clear H; simpl in H2; try unfold logStep in H2
+  end.
+
+(** [tevalSnmOpt] (expanded) is monotonic relative to [nm]. This does not
+    follow from properties of [tevalS], but by construction of [tevalSnmOpt]. *)
+Lemma tevalS_kripke_mono: forall env e optV k nm1,
+    (forall n, n > nm1 -> tevalS e n env = Some (optV, k)) ->
+    forall nm2, nm2 >= nm1 ->
+    forall n, n > nm2 -> tevalS e n env = Some (optV, k).
+Proof. eauto. Qed.
+Hint Resolve tevalS_kripke_mono.
+
+(** [tevalSnmOpt] is monotonic relative to [nm]. This does not follow from
+    properties of [tevalS], but by construction of [tevalSnmOpt]. *)
+Lemma tevalSnmOpt_mono: forall env e optV k nm1,
+    tevalSnmOpt env e optV k nm1 ->
+    forall nm2, nm2 >= nm1 ->
+    tevalSnmOpt env e optV k nm2.
+Proof. intros; unfoldTeval; eauto using tevalS_kripke_mono. Qed.
+
+Lemma max_bigger_both: forall n1 n2, max n1 n2 >= n1 /\ max n1 n2 >= n2.
+  intuition eauto using Nat.le_max_l, Nat.le_max_r.
+Qed.
+
+Ltac alignTevalAssumptions :=
+  unfoldTeval;
+  match goal with
+  | H1 : forall n, n > ?nm1 -> tevalS ?t n ?env = Some ?t1 , H2 : forall n, n > ?nm2 -> tevalS ?t n ?env = Some ?t2 |- _ =>
+    let nm := fresh "nm" in
+    remember (max (nm1) (nm2)) as nm;
+    assert (nm >= nm1 /\ nm >= nm2) as (? & ?) by (subst; eauto using max_bigger_both);
+    assert (tevalSnmOpt env t (fst t1) (snd t1) nm) by (simpl; unfoldTeval; eauto);
+    assert (tevalSnmOpt env t (fst t2) (snd t2) nm) by (simpl; unfoldTeval; eauto);
+    clear H1 H2;
+    unfoldTeval
+  end.
 
 Lemma tevalS_det: forall optV1 optV2 env t j1 j2 nm1 nm2,
   (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
   (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
   optV1 = optV2 /\ j1 = j2.
 Proof.
-  intros * H1 H2; ev;
-  remember (max (S nm1) (S nm2)) as nm;
-  assert (nm > nm1) by (subst; eauto using Nat.le_max_l, Nat.le_max_r);
-  assert (nm > nm2) by (subst; eauto using Nat.le_max_l, Nat.le_max_r).
-  lets Hopt1 : H1 nm ___; eauto.
-  lets Hopt2 : H2 nm ___; eauto.
-  intros; split_conj; optFuncs_det; eauto.
+  intros; alignTevalAssumptions;
+    repeat n_is_succ_hp; optFuncs_det; eauto.
 Qed.
 
+(* Experiment on different way of writing tevalS_det: can we make auto happier about injecting p1 = p2 than splitting it? *)
+Lemma tevalS_det2: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+  (optV1, j1) = (optV2, j2).
+Proof.
+  intros; alignTevalAssumptions;
+    repeat n_is_succ_hp; optFuncs_det; eauto.
+Qed.
+
+Tactic Notation "try_once_tac" constr(T) tactic(tac) :=
+  match goal with
+  | H : usedLemma T |- _ => fail 1
+  | _ => markUsed T; tac
+  end.
+
+Definition injectHyps_marker := 0.
+Hint Extern 5 => try_once_tac injectHyps_marker injectHyps.
+(* Hint Extern 5 => optFuncs_det. *)
+
+(* XXX this used tevalS_detp, the next uses _det, seems _detp might not be that useful here yet... *)
 Lemma tevalS_det_optV: forall optV1 optV2 env t j1 j2 nm1 nm2,
   (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
   (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
   optV1 = optV2.
-Proof. intros; edestruct (tevalS_det optV1 optV2); eauto using tevalS_det. Qed.
+Proof. intros. lets ?: tevalS_det2 optV1 optV2 ___; eauto. Qed.
+
+(* Hint Extern 5 => ev. *)
 
 Lemma tevalS_det_j: forall optV1 optV2 env t j1 j2 nm1 nm2,
   (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
   (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
   j1 = j2.
-Proof. intros; edestruct (tevalS_det optV1 optV2); eauto using tevalS_det. Qed.
+Proof. intros; lets ?: tevalS_det optV1 optV2 ___; ev; eauto. Qed.
 
 Hint Resolve tevalS_det_optV tevalS_det_j.
 
@@ -161,13 +220,13 @@ Lemma tevalSnmOpt_det_optV: forall env t optV1 optV2 j1 j2 nm1 nm2,
     tevalSnmOpt env t optV1 j1 nm1 ->
     tevalSnmOpt env t optV2 j2 nm2 ->
     optV1 = optV2.
-Proof. unfold tevalSnmOpt; eauto. Qed.
+Proof. (* firstorder eauto. (* Or: *) *) intros; unfoldTeval; eauto. Qed.
 
 Lemma tevalSnmOpt_det_j: forall env t optV1 optV2 j1 j2 nm1 nm2,
     tevalSnmOpt env t optV1 j1 nm1 ->
     tevalSnmOpt env t optV2 j2 nm2 ->
     j1 = j2.
-Proof. unfold tevalSnmOpt; eauto. Qed.
+Proof. unfoldTeval; eauto. Qed.
 
 Hint Resolve tevalSnmOpt_det_optV tevalSnmOpt_det_j.
 
@@ -183,20 +242,23 @@ Lemma n_to_Sn: forall n m, n > m -> exists n', n = S n'.
   intros; destruct n; [ exfalso; omega | eauto].
 Qed.
 Hint Unfold gt ge lt.
-Ltac n_is_succ :=
-  unfold gt, ge, lt in *;
-  match goal with
-  | [H : S ?m <= ?n |- _] =>
-    apply n_to_Sn in H; let n' := fresh n in destruct H as [n' ->]
-  end.
+Hint Transparent gt ge lt.
+
 Tactic Notation "n_is_succ'" simple_intropattern(P) :=
   unfold gt, ge, lt in *;
   match goal with
-  | [H : S ?m <= ?n |- _] =>
-    apply n_to_Sn in H; destruct H as P
+  | [H : S ?m <= ?n |- _] => lets [P ->]: n_to_Sn H
   end.
 
+Ltac n_is_succ := let n' := fresh "n" in n_is_succ' n'.
+
 Ltac step_eval := n_is_succ; simpl in *.
+(* Hint Extern 5 => step_eval. *)
+
+Lemma teval_var: forall env x,
+  exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV.
+Proof. unfoldTeval; eexists; split_conj; try exists 0; intros; try step_eval; trivial. Qed.
+Hint Resolve teval_var.
 
 (*******************)
 (* Logical relation. *)
@@ -229,15 +291,16 @@ Module strong_norm.
   Equations vtp0 (T: ty) (v : vl) : Prop :=
     vtp0 T t by rec T tsize_rel :=
       vtp0 TBase v := False;
-                        vtp0 (TFun T1 T2) (vabs env body) := forall v, vtp0 T1 v -> expr_sem0 (fun v => vtp0 T2 v) body (v :: env).
+      vtp0 (TFun T1 T2) (vabs env body) := forall v, vtp0 T1 v -> expr_sem0 (fun v => vtp0 T2 v) body (v :: env).
   Next Obligation. Qed.
   Next Obligation. Qed.
 
   Example ex0 : vtp0 (TFun TBase TBase) (vabs [] (tvar 0)).
   Proof.
-    simp vtp0; intros; simp expr_sem0; unfold2tevalSnmOpt; unfold tevalSnmOpt.
-    repeat eexists; intros; try step_eval; eauto.
-    Unshelve. exact 0.
+    simp vtp0; intros; simp expr_sem0; unfoldTeval.
+    (* (* Either *) firstorder idtac. *)
+    (* Or *)
+    do 3 eexists; try exists 0; intros; try step_eval; eauto.
   Qed.
 End strong_norm.
 
@@ -259,10 +322,10 @@ Next Obligation. Qed.
 
 Example ex0 : vtp0 (TFun TBase TBase) (vabs [] (tvar 0)).
 Proof.
-  simp vtp0; unfold expr_sem0;
-    intros * H * [nm Hev]; exists v; intuition eauto;
-      specialize (Hev (S nm)); simpl in *;
-        lets ? : Hev __; injectHyps; eauto.
+  simp vtp0; unfold expr_sem0; intros.
+  (* (* Either *) firstorder idtac. *)
+  (* Or *)
+  unfoldTeval; n_is_succ_hp; eauto.
 Qed.
 
 Inductive R_env : venv -> tenv -> Set :=
@@ -306,14 +369,6 @@ Lemma vtp_etp: forall e v j nm T env,
 Proof. unfold etp0, expr_sem0 in *; intros; unfoldTeval; ev; eauto. Qed.
 Hint Resolve vtp_etp.
 
-Lemma teval_var: forall env x,
-  exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV.
-Proof.
-  unfoldTeval; eexists;
-    split_conj; [exists 1 (* For nm *); intros; step_eval|idtac]; trivial.
-Qed.
-Hint Resolve teval_var.
-
 Lemma fund_t_abs: forall G T1 T2 t,
   sem_type (T1 :: G) T2 t ->
   sem_type G (TFun T1 T2) (tabs t).
@@ -334,20 +389,20 @@ Ltac lenG_to_lenEnv :=
 
 Lemma R_env_to_vtp0: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp0 T v.
 Proof.
-  intros * HT Hv Henv. induction Henv; simpl in *;
+  intros * HT Hv Henv; induction Henv; simpl in *;
   [ discriminate |
     lenG_to_lenEnv;
     repeat (better_case_match; beq_nat); eauto].
 Qed.
 Hint Resolve R_env_to_vtp0.
 
-Lemma R_env_to_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v.
+Lemma R_env_to_indexr_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v.
   intros * HT Henv; induction Henv; simpl in *;
   [ discriminate |
     lenG_to_lenEnv;
     repeat (better_case_match; beq_nat); eauto].
 Qed.
-Hint Resolve R_env_to_success.
+Hint Resolve R_env_to_indexr_success.
 
 Ltac eval_det :=
   unfold2tevalSnmOpt; ev;
@@ -360,87 +415,41 @@ Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
   unfold sem_type, etp0, expr_sem0; intros.
   pose proof (teval_var env x); eval_det; subst.
-  edestruct R_env_to_success; eauto.
+  edestruct R_env_to_indexr_success; eauto.
 Qed.
 
+(** Fuel monotonicity: If evaluation does not time out, increasing fuel preserves the result.
+ **** Proof sketch.
+      By induction on the available fuel [n] in the initial evaluation and case
+      analysis on terms.
+
+      In the inductive step, recursive calls happen with fuel [n - 1], hence by
+      the induction hypothesis they satisfy fuel monotonicity, the recursive
+      calls with more fuel give the same result, hence overall evaluation with
+      more fuel gives the same result.
+ *)
 Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
 Proof.
-  induction n; intros * Heval * Hmn; try solve [inverse Heval].
-  lets [m' ->]: n_to_Sn Hmn.
-  generalize dependent optV.
-  generalize dependent n.
-  destruct e; eauto; intros.
-
-  simpl in *; unfold logStep in *.
+  (** [tevalS_det] applies the induction hypothesis to recursive calls. *)
   Ltac tevalS_det n m' IHn :=
     match goal with
     | H1: tevalS ?e n ?env = Some ?r1, H2 : tevalS ?e m' ?env = ?r2 |- _ =>
       let H := fresh "H" in
-      assert (tevalS e m' env = Some r1) as H by (eapply IHn; eauto);
-      rewrite H in *; clear H; injectHyps; try discriminate
+      assert (tevalS e m' env = Some r1) as H by (eapply IHn; auto 1);
+      rewrite H in *; clear H
     end.
-  repeat (better_case_match; subst; try discriminate; eauto; try tevalS_det n m' IHn); eauto.
+
+  induction n; intros * Heval * Hmn; try solve [inverse Heval];
+  n_is_succ' m';
+
+  generalize dependent optV; generalize dependent n; destruct e;
+    intros; simpl in *; unfold logStep in *;
+    trivial;
+
+  repeat (better_case_match_ex; try tevalS_det n m' IHn); trivial.
 Qed.
-
-(* XXX Most of the proof would be simplified by having appSubtermsEval. Prove them in mutual recursion? *)
-Lemma tevalS_mono_old: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
-Proof.
-  induction n; intros * Heval * Hmn; try solve [inverse Heval].
-  lets [m' ->]: n_to_Sn Hmn.
-  generalize dependent optV.
-  generalize dependent n.
-  destruct e; auto; intros.
-  -
-    assert (m' >= n) as Hmn' by omega.
-    simpl in *; unfold logStep in *.
-
-    assert (exists r, tevalS e2 n env = Some r) as [[optV2 j2] Hevaln2]. {
-      (* This is the job of inv_mbind or similar? *)
-      repeat better_case_match; subst; try discriminate; injectHyps; eauto.
-    }
-
-    (* Here auto uses the induction hypothesis! *)
-    assert (tevalS e2 m' env = tevalS e2 n env) as -> by (rewrite Hevaln2; auto).
-    rewrite Hevaln2 in *.
-
-    (* Under the hypotheses, tevalS e1 can fail! We can dispose of that case easily: *)
-    better_case_match; auto; subst.
-
-    assert (exists r, tevalS e1 n env = Some r) as [[optV1 j1] Hevaln1]. {
-      repeat better_case_match; subst; try discriminate; injectHyps; eauto.
-    }
-    (* Here auto uses the induction hypothesis! *)
-    assert (tevalS e1 m' env = tevalS e1 n env) as -> by (rewrite Hevaln1; auto).
-    rewrite Hevaln1 in *.
-
-    unfold logStep in *.
-    do 2 (better_case_match; auto).
-
-    assert (exists optV0 j0, tevalS t n (v :: l) = Some (optV0, j0)) as [optV0 [j0 Hevaln0]]. {
-      repeat better_case_match; subst; try discriminate; injectHyps; eauto.
-    }
-    assert (tevalS t m' (v :: l) = tevalS t n (v :: l)) as -> by (rewrite Hevaln0; auto).
-    rewrite Hevaln0 in *; injectHyps; auto.
-Qed.
-
-Ltac n_is_succ_hp :=
-  ev; match goal with
-  | H : forall n, n > ?nm -> _ |- _ =>
-    let H2 := fresh "H" in
-    lets ? : H (S nm) __; eauto; clear H; simpl in H2
-  end; unfold logStep in *.
-
-Lemma appSubtermsEval: forall env t1 t2 v j,
-    tevalSn env (tapp t1 t2) v j ->
-    exists env1 tf j1 v2 j2 j3, tevalSn env t1 (vabs env1 tf) j1 /\ tevalSn env t2 v2 j2 /\ tevalSn (v2 :: env1) tf v j3.
-Proof.
-  unfoldTeval; intros; n_is_succ_hp.
-  repeat better_case_match; subst; try discriminate; injectHyps.
-  repeat eexists; firstorder eauto using tevalS_mono.
-Qed.
-
 Hint Resolve tevalS_mono.
-(* This is a mess. Automate reasoning that expr_sem0 implies successful evaluation! And appSubtermsEval* are hacks. *)
+
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
   unfold sem_type.
@@ -457,20 +466,19 @@ Proof.
     unfoldTeval; eauto.
 Qed.
 
-(* Fundamental property. Proved by induction on typing derivations. *)
+(** Fundamental property.
+    Proved by induction on typing derivations. *)
 Theorem fundamental: forall G t T, has_type G t T -> sem_type G T t.
 Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_abs, fund_t_app. Qed.
 
-(* Only about successful evaluations, not about runtime errors! *)
-Theorem sound_bad: forall G t T env v j, has_type G t T ->
-    R_env env G ->
-    tevalSn env t v j -> vtp0 T v.
-Proof. intros; edestruct fundamental; ev; eauto. Qed.
-
+(** Type soundness: If evaluation of a well-typed program terminates, the result
+    is not a runtime error. Proved as a corollary of the [fundamental] property. *)
 Theorem sound: forall G t T env optV j, has_type G t T ->
     R_env env G ->
     tevalSnOpt env t optV j ->
     exists v, optV = Some v /\ vtp0 T v.
 Proof. intros; edestruct fundamental; ev; eauto. Qed.
+(* Concluding tevalSn env t v j -> vtp0 T v would talk only about successful
+   evaluations, not about runtime errors! *)
 
 End LR_Type_Soundness.
