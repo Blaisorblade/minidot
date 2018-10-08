@@ -450,20 +450,48 @@ Proof.
 Qed.
 Hint Resolve tevalS_mono.
 
+(** Fundamental property, application case.
+ **** Proof sketch.
+      It's easy to show that the result has the right type, *if it exists*, but
+      showing it exists is harder.
+
+      That is, what's harder is showing that if evaluation of the application [t
+      = tapp t1 t2] terminates without timeout, then it does not fail. That's
+      because the various proof steps are closely interlocked.
+
+      Evaluation of [t]  proceeds by evaluating [t2], then [t1], and then
+      performing application, in the evaluation monad; failures (timeouts and
+      runtime errors) interrupt evaluation and propagate.
+      If [t] does not timeout, then [t2] does not time out (by case analysis);
+      then, since [t2] is semantically well-typed, its evaluation does not fail.
+      Then, evaluation [t] proceeds to [t1], which by the same reasoning neither
+      times out nor fails; moreover, it produces a closure.
+      Finally, evaluating [t] proceeds to applying the closure, which by the
+      same reasoning neither times out nor fails, producing a well-typed result. *)
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
-  unfold sem_type.
-  unfold etp0, expr_sem0 in *.
-  intros * Hfun Harg ? ? * * [nmR HappEv].
-  unfoldTeval.
-  remember (S nmR) as nm.
-  lets HappEv2: HappEv (S nm) __; eauto; simpl in *; unfold logStep in *.
+  unfold sem_type, etp0, expr_sem0; unfoldTeval;
+  intros * Hfun Harg ? ? * [nmR HappEv].
 
-  repeat better_case_match; subst; try discriminate;
-    edestruct Harg; ev; eauto; try discriminate;
-    edestruct Hfun; ev; eauto; try discriminate; injectHyps;
-    simp vtp0 in *; unfold expr_sem0 in *;
-    unfoldTeval; eauto.
+  (* Various implementations of the same case analysis are possible.
+     It's faster to only do as much case analysis as strictly needed.
+   *)
+  (* V1 Fast *)
+  n_is_succ_hp.
+  (** We must show that nmR is at least one, since that's required by the
+      hypothesis of semantic expression typing for Hfun and Harg. *)
+  destruct nmR;
+    (* The iteration counts are optimized for speed, but it's also OK to do all
+    case splits in advance as in V1.1. *)
+    do 2 better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps;
+      do 3 better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps;
+  repeat better_case_match_ex; simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto.
+
+  (* V1.1 less fast, more maintainable. *)
+  (* n_is_succ_hp; destruct nmR; *)
+  (*   repeat better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps; *)
+  (*     better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps; *)
+  (*       simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto. *)
 Qed.
 
 (** Fundamental property.
