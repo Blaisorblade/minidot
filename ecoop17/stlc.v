@@ -24,7 +24,6 @@ Hint Constructors ty.
 Hint Constructors tm.
 Hint Constructors vl.
 
-Print indexr.
 (* de Bruijn levels! *)
 Inductive has_type: tenv -> tm -> ty -> Prop :=
 | t_var : forall gamma x T,
@@ -444,66 +443,18 @@ Hint Resolve tevalS_mono.
 (* This is a mess. Automate reasoning that expr_sem0 implies successful evaluation! And appSubtermsEval* are hacks. *)
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
-  unfold sem_type; simpl; intros * Hfun Harg * Henv.
+  unfold sem_type.
   unfold etp0, expr_sem0 in *.
+  intros * Hfun Harg ? ? * * [nmR HappEv].
   unfoldTeval.
-  intros * HappEv.
-  destruct HappEv as [nmR HappEv].
+  remember (S nmR) as nm.
+  lets HappEv2: HappEv (S nm) __; eauto; simpl in *; unfold logStep in *.
 
-  (* edestruct Harg; ry (exists nm; eauto); eauto; *)
-  (*     eexists; intros; *)
-  (*   repeat better_case_match; subst; try discriminate; injectHyps; subst; *)
-  (*     repeat eexists; firstorder eauto. *)
-
-  (* remember (S nmR) as nm. *)
-
-  assert (exists optV2 j2, tevalSnOpt env t2 optV2 j2) as (optV2 & j2 & Heval2). {
-    unfoldTeval;
-      intros; n_is_succ_hp;
-    repeat better_case_match; subst; try discriminate; injectHyps;
-      repeat eexists; firstorder eauto.
-  }
-
-  lets [v2 [-> Hvtp2]]: Harg Heval2; eauto.
-  unfoldTeval.
-  destruct Heval2 as [nm2 Heval2].
-
-  remember (max (S nmR) (S nm2)) as nm;
-  assert (nm > nmR) by (subst; eauto using Nat.le_max_l, Nat.le_max_r);
-  assert (nm > nm2) by (subst; eauto using Nat.le_max_l, Nat.le_max_r).
-
-  lets HappEv2: HappEv (S nm) __; eauto.
-  lets Heval2': Heval2 nm __; eauto.
-
-  simpl in *; unfold logStep in *.
-  repeat better_case_match; try discriminate; subst;
-    edestruct Hfun; ev; try (exists nm; eauto); eauto; try discriminate.
-  injectHyps; simp vtp0 in *; unfold expr_sem0 in *;
+  repeat better_case_match; subst; try discriminate;
+    edestruct Harg; ev; eauto; try discriminate;
+    edestruct Hfun; ev; eauto; try discriminate; injectHyps;
+    simp vtp0 in *; unfold expr_sem0 in *;
     unfoldTeval; eauto.
-
-  (* repeat better_case_match; subst; injectHyps; *)
-  (*   remember (max (S nmR) (S nm2)) as nm; try discriminate. *)
-  (* admit. *)
-  (* - exfalso. *)
-
-  (* Ltac stepEvalHyp H Hn := *)
-  (*   let nm := fresh "nm" in *)
-  (*   let P := fresh "Hev" in *)
-  (*   destruct H as [nm P]; lets Hn : P (S nm) __; eauto; clear P. *)
-  (* Ltac matchEval := *)
-  (*   match goal with *)
-  (*   | H: exists nm, forall n, n > nm -> _ |- _ => *)
-  (*     let Hn := fresh "Hev" in *)
-  (*     stepEvalHyp H Hn *)
-  (*   end. *)
-  (* (* matchEval. *) *)
-  (* (* stepEvalHyp HappEv HappEvn; simpl in HappEvn. *) *)
-  (* (* stepEvalHyp Heval2 Hev2. rewrite Hev2 in *. *) *)
-
-  (* specialize (Hfun _ _ Heval1). *)
-  (* simp vtp0 in Hfun. *)
-  (* (* unfold expr_sem0 in Hfun. *) *)
-  (* eapply Hfun; eauto. *)
 Qed.
 
 (* Fundamental property. Proved by induction on typing derivations. *)
