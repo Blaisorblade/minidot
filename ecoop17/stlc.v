@@ -125,22 +125,58 @@ Definition tevalSn env e v k := tevalSnOpt env e (Some v) k.
 Hint Unfold tevalSnOpt tevalSnm tevalSn.
 (* Hint Unfold tevalSnmOpt. *)
 Ltac unfold2tevalSnmOpt := unfold tevalSn, tevalSnOpt, tevalSnm in *.
+Ltac unfoldTeval := unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
 
-Lemma tevalSnmOpt_det: forall env t optV1 optV2 j1 j2 nm1 nm2,
-    tevalSnmOpt env t optV1 j1 nm1 ->
-    tevalSnmOpt env t optV2 j2 nm2 ->
-    optV1 = optV2 /\ j1 = j2.
+Hint Extern 5 => injectHyps.
+(* Hint Extern 5 => optFuncs_det. *)
+
+Lemma tevalS_det: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+  optV1 = optV2 /\ j1 = j2.
 Proof.
-  unfold tevalSnmOpt; intros * H1 H2; ev;
+  intros * H1 H2; ev;
   remember (max (S nm1) (S nm2)) as nm;
   assert (nm > nm1) by (subst; eauto using Nat.le_max_l, Nat.le_max_r);
   assert (nm > nm2) by (subst; eauto using Nat.le_max_l, Nat.le_max_r).
   lets Hopt1 : H1 nm ___; eauto.
   lets Hopt2 : H2 nm ___; eauto.
-  rewrite Hopt2 in Hopt1.
-  injection Hopt1; intros; split_conj; eauto.
+  intros; split_conj; optFuncs_det; eauto.
 Qed.
-Hint Resolve tevalSnmOpt_det.
+
+Lemma tevalS_det_optV: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+  optV1 = optV2.
+Proof. intros; edestruct (tevalS_det optV1 optV2); eauto using tevalS_det. Qed.
+
+Lemma tevalS_det_j: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+  j1 = j2.
+Proof. intros; edestruct (tevalS_det optV1 optV2); eauto using tevalS_det. Qed.
+
+Hint Resolve tevalS_det_optV tevalS_det_j.
+
+Lemma tevalSnmOpt_det_optV: forall env t optV1 optV2 j1 j2 nm1 nm2,
+    tevalSnmOpt env t optV1 j1 nm1 ->
+    tevalSnmOpt env t optV2 j2 nm2 ->
+    optV1 = optV2.
+Proof. unfold tevalSnmOpt; eauto. Qed.
+
+Lemma tevalSnmOpt_det_j: forall env t optV1 optV2 j1 j2 nm1 nm2,
+    tevalSnmOpt env t optV1 j1 nm1 ->
+    tevalSnmOpt env t optV2 j2 nm2 ->
+    j1 = j2.
+Proof. unfold tevalSnmOpt; eauto. Qed.
+
+Hint Resolve tevalSnmOpt_det_optV tevalSnmOpt_det_j.
+
+Lemma tevalSnmOpt_det: forall env t optV1 optV2 j1 j2 nm1 nm2,
+    tevalSnmOpt env t optV1 j1 nm1 ->
+    tevalSnmOpt env t optV2 j2 nm2 ->
+    optV1 = optV2 /\ j1 = j2.
+Proof. eauto. Qed.
 
 (* Convince Coq that if n > m then n = S n' for some n', then there's enough
    fuel to perform one evaluation step. *)
@@ -258,8 +294,6 @@ Definition sem_type (G : tenv) (T : ty) (e: tm) :=
     R_env env G ->
     etp0 T e env.
 
-Hint Extern 5 => injectHyps.
-
 Lemma etp_vtp: forall e v j nm T env,
     tevalSnm env e v j nm -> etp0 T e env -> vtp0 T v.
 Proof.
@@ -268,22 +302,15 @@ Proof.
 Qed.
 Hint Resolve etp_vtp.
 
-Ltac eval_det :=
-  unfold2tevalSnmOpt; ev;
-  match goal with
-  | H1 : tevalSnmOpt _ _ _ _ _, H2 : tevalSnmOpt _ _ _ _ _ |- _ =>
-    lets (? & ?) : tevalSnmOpt_det H1 H2 ___
-  end; injectHyps.
-
 Lemma vtp_etp: forall e v j nm T env,
     tevalSnm env e v j nm -> vtp0 T v -> etp0 T e env.
-Proof. unfold etp0, expr_sem0 in *; intros; intros; eval_det; eauto. Qed.
+Proof. unfold etp0, expr_sem0 in *; intros; unfoldTeval; ev; eauto. Qed.
 Hint Resolve vtp_etp.
 
 Lemma teval_var: forall env x,
   exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV.
 Proof.
-  unfold2tevalSnmOpt; unfold tevalSnmOpt; eexists;
+  unfoldTeval; eexists;
     split_conj; [exists 1 (* For nm *); intros; step_eval|idtac]; trivial.
 Qed.
 Hint Resolve teval_var.
@@ -296,7 +323,7 @@ Proof.
   (* XXX needed: Lemma for syntactic values. *)
   (* Also needed: a way to swap goals that actually works! *)
   eapply vtp_etp with (nm := 0).
-  - unfold2tevalSnmOpt; unfold tevalSnmOpt; intros; step_eval; trivial.
+  - unfoldTeval; intros; step_eval; trivial.
   - unfold etp0 in *; simp vtp0; eauto.
 Qed.
 
@@ -323,6 +350,13 @@ Lemma R_env_to_success: forall G env x T, indexr x G = Some T -> R_env env G -> 
 Qed.
 Hint Resolve R_env_to_success.
 
+Ltac eval_det :=
+  unfold2tevalSnmOpt; ev;
+  match goal with
+  | H1 : tevalSnmOpt _ _ _ _ _, H2 : tevalSnmOpt _ _ _ _ _ |- _ =>
+    lets (? & ?) : tevalSnmOpt_det H1 H2 ___
+  end; injectHyps.
+
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
   unfold sem_type, etp0, expr_sem0; intros.
@@ -330,26 +364,26 @@ Proof.
   edestruct R_env_to_success; eauto.
 Qed.
 
-(* XXX Most of the proof would be simplified by having appSubtermsEval. Prove them in mutual recursion? *)
 Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
 Proof.
   induction n; intros * Heval * Hmn; try solve [inverse Heval].
   lets [m' ->]: n_to_Sn Hmn.
   generalize dependent optV.
   generalize dependent n.
-  destruct e; auto; intros.
-  -
-    assert (m' >= n) as Hmn' by omega.
-    simpl in *; unfold logStep in *.
-    Ltac tevalS_det n m' IHn := match goal with
+  destruct e; eauto; intros.
+
+  simpl in *; unfold logStep in *.
+  Ltac tevalS_det n m' IHn :=
+    match goal with
     | H1: tevalS ?e n ?env = Some ?r1, H2 : tevalS ?e m' ?env = ?r2 |- _ =>
       let H := fresh "H" in
       assert (tevalS e m' env = Some r1) as H by (eapply IHn; eauto);
-        rewrite H in *; clear H; injectHyps; try discriminate
+      rewrite H in *; clear H; injectHyps; try discriminate
     end.
-    repeat (better_case_match; subst; try discriminate; eauto); repeat tevalS_det n m' IHn; eauto.
+  repeat (better_case_match; subst; try discriminate; eauto; try tevalS_det n m' IHn); eauto.
 Qed.
 
+(* XXX Most of the proof would be simplified by having appSubtermsEval. Prove them in mutual recursion? *)
 Lemma tevalS_mono_old: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
 Proof.
   induction n; intros * Heval * Hmn; try solve [inverse Heval].
@@ -390,14 +424,18 @@ Proof.
     rewrite Hevaln0 in *; injectHyps; auto.
 Qed.
 
+Ltac n_is_succ_hp :=
+  ev; match goal with
+  | H : forall n, n > ?nm -> _ |- _ =>
+    let H2 := fresh "H" in
+    lets ? : H (S nm) __; eauto; clear H; simpl in H2
+  end; unfold logStep in *.
+
 Lemma appSubtermsEval: forall env t1 t2 v j,
     tevalSn env (tapp t1 t2) v j ->
     exists env1 tf j1 v2 j2 j3, tevalSn env t1 (vabs env1 tf) j1 /\ tevalSn env t2 v2 j2 /\ tevalSn (v2 :: env1) tf v j3.
 Proof.
-  unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
-  intros * [nm Hev].
-  lets Hev2 : Hev (S nm) __; eauto. clear Hev.
-  simpl in Hev2. unfold logStep in *.
+  unfoldTeval; intros; n_is_succ_hp.
   repeat better_case_match; subst; try discriminate; injectHyps.
   repeat eexists; firstorder eauto using tevalS_mono.
 Qed.
@@ -406,10 +444,7 @@ Lemma appSubtermsEval2: forall env t1 t2 optV j,
     tevalSnOpt env (tapp t1 t2) optV j ->
     exists optV2 j2, tevalSnOpt env t2 optV2 j2.
 Proof.
-  unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
-  intros * [nm Hev].
-  lets Hev2 : Hev (S nm) __; eauto. clear Hev.
-  simpl in Hev2. unfold logStep in *.
+  unfoldTeval; intros; n_is_succ_hp.
   repeat better_case_match; subst; try discriminate; injectHyps;
   repeat eexists; firstorder eauto using tevalS_mono.
 Qed.
