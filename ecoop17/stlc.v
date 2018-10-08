@@ -440,62 +440,46 @@ Proof.
   repeat eexists; firstorder eauto using tevalS_mono.
 Qed.
 
-Lemma appSubtermsEval2: forall env t1 t2 optV j,
-    tevalSnOpt env (tapp t1 t2) optV j ->
-    exists optV2 j2, tevalSnOpt env t2 optV2 j2.
-Proof.
-  unfoldTeval; intros; n_is_succ_hp.
-  repeat better_case_match; subst; try discriminate; injectHyps;
-  repeat eexists; firstorder eauto using tevalS_mono.
-Qed.
-
-(* Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2). *)
-(* Proof. *)
-(*   unfold sem_type; simpl; intros * Hfun Harg * Henv. *)
-(*   unfold etp0, expr_sem0 in *. *)
-(*   intros * HappEv. *)
-
-(*   pose proof appSubtermsEval _ _ _ _ _ HappEv as (env1 & tf & j1 & v2 & j2 & j3 & Heval1 & Heval2 & HevalV). *)
-
-(*   specialize (Hfun env Henv _ _ Heval1). *)
-(*   specialize (Harg env Henv _ _ Heval2). *)
-(*   simp vtp0 in Hfun. *)
-(*   (* unfold expr_sem0 in Hfun. *) *)
-(*   eapply Hfun; eauto. *)
-(* Qed. *)
-
 Hint Resolve tevalS_mono.
 (* This is a mess. Automate reasoning that expr_sem0 implies successful evaluation! And appSubtermsEval* are hacks. *)
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
   unfold sem_type; simpl; intros * Hfun Harg * Henv.
   unfold etp0, expr_sem0 in *.
+  unfoldTeval.
   intros * HappEv.
-
-  pose proof appSubtermsEval2 _ _ _ _ _ HappEv as (optV2 & j2 & Heval2).
-  specialize (Harg env Henv _ _ Heval2).
-  destruct Harg as [v2 [-> Hvtp2]].
-  specialize (Hfun env Henv).
-  unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
-  destruct Heval2 as [nm2 Heval2].
   destruct HappEv as [nmR HappEv].
+
+  (* edestruct Harg; ry (exists nm; eauto); eauto; *)
+  (*     eexists; intros; *)
+  (*   repeat better_case_match; subst; try discriminate; injectHyps; subst; *)
+  (*     repeat eexists; firstorder eauto. *)
+
+  (* remember (S nmR) as nm. *)
+
+  assert (exists optV2 j2, tevalSnOpt env t2 optV2 j2) as (optV2 & j2 & Heval2). {
+    unfoldTeval;
+      intros; n_is_succ_hp;
+    repeat better_case_match; subst; try discriminate; injectHyps;
+      repeat eexists; firstorder eauto.
+  }
+
+  lets [v2 [-> Hvtp2]]: Harg Heval2; eauto.
+  unfoldTeval.
+  destruct Heval2 as [nm2 Heval2].
 
   remember (max (S nmR) (S nm2)) as nm;
   assert (nm > nmR) by (subst; eauto using Nat.le_max_l, Nat.le_max_r);
   assert (nm > nm2) by (subst; eauto using Nat.le_max_l, Nat.le_max_r).
 
   lets HappEv2: HappEv (S nm) __; eauto.
-  simpl in HappEv2.
   lets Heval2': Heval2 nm __; eauto.
-  rewrite Heval2' in *.
-  unfold logStep in *.
-  destruct (tevalS t1 nm env) as [(optV1 & j1)|] eqn:?; try discriminate; simpl in *.
-  specialize (Hfun optV1 j1).
-  destruct Hfun as (v1 & -> & Hv1); try (exists nm; eauto).
-  better_case_match; subst v1.
-  repeat better_case_match; try discriminate; injectHyps.
-  simp vtp0 in *; unfold expr_sem0 in *; unfold2tevalSnmOpt; unfold tevalSnmOpt in *.
-  eauto.
+
+  simpl in *; unfold logStep in *.
+  repeat better_case_match; try discriminate; subst;
+    edestruct Hfun; ev; try (exists nm; eauto); eauto; try discriminate.
+  injectHyps; simp vtp0 in *; unfold expr_sem0 in *;
+    unfoldTeval; eauto.
 
   (* repeat better_case_match; subst; injectHyps; *)
   (*   remember (max (S nmR) (S nm2)) as nm; try discriminate. *)
