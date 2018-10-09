@@ -375,18 +375,16 @@ Definition sem_type (G : tenv) (T : ty) (e: tm) :=
     R_env env G ->
     etp0 T e env.
 
-Lemma etp_vtp: forall e v j nm T env,
-    tevalSnm env e v j nm -> etp0 T e env -> vtp0 T v.
-Proof.
-  unfold etp0, expr_sem0; unfold2tevalSnmOpt;
-    intros * ? (? & ? & ?); eauto.
-Qed.
-Hint Resolve etp_vtp.
-
 Lemma vtp_etp: forall e v j nm T env,
     tevalSnm env e v j nm -> vtp0 T v -> etp0 T e env.
 Proof. unfold etp0, expr_sem0 in *; intros; unfoldTeval; ev; eauto. Qed.
 Hint Resolve vtp_etp.
+
+Lemma etp_vtp: forall e v j nm T env,
+    tevalSnm env e v j nm -> etp0 T e env -> vtp0 T v.
+Proof. unfold etp0, expr_sem0; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; eauto. Qed.
+(* Unused *)
+(* Hint Resolve etp_vtp. *)
 
 Lemma fund_t_abs: forall G T1 T2 t,
   sem_type (T1 :: G) T2 t ->
@@ -567,6 +565,12 @@ Module normalization.
       tevalSnm env e v j nm -> vtp T v -> etp T e env.
   Proof. unfold etp, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
   Hint Resolve vtp_etp.
+
+  Lemma etp_vtp: forall e v j nm T env,
+      tevalSnm env e v j nm -> etp T e env -> vtp T v.
+  Proof. unfold etp, expr_sem; unfold2tevalSnmOpt; intros; ev; eval_det; eauto. Qed.
+  (* Unused *)
+  (* Hint Resolve etp_vtp. *)
 
   (* Semantic typing *)
   Definition sem_type (G : tenv) (T : ty) (e: tm) :=
