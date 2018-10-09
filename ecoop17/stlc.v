@@ -495,7 +495,6 @@ Proof. intros; edestruct fundamental; ev; eauto. Qed.
 
 End LR_Type_Soundness.
 
-Require Import Setoid.
 (** Prove normalization: all terms evaluate. *)
 Module normalization.
   Definition expr_sem (A : vl_prop) (t : tm) (env: venv): Prop :=
@@ -516,6 +515,7 @@ Module normalization.
     do 3 eexists; try exists 0; intros; try step_eval; eauto.
   Qed.
 
+  (* Require Import Setoid. *)
   (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *)
   (* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
   (* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
