@@ -286,6 +286,45 @@ Fixpoint tsize (T: ty): nat :=
 Definition tsize_rel (T1 T2: ty) := tsize T1 < tsize T2.
 Hint Extern 1 (tsize_rel _ _) => unfold tsize_rel; eauto.
 
+Ltac eval_det :=
+  unfold2tevalSnmOpt; ev;
+  match goal with
+  | H1 : tevalSnmOpt _ _ _ _ _, H2 : tevalSnmOpt _ _ _ _ _ |- _ =>
+    lets (? & ?) : tevalSnmOpt_det H1 H2 ___
+  end; injectHyps.
+
+(** Fuel monotonicity: If evaluation does not time out, increasing fuel preserves the result.
+ **** Proof sketch.
+      By induction on the available fuel [n] in the initial evaluation and case
+      analysis on terms.
+
+      In the inductive step, recursive calls happen with fuel [n - 1], hence by
+      the induction hypothesis they satisfy fuel monotonicity, the recursive
+      calls with more fuel give the same result, hence overall evaluation with
+      more fuel gives the same result.
+ *)
+Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
+Proof.
+  (** [tevalS_det] applies the induction hypothesis to recursive calls. *)
+  Ltac tevalS_det n m' IHn :=
+    match goal with
+    | H1: tevalS ?e n ?env = Some ?r1, H2 : tevalS ?e m' ?env = ?r2 |- _ =>
+      let H := fresh "H" in
+      assert (tevalS e m' env = Some r1) as H by (eapply IHn; auto 1);
+      rewrite H in *; clear H
+    end.
+
+  induction n; intros * Heval * Hmn; try solve [inverse Heval];
+  n_is_succ' m';
+
+  generalize dependent optV; generalize dependent n; destruct e;
+    intros; simpl in *; unfold logStep in *;
+    trivial;
+
+  repeat (better_case_match_ex; try tevalS_det n m' IHn); trivial.
+Qed.
+Hint Resolve tevalS_mono.
+
 Module LR_Type_Soundness.
 (* Only expr_sem0 changes here. *)
 
@@ -353,10 +392,7 @@ Lemma fund_t_abs: forall G T1 T2 t,
   sem_type (T1 :: G) T2 t ->
   sem_type G (TFun T1 T2) (tabs t).
 Proof.
-  unfold sem_type; simpl; intros; intuition eauto.
-  (* XXX needed: Lemma for syntactic values. *)
-  (* Also needed: a way to swap goals that actually works! *)
-  eapply vtp_etp with (nm := 0).
+  unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
   - unfold etp0 in *; simp vtp0; eauto.
 Qed.
@@ -384,51 +420,12 @@ Lemma R_env_to_indexr_success: forall G env x T, indexr x G = Some T -> R_env en
 Qed.
 Hint Resolve R_env_to_indexr_success.
 
-Ltac eval_det :=
-  unfold2tevalSnmOpt; ev;
-  match goal with
-  | H1 : tevalSnmOpt _ _ _ _ _, H2 : tevalSnmOpt _ _ _ _ _ |- _ =>
-    lets (? & ?) : tevalSnmOpt_det H1 H2 ___
-  end; injectHyps.
-
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
   unfold sem_type, etp0, expr_sem0; intros.
   pose proof (teval_var env x); eval_det; subst.
   edestruct R_env_to_indexr_success; eauto.
 Qed.
-
-(** Fuel monotonicity: If evaluation does not time out, increasing fuel preserves the result.
- **** Proof sketch.
-      By induction on the available fuel [n] in the initial evaluation and case
-      analysis on terms.
-
-      In the inductive step, recursive calls happen with fuel [n - 1], hence by
-      the induction hypothesis they satisfy fuel monotonicity, the recursive
-      calls with more fuel give the same result, hence overall evaluation with
-      more fuel gives the same result.
- *)
-Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
-Proof.
-  (** [tevalS_det] applies the induction hypothesis to recursive calls. *)
-  Ltac tevalS_det n m' IHn :=
-    match goal with
-    | H1: tevalS ?e n ?env = Some ?r1, H2 : tevalS ?e m' ?env = ?r2 |- _ =>
-      let H := fresh "H" in
-      assert (tevalS e m' env = Some r1) as H by (eapply IHn; auto 1);
-      rewrite H in *; clear H
-    end.
-
-  induction n; intros * Heval * Hmn; try solve [inverse Heval];
-  n_is_succ' m';
-
-  generalize dependent optV; generalize dependent n; destruct e;
-    intros; simpl in *; unfold logStep in *;
-    trivial;
-
-  repeat (better_case_match_ex; try tevalS_det n m' IHn); trivial.
-Qed.
-Hint Resolve tevalS_mono.
 
 (** Fundamental property, application case.
  **** Proof sketch.
