@@ -404,18 +404,16 @@ Proof.
   unfoldTeval; n_is_succ_hp; eauto.
 Qed.
 
-(* I tried defining vtp directly in VTP, but then we run into the transparency bug. *)
-Module VTP. Definition vtp := vtp. Definition expr_sem := expr_sem. End VTP.
-Module Import _Envs := Envs VTP.
+Include Envs.
 
 Lemma vtp_etp: forall e v j nm T env,
     tevalSnm env e v j nm -> vtp T v -> etp T e env.
-Proof. unfold etp, VTP.expr_sem, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
+Proof. unfold etp, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
 Hint Resolve vtp_etp.
 
 Lemma etp_vtp: forall e v j nm T env,
     tevalSnm env e v j nm -> etp T e env -> vtp T v.
-Proof. unfold etp, VTP.expr_sem, expr_sem; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; eauto. Qed.
+Proof. unfold etp, expr_sem; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; eauto. Qed.
 (* Unused *)
 (* Hint Resolve etp_vtp. *)
 
@@ -425,13 +423,13 @@ Lemma fund_t_abs: forall G T1 T2 t,
 Proof.
   unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
-  - unfold etp, VTP.expr_sem in *; simp vtp; eauto.
+  - unfold etp in *; simp vtp; eauto.
 Qed.
 
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
-  (* unfold sem_type, etp, VTP.expr_sem, expr_sem; *)
-  repeat (intros; hnf).
+  unfold sem_type, etp, expr_sem; intros;
+  (* repeat (intros; hnf). *)
   pose proof (teval_var env x); eval_det; subst.
   edestruct R_env_to_indexr_success; eauto.
 Qed.
@@ -456,7 +454,7 @@ Qed.
       same reasoning neither times out nor fails, producing a well-typed result. *)
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
-  unfold sem_type, etp, VTP.expr_sem, expr_sem, VTP.vtp; unfoldTeval;
+  unfold sem_type, etp, expr_sem; unfoldTeval;
   intros * Hfun Harg ? ? * [nmR HappEv].
 
   (* Various implementations of the same case analysis are possible.
@@ -531,17 +529,16 @@ Module normalization.
   (* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
   (* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
 
-  Module VTP. Definition vtp := vtp. Definition expr_sem := expr_sem. End VTP.
-  Module Import _Envs := Envs VTP.
+  Include Envs.
 
   Lemma vtp_etp: forall e v j nm T env,
       tevalSnm env e v j nm -> vtp T v -> etp T e env.
-  Proof. unfold etp, VTP.expr_sem, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
+  Proof. unfold etp, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
   Hint Resolve vtp_etp.
 
   Lemma etp_vtp: forall e v j nm T env,
       tevalSnm env e v j nm -> etp T e env -> vtp T v.
-  Proof. unfold etp, VTP.expr_sem, expr_sem; unfold2tevalSnmOpt; intros; ev; eval_det; eauto. Qed.
+  Proof. unfold etp, expr_sem; unfold2tevalSnmOpt; intros; ev; eval_det; eauto. Qed.
   (* Unused *)
   (* Hint Resolve etp_vtp. *)
 
@@ -551,7 +548,7 @@ Module normalization.
   Proof.
     unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
     - unfoldTeval; intros; step_eval; trivial.
-    - unfold etp, VTP.expr_sem in *; simp vtp; eauto.
+    - unfold etp in *; simp vtp; eauto.
   Qed.
 
   Lemma fund_t_nat: forall G n,
@@ -574,7 +571,7 @@ Module normalization.
 
   Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
   Proof.
-    unfold sem_type, etp, VTP.expr_sem, expr_sem, VTP.vtp; unfoldTeval.
+    unfold sem_type, etp, expr_sem; unfoldTeval.
     intros * Hfun Harg * Henv.
     specialize (Hfun _ Henv) as (v1 & j1 & (nm1 & Hev1) & Hvtp1);
     specialize (Harg _ Henv) as (v2 & j2 & (nm2 & Hev2) & Hvtp2).
