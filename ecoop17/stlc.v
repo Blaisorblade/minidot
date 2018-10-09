@@ -29,17 +29,17 @@ Hint Constructors vl.
 
 (* de Bruijn levels! *)
 Inductive has_type: tenv -> tm -> ty -> Prop :=
-| t_var : forall gamma x T,
-    indexr x gamma = Some T ->
-    has_type gamma (tvar x) T
-| t_abs : forall gamma t S T,
-    has_type (S :: gamma) t T ->
-    has_type gamma (tabs t) (TFun S T)
-| t_app : forall gamma f t S T,
-    has_type gamma f (TFun S T) ->
-    has_type gamma t S ->
-    has_type gamma (tapp f t) T
-| t_nat: forall gamma n, has_type gamma (tnat n) TNat
+| t_var : forall G x T,
+    indexr x G = Some T ->
+    has_type G (tvar x) T
+| t_abs : forall G t S T,
+    has_type (S :: G) t T ->
+    has_type G (tabs t) (TFun S T)
+| t_app : forall G f t S T,
+    has_type G f (TFun S T) ->
+    has_type G t S ->
+    has_type G (tapp f t) T
+| t_nat: forall G n, has_type G (tnat n) TNat
 .
 Hint Constructors has_type.
 
