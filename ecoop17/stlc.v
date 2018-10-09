@@ -11,7 +11,8 @@ Inductive tm : Set :=
 
 Inductive vl : Set :=
 (* a closure for a lambda abstraction *)
-| vabs : list vl (*H*) -> tm -> vl.
+| vabs : list vl (*H*) -> tm -> vl
+| vnat: nat -> vl.
 
 Inductive ty : Set :=
 | TFun : ty -> ty -> ty
@@ -64,9 +65,9 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
       va <- tevalSM ta n env;
       vf <- tevalSM tf n env;
       match vf with
-      (* | vty _ _ => error *)
       | vabs env2 tbody =>
         logStep 1 (tevalSM tbody n (va :: env2))
+      | _ => error
       end
     (* | tunpack tx ty => *)
     (*   vx <- tevalSM tx n env; *)
@@ -90,9 +91,9 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
               match tevalS ef n env with
                 | None => None
                 | Some (None, k2) => Some (None, k1 + k2)
-                (* | Some (Some (vty _ _), k2) => Some (None, k1 + k2) *)
                 | Some (Some (vabs env2 ey), k2) =>
                   logStep (k1 + k2 + 1) (tevalS ey n (vx::env2))
+                | Some (Some _, k2) => Some (None, k1 + k2)
               end
           end
         (* | tunpack ex ey => *)
@@ -281,29 +282,6 @@ Fixpoint tsize (T: ty): nat :=
 Definition tsize_rel (T1 T2: ty) := tsize T1 < tsize T2.
 Hint Extern 1 (tsize_rel _ _) => unfold tsize_rel; eauto.
 
-Module strong_norm.
-  Equations expr_sem0 (A : vl_prop) (t : tm) (env: venv): Prop :=
-    expr_sem0 A t env :=
-    exists v j,
-      tevalSn env t v j /\ A v.
-
-  (* Non-step-indexed reducibility *)
-  Equations vtp0 (T: ty) (v : vl) : Prop :=
-    vtp0 T t by rec T tsize_rel :=
-      vtp0 TBase v := False;
-      vtp0 (TFun T1 T2) (vabs env body) := forall v, vtp0 T1 v -> expr_sem0 (fun v => vtp0 T2 v) body (v :: env).
-  Next Obligation. Qed.
-  Next Obligation. Qed.
-
-  Example ex0 : vtp0 (TFun TBase TBase) (vabs [] (tvar 0)).
-  Proof.
-    simp vtp0; intros; simp expr_sem0; unfoldTeval.
-    (* (* Either *) firstorder idtac. *)
-    (* Or *)
-    do 3 eexists; try exists 0; intros; try step_eval; eauto.
-  Qed.
-End strong_norm.
-
 Module LR_Type_Soundness.
 (* Only expr_sem0 changes here. *)
 
@@ -315,16 +293,14 @@ Definition expr_sem0 (A : vl_prop) (t : tm) (env: venv): Prop :=
 (* Non-step-indexed unary logical relation. *)
 Equations vtp0 (T: ty) (v : vl) : Prop :=
   vtp0 T t by rec T tsize_rel :=
-  vtp0 TBase v := False;
-  vtp0 (TFun T1 T2) (vabs env body) := forall v, vtp0 T1 v -> expr_sem0 (fun v => vtp0 T2 v) body (v :: env).
-Next Obligation. Qed.
-Next Obligation. Qed.
+  vtp0 TBase (vnat n) := True;
+  vtp0 (TFun T1 T2) (vabs env body) := forall v, vtp0 T1 v -> expr_sem0 (fun v => vtp0 T2 v) body (v :: env);
+  vtp0 _ _ := False.
+Solve All Obligations with program_simpl.
 
 Example ex0 : vtp0 (TFun TBase TBase) (vabs [] (tvar 0)).
 Proof.
   simp vtp0; unfold expr_sem0; intros.
-  (* (* Either *) firstorder idtac. *)
-  (* Or *)
   unfoldTeval; n_is_succ_hp; eauto.
 Qed.
 
@@ -474,24 +450,25 @@ Proof.
   intros * Hfun Harg ? ? * [nmR HappEv].
 
   (* Various implementations of the same case analysis are possible.
-     It's faster to only do as much case analysis as strictly needed.
-   *)
+     It's faster to only do as much case analysis as strictly needed. *)
+
+
   (* V1 Fast *)
-  n_is_succ_hp.
-  (** We must show that nmR is at least one, since that's required by the
-      hypothesis of semantic expression typing for Hfun and Harg. *)
-  destruct nmR;
-    (* The iteration counts are optimized for speed, but it's also OK to do all
-    case splits in advance as in V1.1. *)
+  n_is_succ_hp;
+    (** We must show that nmR is at least one, since that's required by the
+        hypothesis of semantic expression typing for Hfun and Harg. *)
+    destruct nmR;
+    (* The iteration counts are optimized for speed, but it's also OK to do all *)
+    (*   case splits in advance as in V1.1. *)
     do 2 better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps;
       do 3 better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps;
-  repeat better_case_match_ex; simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto.
+        repeat better_case_match_ex; simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto; contradiction.
 
   (* V1.1 less fast, more maintainable. *)
   (* n_is_succ_hp; destruct nmR; *)
   (*   repeat better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps; *)
   (*     better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps; *)
-  (*       simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto. *)
+  (*       simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto; contradiction. *)
 Qed.
 
 (** Fundamental property.
@@ -510,3 +487,29 @@ Proof. intros; edestruct fundamental; ev; eauto. Qed.
    evaluations, not about runtime errors! *)
 
 End LR_Type_Soundness.
+
+Require Import Setoid.
+(** Prove normalization: all terms evaluate. *)
+Module normalization.
+  Definition expr_sem (A : vl_prop) (t : tm) (env: venv): Prop :=
+    exists v j,
+      tevalSn env t v j /\ A v.
+
+  (* Non-step-indexed reducibility *)
+  Equations vtp (T: ty) (v : vl) : Prop :=
+    vtp T t by rec T tsize_rel :=
+    vtp TBase (vnat n) := True;
+    vtp (TFun T1 T2) (vabs env body) := forall v, vtp T1 v -> expr_sem (fun v => vtp T2 v) body (v :: env);
+    vtp _ _ := False.
+  Solve All Obligations with program_simpl.
+
+  Example ex0 : vtp (TFun TBase TBase) (vabs [] (tvar 0)).
+  Proof.
+    simp vtp; unfold expr_sem; unfoldTeval; intros.
+    do 3 eexists; try exists 0; intros; try step_eval; eauto.
+  Qed.
+
+  (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *)
+  (* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
+  (* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
+End normalization.
