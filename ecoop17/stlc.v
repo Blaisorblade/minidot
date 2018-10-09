@@ -325,6 +325,63 @@ Proof.
 Qed.
 Hint Resolve tevalS_mono.
 
+Module Type vtp_arg.
+  Parameter vtp : ty -> vl_prop.
+  Parameter expr_sem : vl_prop -> tm -> venv -> Prop.
+End vtp_arg.
+
+Module Envs (VTP: vtp_arg).
+  Import VTP.
+
+  (* Copy-pasted and modularizable. *)
+  Inductive R_env : venv -> tenv -> Set :=
+  | R_nil :
+      R_env [] []
+  | R_cons : forall T v env G,
+      R_env env G ->
+      vtp T v ->
+      R_env (v :: env) (T :: G).
+  Hint Constructors R_env.
+
+  Lemma wf_length : forall vs ts,
+      R_env vs ts ->
+      (length vs = length ts).
+  Proof. intros * H; induction H; simpl; congruence. Qed.
+
+  Ltac lenG_to_lenEnv :=
+    try match goal with
+        | H: R_env ?env ?G |- _ =>
+          replace (length G) with (length env) in * by (eauto using wf_length)
+        end.
+
+  Lemma R_env_to_indexr_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v.
+    intros * HT Henv; induction Henv; simpl in *;
+      [ discriminate |
+        lenG_to_lenEnv;
+        repeat (better_case_match; beq_nat); eauto].
+  Qed.
+  Hint Resolve R_env_to_indexr_success.
+
+  Lemma R_env_to_vtp: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp T v.
+  Proof.
+    intros * HT Hv Henv; induction Henv; simpl in *;
+      [ discriminate |
+        lenG_to_lenEnv;
+        repeat (better_case_match; beq_nat); eauto].
+  Qed.
+  Hint Resolve R_env_to_vtp.
+  (* Copy-pasted and modularizable, until at least here. *)
+
+  Definition etp T e env :=
+    expr_sem (fun v => vtp T v) e env.
+
+  (* Semantic typing *)
+  Definition sem_type (G : tenv) (T : ty) (e: tm) :=
+    forall env,
+      R_env env G ->
+      etp T e env.
+End Envs.
+
 Module LR_Type_Soundness.
 (* Only expr_sem changes here. *)
 
@@ -347,42 +404,18 @@ Proof.
   unfoldTeval; n_is_succ_hp; eauto.
 Qed.
 
-Inductive R_env : venv -> tenv -> Set :=
-  (* (env: venv) (G: tenv) : Set := *)
-| R_nil :
-    R_env [] []
-| R_cons : forall T v env G,
-    R_env env G ->
-    vtp T v ->
-    R_env (v :: env) (T :: G)
-.
-
-Lemma wf_length : forall vs ts,
-                    R_env vs ts ->
-                    (length vs = length ts).
-Proof.
-  intros * H; induction H; simpl; congruence.
-Qed.
-
-Hint Constructors R_env.
-
-Program Definition etp T e env :=
-  expr_sem (fun v => vtp T v) e env.
-
-(* Semantic typing *)
-Definition sem_type (G : tenv) (T : ty) (e: tm) :=
-  forall env,
-    R_env env G ->
-    etp T e env.
+(* I tried defining vtp directly in VTP, but then we run into the transparency bug. *)
+Module VTP. Definition vtp := vtp. Definition expr_sem := expr_sem. End VTP.
+Module Import _Envs := Envs VTP.
 
 Lemma vtp_etp: forall e v j nm T env,
     tevalSnm env e v j nm -> vtp T v -> etp T e env.
-Proof. unfold etp, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
+Proof. unfold etp, VTP.expr_sem, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
 Hint Resolve vtp_etp.
 
 Lemma etp_vtp: forall e v j nm T env,
     tevalSnm env e v j nm -> etp T e env -> vtp T v.
-Proof. unfold etp, expr_sem; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; eauto. Qed.
+Proof. unfold etp, VTP.expr_sem, expr_sem; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; eauto. Qed.
 (* Unused *)
 (* Hint Resolve etp_vtp. *)
 
@@ -392,35 +425,13 @@ Lemma fund_t_abs: forall G T1 T2 t,
 Proof.
   unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
-  - unfold etp in *; simp vtp; eauto.
+  - unfold etp, VTP.expr_sem in *; simp vtp; eauto.
 Qed.
-
-Ltac lenG_to_lenEnv :=
-  try match goal with
-  | H: R_env ?env ?G |- _ =>
-    replace (length G) with (length env) in * by (eauto using wf_length)
-  end.
-
-Lemma R_env_to_vtp: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp T v.
-Proof.
-  intros * HT Hv Henv; induction Henv; simpl in *;
-  [ discriminate |
-    lenG_to_lenEnv;
-    repeat (better_case_match; beq_nat); eauto].
-Qed.
-Hint Resolve R_env_to_vtp.
-
-Lemma R_env_to_indexr_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v.
-  intros * HT Henv; induction Henv; simpl in *;
-  [ discriminate |
-    lenG_to_lenEnv;
-    repeat (better_case_match; beq_nat); eauto].
-Qed.
-Hint Resolve R_env_to_indexr_success.
 
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
-  unfold sem_type, etp, expr_sem; intros.
+  (* unfold sem_type, etp, VTP.expr_sem, expr_sem; *)
+  repeat (intros; hnf).
   pose proof (teval_var env x); eval_det; subst.
   edestruct R_env_to_indexr_success; eauto.
 Qed.
@@ -445,7 +456,7 @@ Qed.
       same reasoning neither times out nor fails, producing a well-typed result. *)
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
-  unfold sem_type, etp, expr_sem; unfoldTeval;
+  unfold sem_type, etp, VTP.expr_sem, expr_sem, VTP.vtp; unfoldTeval;
   intros * Hfun Harg ? ? * [nmR HappEv].
 
   (* Various implementations of the same case analysis are possible.
@@ -519,64 +530,20 @@ Module normalization.
   (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *)
   (* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
   (* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
-  Definition etp T e env :=
-    expr_sem (fun v => vtp T v) e env.
 
-  (* Copy-pasted and modularizable. *)
-  Inductive R_env : venv -> tenv -> Set :=
-  | R_nil :
-      R_env [] []
-  | R_cons : forall T v env G,
-      R_env env G ->
-      vtp T v ->
-      R_env (v :: env) (T :: G).
-  Hint Constructors R_env.
-
-  Lemma wf_length : forall vs ts,
-      R_env vs ts ->
-      (length vs = length ts).
-  Proof. intros * H; induction H; simpl; congruence. Qed.
-
-  Ltac lenG_to_lenEnv :=
-    try match goal with
-        | H: R_env ?env ?G |- _ =>
-          replace (length G) with (length env) in * by (eauto using wf_length)
-        end.
-
-  Lemma R_env_to_indexr_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v.
-    intros * HT Henv; induction Henv; simpl in *;
-      [ discriminate |
-        lenG_to_lenEnv;
-        repeat (better_case_match; beq_nat); eauto].
-  Qed.
-  Hint Resolve R_env_to_indexr_success.
-
-  Lemma R_env_to_vtp: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp T v.
-  Proof.
-    intros * HT Hv Henv; induction Henv; simpl in *;
-      [ discriminate |
-        lenG_to_lenEnv;
-        repeat (better_case_match; beq_nat); eauto].
-  Qed.
-  Hint Resolve R_env_to_vtp.
-  (* Copy-pasted and modularizable, until at least here. *)
+  Module VTP. Definition vtp := vtp. Definition expr_sem := expr_sem. End VTP.
+  Module Import _Envs := Envs VTP.
 
   Lemma vtp_etp: forall e v j nm T env,
       tevalSnm env e v j nm -> vtp T v -> etp T e env.
-  Proof. unfold etp, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
+  Proof. unfold etp, VTP.expr_sem, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
   Hint Resolve vtp_etp.
 
   Lemma etp_vtp: forall e v j nm T env,
       tevalSnm env e v j nm -> etp T e env -> vtp T v.
-  Proof. unfold etp, expr_sem; unfold2tevalSnmOpt; intros; ev; eval_det; eauto. Qed.
+  Proof. unfold etp, VTP.expr_sem, expr_sem; unfold2tevalSnmOpt; intros; ev; eval_det; eauto. Qed.
   (* Unused *)
   (* Hint Resolve etp_vtp. *)
-
-  (* Semantic typing *)
-  Definition sem_type (G : tenv) (T : ty) (e: tm) :=
-    forall env,
-      R_env env G ->
-      etp T e env.
 
   Lemma fund_t_abs: forall G T1 T2 t,
       sem_type (T1 :: G) T2 t ->
@@ -584,7 +551,7 @@ Module normalization.
   Proof.
     unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
     - unfoldTeval; intros; step_eval; trivial.
-    - unfold etp in *; simp vtp; eauto.
+    - unfold etp, VTP.expr_sem in *; simp vtp; eauto.
   Qed.
 
   Lemma fund_t_nat: forall G n,
@@ -607,7 +574,7 @@ Module normalization.
 
   Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
   Proof.
-    unfold sem_type, etp, expr_sem; unfoldTeval.
+    unfold sem_type, etp, VTP.expr_sem, expr_sem, VTP.vtp; unfoldTeval.
     intros * Hfun Harg * Henv.
     specialize (Hfun _ Henv) as (v1 & j1 & (nm1 & Hev1) & Hvtp1);
     specialize (Harg _ Henv) as (v2 & j2 & (nm2 & Hev2) & Hvtp2).
