@@ -326,24 +326,24 @@ Qed.
 Hint Resolve tevalS_mono.
 
 Module LR_Type_Soundness.
-(* Only expr_sem0 changes here. *)
+(* Only expr_sem changes here. *)
 
 (* Maybe make both normal definitions, or at least Program Definitions? Let's limit equations weird rules? *)
-Definition expr_sem0 (A : vl_prop) (t : tm) (env: venv): Prop :=
+Definition expr_sem (A : vl_prop) (t : tm) (env: venv): Prop :=
   forall optV j,
     tevalSnOpt env t optV j -> exists v, optV = Some v /\ A v.
 
 (* Non-step-indexed unary logical relation. *)
-Equations vtp0 (T: ty) (v : vl) : Prop :=
-  vtp0 T t by rec T tsize_rel :=
-  vtp0 TNat (vnat n) := True;
-  vtp0 (TFun T1 T2) (vabs env body) := forall v, vtp0 T1 v -> expr_sem0 (fun v => vtp0 T2 v) body (v :: env);
-  vtp0 _ _ := False.
+Equations vtp (T: ty) (v : vl) : Prop :=
+  vtp T t by rec T tsize_rel :=
+  vtp TNat (vnat n) := True;
+  vtp (TFun T1 T2) (vabs env body) := forall v, vtp T1 v -> expr_sem (fun v => vtp T2 v) body (v :: env);
+  vtp _ _ := False.
 Solve All Obligations with program_simpl.
 
-Example ex0 : vtp0 (TFun TNat TNat) (vabs [] (tvar 0)).
+Example ex0 : vtp (TFun TNat TNat) (vabs [] (tvar 0)).
 Proof.
-  simp vtp0; unfold expr_sem0; intros.
+  simp vtp; unfold expr_sem; intros.
   unfoldTeval; n_is_succ_hp; eauto.
 Qed.
 
@@ -353,7 +353,7 @@ Inductive R_env : venv -> tenv -> Set :=
     R_env [] []
 | R_cons : forall T v env G,
     R_env env G ->
-    vtp0 T v ->
+    vtp T v ->
     R_env (v :: env) (T :: G)
 .
 
@@ -366,23 +366,23 @@ Qed.
 
 Hint Constructors R_env.
 
-Program Definition etp0 T e env :=
-  expr_sem0 (fun v => vtp0 T v) e env.
+Program Definition etp T e env :=
+  expr_sem (fun v => vtp T v) e env.
 
 (* Semantic typing *)
 Definition sem_type (G : tenv) (T : ty) (e: tm) :=
   forall env,
     R_env env G ->
-    etp0 T e env.
+    etp T e env.
 
 Lemma vtp_etp: forall e v j nm T env,
-    tevalSnm env e v j nm -> vtp0 T v -> etp0 T e env.
-Proof. unfold etp0, expr_sem0 in *; intros; unfoldTeval; ev; eauto. Qed.
+    tevalSnm env e v j nm -> vtp T v -> etp T e env.
+Proof. unfold etp, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
 Hint Resolve vtp_etp.
 
 Lemma etp_vtp: forall e v j nm T env,
-    tevalSnm env e v j nm -> etp0 T e env -> vtp0 T v.
-Proof. unfold etp0, expr_sem0; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; eauto. Qed.
+    tevalSnm env e v j nm -> etp T e env -> vtp T v.
+Proof. unfold etp, expr_sem; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; eauto. Qed.
 (* Unused *)
 (* Hint Resolve etp_vtp. *)
 
@@ -392,7 +392,7 @@ Lemma fund_t_abs: forall G T1 T2 t,
 Proof.
   unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
-  - unfold etp0 in *; simp vtp0; eauto.
+  - unfold etp in *; simp vtp; eauto.
 Qed.
 
 Ltac lenG_to_lenEnv :=
@@ -401,14 +401,14 @@ Ltac lenG_to_lenEnv :=
     replace (length G) with (length env) in * by (eauto using wf_length)
   end.
 
-Lemma R_env_to_vtp0: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp0 T v.
+Lemma R_env_to_vtp: forall G env x T v, indexr x G = Some T -> indexr x env = Some v -> R_env env G -> vtp T v.
 Proof.
   intros * HT Hv Henv; induction Henv; simpl in *;
   [ discriminate |
     lenG_to_lenEnv;
     repeat (better_case_match; beq_nat); eauto].
 Qed.
-Hint Resolve R_env_to_vtp0.
+Hint Resolve R_env_to_vtp.
 
 Lemma R_env_to_indexr_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v.
   intros * HT Henv; induction Henv; simpl in *;
@@ -420,7 +420,7 @@ Hint Resolve R_env_to_indexr_success.
 
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
-  unfold sem_type, etp0, expr_sem0; intros.
+  unfold sem_type, etp, expr_sem; intros.
   pose proof (teval_var env x); eval_det; subst.
   edestruct R_env_to_indexr_success; eauto.
 Qed.
@@ -445,7 +445,7 @@ Qed.
       same reasoning neither times out nor fails, producing a well-typed result. *)
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
 Proof.
-  unfold sem_type, etp0, expr_sem0; unfoldTeval;
+  unfold sem_type, etp, expr_sem; unfoldTeval;
   intros * Hfun Harg ? ? * [nmR HappEv].
 
   (* Various implementations of the same case analysis are possible.
@@ -461,13 +461,13 @@ Proof.
     (*   case splits in advance as in V1.1. *)
     do 2 better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps;
       do 3 better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps;
-        repeat better_case_match_ex; simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto; contradiction.
+        repeat better_case_match_ex; simp vtp in *; unfold expr_sem in *; unfoldTeval; eauto; contradiction.
 
   (* V1.1 less fast, more maintainable. *)
   (* n_is_succ_hp; destruct nmR; *)
   (*   repeat better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps; *)
   (*     better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps; *)
-  (*       simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto; contradiction. *)
+  (*       simp vtp in *; unfold expr_sem in *; unfoldTeval; eauto; contradiction. *)
 Qed.
 
 Lemma fund_t_nat: forall G n,
@@ -475,7 +475,7 @@ Lemma fund_t_nat: forall G n,
 Proof.
   unfold sem_type; intros; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
-  - unfold etp0 in *; simp vtp0; eauto.
+  - unfold etp in *; simp vtp; eauto.
 Qed.
 
 (** Fundamental property.
@@ -488,9 +488,9 @@ Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_nat, fund_t_a
 Theorem sound: forall G t T env optV j, has_type G t T ->
     R_env env G ->
     tevalSnOpt env t optV j ->
-    exists v, optV = Some v /\ vtp0 T v.
+    exists v, optV = Some v /\ vtp T v.
 Proof. intros; edestruct fundamental; ev; eauto. Qed.
-(* Concluding tevalSn env t v j -> vtp0 T v would talk only about successful
+(* Concluding tevalSn env t v j -> vtp T v would talk only about successful
    evaluations, not about runtime errors! *)
 
 End LR_Type_Soundness.
