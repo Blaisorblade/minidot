@@ -36,8 +36,8 @@ Proof. unfold etp, expr_sem; unfold2tevalSnmOpt; intros * ? H; edestruct H; ev; 
 (* Hint Resolve etp_vtp. *)
 
 Lemma fund_t_abs: forall G T1 T2 t,
-  sem_type (T1 :: G) T2 t ->
-  sem_type G (TFun T1 T2) (tabs t).
+    sem_type (T1 :: G) T2 t ->
+    sem_type G (TFun T1 T2) (tabs t).
 Proof.
   unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
@@ -47,9 +47,16 @@ Qed.
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
   unfold sem_type, etp, expr_sem; intros;
-  (* repeat (intros; hnf). *)
-  pose proof (teval_var env x); eval_det; subst.
+    pose proof (teval_var env x); eval_det; subst.
   edestruct R_env_to_indexr_success; eauto.
+Qed.
+
+Lemma fund_t_nat: forall G n,
+    sem_type G TNat (tnat n).
+Proof.
+  unfold sem_type; intros; eapply vtp_etp with (nm := 0).
+  - unfoldTeval; intros; step_eval; trivial.
+  - unfold etp in *; simp vtp; eauto.
 Qed.
 
 (** Fundamental property, application case.
@@ -95,14 +102,6 @@ Proof.
   (*   repeat better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps; *)
   (*     better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps; *)
   (*       simp vtp in *; unfold expr_sem in *; unfoldTeval; eauto; contradiction. *)
-Qed.
-
-Lemma fund_t_nat: forall G n,
-  sem_type G TNat (tnat n).
-Proof.
-  unfold sem_type; intros; eapply vtp_etp with (nm := 0).
-  - unfoldTeval; intros; step_eval; trivial.
-  - unfold etp in *; simp vtp; eauto.
 Qed.
 
 (** Fundamental property.

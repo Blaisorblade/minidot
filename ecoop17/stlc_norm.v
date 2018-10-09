@@ -47,22 +47,19 @@ Proof.
   - unfold etp in *; simp vtp; eauto.
 Qed.
 
+Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
+Proof.
+  unfold sem_type, etp, expr_sem; intros;
+    pose proof (teval_var env x); ev; subst.
+  edestruct R_env_to_indexr_success as [? Hrew]; try rewrite Hrew in *; eauto.
+Qed.
+
 Lemma fund_t_nat: forall G n,
     sem_type G TNat (tnat n).
 Proof.
   unfold sem_type; intros; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
   - unfold etp in *; simp vtp; eauto.
-Qed.
-
-Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
-Proof.
-  unfold sem_type, etp, expr_sem; intros.
-  pose proof (teval_var env x).
-  unfold2tevalSnmOpt; ev; subst.
-  edestruct R_env_to_indexr_success as [? Hrew]; eauto.
-  rewrite Hrew in *.
-  repeat eexists; eauto.
 Qed.
 
 Lemma fund_t_app: forall G T1 T2 t1 t2, sem_type G (TFun T1 T2) t1 -> sem_type G T1 t2 -> sem_type G T2 (tapp t1 t2).
