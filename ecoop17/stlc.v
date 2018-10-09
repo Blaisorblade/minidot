@@ -16,7 +16,7 @@ Inductive vl : Set :=
 
 Inductive ty : Set :=
 | TFun : ty -> ty -> ty
-| TBase : ty.
+| TNat : ty.
 
 Notation tenv := (list ty).
 Notation venv := (list vl).
@@ -40,15 +40,15 @@ Inductive has_type: tenv -> tm -> ty -> Prop :=
 .
 Hint Constructors has_type.
 
-Example ex1: has_type [TBase] (tvar 0) TBase. eauto. Qed.
-Example ex2: has_type [TFun TBase TBase] (tabs (tvar 1)) (TFun TBase TBase). eauto. Qed.
+Example ex1: has_type [TNat] (tvar 0) TNat. eauto. Qed.
+Example ex2: has_type [TFun TNat TNat] (tabs (tvar 1)) (TFun TNat TNat). eauto. Qed.
 
 Hint Extern 5 => match goal with
                 | |- indexr _ _ = _ => progress cbn; eauto
                 end.
 
-Example ex__apply: has_type [TFun TBase TBase] (tabs (tabs (tapp (tvar 1) (tvar 2))))
-                          (TFun (TFun TBase TBase) (TFun TBase TBase)). eauto 6. Qed.
+Example ex__apply: has_type [TFun TNat TNat] (tabs (tabs (tapp (tvar 1) (tvar 2))))
+                          (TFun (TFun TNat TNat) (TFun TNat TNat)). eauto 6. Qed.
 
 (* Adapted from dot_monads.v *)
 Require Import dot_monads.
@@ -276,7 +276,7 @@ Hint Unfold vl_prop.
 
 Fixpoint tsize (T: ty): nat :=
   match T with
-  | TBase => 1
+  | TNat => 1
   | TFun T1 T2 => 1 + tsize T1 + tsize T2
   end.
 Definition tsize_rel (T1 T2: ty) := tsize T1 < tsize T2.
@@ -293,12 +293,12 @@ Definition expr_sem0 (A : vl_prop) (t : tm) (env: venv): Prop :=
 (* Non-step-indexed unary logical relation. *)
 Equations vtp0 (T: ty) (v : vl) : Prop :=
   vtp0 T t by rec T tsize_rel :=
-  vtp0 TBase (vnat n) := True;
+  vtp0 TNat (vnat n) := True;
   vtp0 (TFun T1 T2) (vabs env body) := forall v, vtp0 T1 v -> expr_sem0 (fun v => vtp0 T2 v) body (v :: env);
   vtp0 _ _ := False.
 Solve All Obligations with program_simpl.
 
-Example ex0 : vtp0 (TFun TBase TBase) (vabs [] (tvar 0)).
+Example ex0 : vtp0 (TFun TNat TNat) (vabs [] (tvar 0)).
 Proof.
   simp vtp0; unfold expr_sem0; intros.
   unfoldTeval; n_is_succ_hp; eauto.
@@ -498,12 +498,12 @@ Module normalization.
   (* Non-step-indexed reducibility *)
   Equations vtp (T: ty) (v : vl) : Prop :=
     vtp T t by rec T tsize_rel :=
-    vtp TBase (vnat n) := True;
+    vtp TNat (vnat n) := True;
     vtp (TFun T1 T2) (vabs env body) := forall v, vtp T1 v -> expr_sem (fun v => vtp T2 v) body (v :: env);
     vtp _ _ := False.
   Solve All Obligations with program_simpl.
 
-  Example ex0 : vtp (TFun TBase TBase) (vabs [] (tvar 0)).
+  Example ex0 : vtp (TFun TNat TNat) (vabs [] (tvar 0)).
   Proof.
     simp vtp; unfold expr_sem; unfoldTeval; intros.
     do 3 eexists; try exists 0; intros; try step_eval; eauto.
