@@ -7,7 +7,8 @@ Require Export Arith.Le.
 Inductive tm : Set :=
 | tvar : id -> tm
 | tabs : tm -> tm
-| tapp : tm -> tm -> tm.
+| tapp : tm -> tm -> tm
+| tnat : nat -> tm.
 
 Inductive vl : Set :=
 (* a closure for a lambda abstraction *)
@@ -37,6 +38,7 @@ Inductive has_type: tenv -> tm -> ty -> Prop :=
     has_type gamma f (TFun S T) ->
     has_type gamma t S ->
     has_type gamma (tapp f t) T
+| t_nat: forall gamma n, has_type gamma (tnat n) TNat
 .
 Hint Constructors has_type.
 
@@ -61,6 +63,7 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
     | tvar x       => ret (indexr x env, 0)
     (* | ttyp T       => ret (vty env T) *)
     | tabs y     => ret (vabs env y)
+    | tnat n     => ret (vnat n)
     | tapp tf ta   =>
       va <- tevalSM ta n env;
       vf <- tevalSM tf n env;
@@ -83,6 +86,7 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
         | tvar x       => Some (indexr x env, 0)
         (* | ttyp T       => Some (Some (vty env T), 0) *)
         | tabs y     => Some (Some (vabs env y), 0)
+        | tnat n     => Some (Some (vnat n), 0)
         | tapp ef ex   =>
           match tevalS ex n env with
             | None => None
@@ -471,10 +475,18 @@ Proof.
   (*       simp vtp0 in *; unfold expr_sem0 in *; unfoldTeval; eauto; contradiction. *)
 Qed.
 
+Lemma fund_t_nat: forall G n,
+  sem_type G TNat (tnat n).
+Proof.
+  unfold sem_type; intros; eapply vtp_etp with (nm := 0).
+  - unfoldTeval; intros; step_eval; trivial.
+  - unfold etp0 in *; simp vtp0; eauto.
+Qed.
+
 (** Fundamental property.
     Proved by induction on typing derivations. *)
 Theorem fundamental: forall G t T, has_type G t T -> sem_type G T t.
-Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_abs, fund_t_app. Qed.
+Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_nat, fund_t_abs, fund_t_app. Qed.
 
 (** Type soundness: If evaluation of a well-typed program terminates, the result
     is not a runtime error. Proved as a corollary of the [fundamental] property. *)
