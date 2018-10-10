@@ -170,11 +170,11 @@ Program Definition interpTMem n (A1 : pretype_dom n) (A2 : pretype_dom n)
     | _ => False
     end.
 
-Program Definition interpTSel0 n i (env0: list vl)
+Program Definition interpTSel0 n i (env: list vl)
         (val_type : ty -> forall j, j < n -> vl_prop)
         (U : pretype_dom n) :=
-  fun n0 (p : n0 <= n) v env =>
-    match indexr i env0 with
+  fun n0 (p : n0 <= n) v =>
+    match indexr i env with
     | Some (vty env1 TX) =>
       (* This set is between L and U *now*! We must use "Later" only to guard uses of TX! *)
       U n0 _ v env /\
@@ -187,7 +187,7 @@ Program Definition interpTSel n x
         (U : pretype_dom n) :=
   fun n0 (p : n0 <= n) v env =>
     match x with
-    | varF i => interpTSel0 n i env val_type U n0 p v env
+    | varF i => interpTSel0 n i env val_type U n0 p v
     | varB _ => False
      end.
 
