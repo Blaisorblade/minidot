@@ -440,15 +440,6 @@ Definition wk_val (env': venv) (v: vl) :=
   | vnat n => v
   end.
 
-(* Lemma wk_eval: forall n t env env', tevalS (wk (length env') t) n (env ++ env') = @bind _ monadOptionOptionNat _ _ (tevalS t n env) (fun v => ret (wk_val env' v)). *)
-(*   induction n; trivial; intros. *)
-(*   destruct t; simpl. *)
-(*   simpl_unfold_monad. *)
-(*   better_case_match_ex. *)
-(*   repeat fequalSafe; erewrite <- indexr_wk_eq; eauto. *)
-(*   injectHyps. *)
-(*    repeat fequalSafe; try erewrite IHn; eauto. *)
-
 Module Type vtp_arg.
   Parameter vtp : ty -> vl_prop.
   Parameter expr_sem : vl_prop -> tm -> venv -> Prop.
