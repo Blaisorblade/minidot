@@ -422,6 +422,33 @@ Lemma indexr_wk_eq: forall {X} i (G G': list X), indexr i G = indexr (i + length
   intros; erewrite indexr_wk; eauto.
 Qed.
 
+(* Only true up to observational equality. *)
+Lemma wk_eval: forall n t env env', tevalS (wk (length env') t) n (env ++ env') = tevalS t n env.
+  induction n; trivial; intros; destruct t; simpl; repeat fequalSafe; eauto;
+    match goal with
+    | |- context [vabs _ _] => admit
+    | |- context [vrec _ _] => admit
+    | _ => repeat better_case_match_ex; try rewrite app_comm_cons in *; try rewrite IHn in *; try now repeat optFuncs_det
+    end.
+Abort.
+
+(* We could try to weaken return values, but such weakening would have to be recursive. *)
+Definition wk_val (env': venv) (v: vl) :=
+  match v with
+  | vabs env t => vabs (env ++ env') (wk (length env') t)
+  | vrec env t => vrec (env ++ env') (wk (length env') t)
+  | vnat n => v
+  end.
+
+(* Lemma wk_eval: forall n t env env', tevalS (wk (length env') t) n (env ++ env') = @bind _ monadOptionOptionNat _ _ (tevalS t n env) (fun v => ret (wk_val env' v)). *)
+(*   induction n; trivial; intros. *)
+(*   destruct t; simpl. *)
+(*   simpl_unfold_monad. *)
+(*   better_case_match_ex. *)
+(*   repeat fequalSafe; erewrite <- indexr_wk_eq; eauto. *)
+(*   injectHyps. *)
+(*    repeat fequalSafe; try erewrite IHn; eauto. *)
+
 Module Type vtp_arg.
   Parameter vtp : ty -> vl_prop.
   Parameter expr_sem : vl_prop -> tm -> venv -> Prop.
