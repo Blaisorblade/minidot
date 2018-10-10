@@ -13,6 +13,7 @@ Equations vtp (T: ty) (v : vl) : Prop :=
   vtp T t by rec T tsize_rel :=
   vtp TNat (vnat n) := True;
   vtp (TFun T1 T2) (vabs env body) := forall v, vtp T1 v -> expr_sem (fun v => vtp T2 v) body (v :: env);
+  vtp (TFun T1 T2) (vrec env body) := forall v, vtp T1 v -> expr_sem (fun v => vtp T2 v) body (v :: vrec env body :: env);
   vtp _ _ := False.
 Solve All Obligations with program_simpl.
 
@@ -104,14 +105,46 @@ Proof.
   (*       simp vtp in *; unfold expr_sem in *; unfoldTeval; eauto; contradiction. *)
 Qed.
 
+(* Copy-paste of fund_t_rec. *)
+Lemma fund_t_let: forall G T1 T2 t1 t2, sem_type G T1 t1 -> sem_type (T1 :: G) T2 t2 -> sem_type G T2 (tlet t1 t2).
+Proof.
+  unfold sem_type, etp, expr_sem; unfoldTeval;
+  intros * Hvtp1 Hvtp2 ? ? * [nmR HappEv].
+
+  (* Various implementations of the same case analysis are possible.
+     It's faster to only do as much case analysis as strictly needed. *)
+
+  (* V1 Fast *)
+  n_is_succ_hp;
+    (** We must show that nmR is at least one, since that's required by the
+        hypothesis of semantic expression typing for Hfun and Harg. *)
+    destruct nmR;
+    (* The iteration counts are optimized for speed, but it's also OK to do all *)
+    (*   case splits in advance as in V1.1. *)
+    do 2 progress better_case_match_ex; edestruct Hvtp1; ev; eauto;
+      do 3 better_case_match_ex; better_case_match_ex; eauto.
+Qed.
+
+Lemma fund_t_rec: forall G S T t, sem_type (S :: TFun S T :: G) T t -> sem_type G (TFun S T) (trec t).
+Proof.
+  unfold sem_type; simpl; intros; eapply vtp_etp with (nm := 0).
+  - unfoldTeval; intros; step_eval; trivial.
+  -
+    unfold etp in *; simp vtp; eauto.
+    intros.
+    eapply H. repeat constructors; eauto.
+    (* Now we're left again with the original question! *)
+Abort.
+
 (** Fundamental property.
     Proved by induction on typing derivations. *)
-Theorem fundamental: forall G t T, has_type G t T -> sem_type G T t.
-Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_nat, fund_t_abs, fund_t_app. Qed.
+Theorem fundamental: forall G t T, has_type false G t T -> sem_type G T t.
+Proof. intros * Htp; dependent induction Htp; eauto using fund_t_var, fund_t_nat, fund_t_abs, fund_t_app, fund_t_let.
+Qed.
 
 (** Type soundness: If evaluation of a well-typed program terminates, the result
     is not a runtime error. Proved as a corollary of the [fundamental] property. *)
-Theorem sound: forall G t T env optV j, has_type G t T ->
+Theorem sound: forall G t T env optV j, has_type false G t T ->
     R_env env G ->
     tevalSnOpt env t optV j ->
     exists v, optV = Some v /\ vtp T v.

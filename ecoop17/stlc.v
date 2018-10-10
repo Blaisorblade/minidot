@@ -8,12 +8,18 @@ Require Export Arith.Le.
 Inductive tm : Set :=
 | tvar : id -> tm
 | tabs : tm -> tm
+(* Recursive function *)
+| trec : tm -> tm
 | tapp : tm -> tm -> tm
-| tnat : nat -> tm.
+| tlet : tm -> tm -> tm
+| tnat : nat -> tm
+.
 
 Inductive vl : Set :=
 (* a closure for a lambda abstraction *)
-| vabs : list vl (*H*) -> tm -> vl
+| vabs : list vl -> tm -> vl
+(* a closure for a recursive function *)
+| vrec : list vl (*H*) -> tm -> vl
 | vnat: nat -> vl.
 
 Inductive ty : Set :=
@@ -28,30 +34,41 @@ Hint Constructors tm.
 Hint Constructors vl.
 
 (* de Bruijn levels! *)
-Inductive has_type: tenv -> tm -> ty -> Prop :=
-| t_var : forall G x T,
+(* the boolean says if this is recursive. *)
+Inductive has_type: bool -> tenv -> tm -> ty -> Prop :=
+| t_var : forall b G x T,
     indexr x G = Some T ->
-    has_type G (tvar x) T
-| t_abs : forall G t S T,
-    has_type (S :: G) t T ->
-    has_type G (tabs t) (TFun S T)
-| t_app : forall G f t S T,
-    has_type G f (TFun S T) ->
-    has_type G t S ->
-    has_type G (tapp f t) T
-| t_nat: forall G n, has_type G (tnat n) TNat
+    has_type b G (tvar x) T
+| t_abs : forall b G t S T,
+    has_type b (S :: G) t T ->
+    has_type b G (tabs t) (TFun S T)
+| t_rec : forall b G t S T,
+    has_type b (S :: TFun S T :: G) t T ->
+    has_type true G (trec t) (TFun S T)
+| t_app : forall b G f t S T,
+    has_type b G f (TFun S T) ->
+    has_type b G t S ->
+    has_type b G (tapp f t) T
+| t_let : forall b G e1 e2 S T,
+    has_type b G e1 S ->
+    has_type b (S :: G) e2 T ->
+    has_type b G (tlet e1 e2) T
+| t_nat: forall b G n, has_type b G (tnat n) TNat
 .
 Hint Constructors has_type.
 
-Example ex1: has_type [TNat] (tvar 0) TNat. eauto. Qed.
-Example ex2: has_type [TFun TNat TNat] (tabs (tvar 1)) (TFun TNat TNat). eauto. Qed.
+Example ex1: has_type false [TNat] (tvar 0) TNat. eauto. Qed.
+Example ex2: has_type false [TFun TNat TNat] (tabs (tvar 1)) (TFun TNat TNat). eauto. Qed.
 
 Hint Extern 5 => match goal with
                 | |- indexr _ _ = _ => progress cbn; eauto
                 end.
 
-Example ex__apply: has_type [TFun TNat TNat] (tabs (tabs (tapp (tvar 1) (tvar 2))))
+Example ex__apply: has_type false [TFun TNat TNat] (tabs (tabs (tapp (tvar 1) (tvar 2))))
                           (TFun (TFun TNat TNat) (TFun TNat TNat)). eauto 6. Qed.
+
+Lemma has_type_nonrec_to_rec: forall t G T, has_type false G t T -> has_type true G t T.
+Proof. induction t; intros * Ht; inverse Ht; eauto. Qed.
 
 (* Adapted from dot_eval.v *)
 
@@ -63,6 +80,7 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
     | tvar x       => ret (indexr x env, 0)
     (* | ttyp T       => ret (vty env T) *)
     | tabs y     => ret (vabs env y)
+    | trec y     => ret (vrec env y)
     | tnat n     => ret (vnat n)
     | tapp tf ta   =>
       va <- tevalSM ta n env;
@@ -70,8 +88,15 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
       match vf with
       | vabs env2 tbody =>
         logStep 1 (tevalSM tbody n (va :: env2))
+      | vrec env2 tbody =>
+        logStep 1 (tevalSM tbody n (va :: vf :: env2))
       | _ => error
       end
+    | tlet t1 t2 =>
+      v1 <- tevalSM t1 n env;
+      (* Omit counting an extra step, since this let is not recursive! *)
+      (* logStep 1 *)
+      (tevalSM t2 n (v1 :: env))
     (* | tunpack tx ty => *)
     (*   vx <- tevalSM tx n env; *)
     (*   logStep 1 (tevalSM ty n (vx::env)) *)
@@ -86,6 +111,7 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
         | tvar x       => Some (indexr x env, 0)
         (* | ttyp T       => Some (Some (vty env T), 0) *)
         | tabs y     => Some (Some (vabs env y), 0)
+        | trec y     => Some (Some (vrec env y), 0)
         | tnat n     => Some (Some (vnat n), 0)
         | tapp ef ex   =>
           match tevalS ex n env with
@@ -95,11 +121,23 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
               match tevalS ef n env with
                 | None => None
                 | Some (None, k2) => Some (None, k1 + k2)
-                | Some (Some (vabs env2 ey), k2) =>
-                  logStep (k1 + k2 + 1) (tevalS ey n (vx::env2))
-                | Some (Some _, k2) => Some (None, k1 + k2)
+                | Some (Some vf, k2) =>
+                  match vf with
+                  | vabs env2 ey => logStep (k1 + k2 + 1) (tevalS ey n (vx::env2))
+                  | vrec env2 ey => logStep (k1 + k2 + 1) (tevalS ey n (vx::vf::env2))
+                  | _ => Some (None, k1 + k2)
+                  end
               end
           end
+        | tlet e1 e2 =>
+          match tevalS e1 n env with
+          | None => None
+          | Some (None, k1) => Some (None, k1)
+          | Some (Some v1, k1) =>
+            (* logStep (k1 + 1) *)
+            logStep k1 (tevalS e2 n (v1 :: env))
+          end
+
         (* | tunpack ex ey => *)
         (*   match tevalS ex n env with *)
         (*     | None => None *)

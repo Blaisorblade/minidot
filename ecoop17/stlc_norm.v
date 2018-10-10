@@ -97,15 +97,39 @@ Proof.
   now repeat better_case_match_ex.
 Qed.
 
+Lemma fund_t_let: forall G T1 T2 t1 t2, sem_type G T1 t1 -> sem_type (T1 :: G) T2 t2 -> sem_type G T2 (tlet t1 t2).
+Proof.
+  unfold sem_type, etp, expr_sem; unfoldTeval.
+  intros * Hvtp10 Hvtp20 * Henv.
+  lets (v1 & j1 & (nm1 & Hev1) & Hvtp1): Hvtp10 __; eauto.
+  lets (v2 & j2 & (nm2 & Hev2) & Hvtp2): Hvtp20 __; eauto.
+  remember (max nm1 nm2) as nm.
+  assert (nm >= nm1 /\ nm >= nm2) as (? & ?) by (subst; eauto using max_bigger_both).
+
+  (* Align all assumtions to use nm. *)
+  repeat match goal with
+  | H1 : forall n, n > ?nm1 -> tevalS ?t1 n ?env = Some ?r1 |- _ =>
+    assert (tevalSnmOpt env t1 (fst r1) (snd r1) nm) by (simpl; unfoldTeval; eauto);
+    clear H1
+  end; unfoldTeval; simpl in *.
+  remember (S nm) as nm'.
+
+  do 2 eexists; split_conj; try exists (S nm'); eauto.
+  intros; step_eval; unfold logStep in *;
+  repeat match goal with
+  | H : forall n, ?nm <= n -> _ |- _ => lets ?: H n0 __; eauto; clear H end.
+  now repeat better_case_match_ex.
+Qed.
+
 (** Fundamental property.
     Proved by induction on typing derivations. *)
-Theorem fundamental: forall G t T, has_type G t T -> sem_type G T t.
-Proof. intros * Htp; induction Htp; eauto using fund_t_var, fund_t_nat, fund_t_abs, fund_t_app. Qed.
+Theorem fundamental: forall G t T, has_type false G t T -> sem_type G T t.
+Proof. intros * Htp; dependent induction Htp; eauto using fund_t_var, fund_t_nat, fund_t_abs, fund_t_app, fund_t_let. Qed.
 
 (** Strong normalization: evaluation of a well-typed program terminates with a
     result of the right type. Proved as a corollary of the [fundamental] property.
   *)
-Theorem normalize: forall G t T env, has_type G t T ->
+Theorem normalize: forall G t T env, has_type false G t T ->
     R_env env G ->
     exists v j,
       tevalSn env t v j /\ vtp T v.
@@ -113,7 +137,7 @@ Proof. intros; edestruct fundamental; ev; eauto. Qed.
 
 (** Type soundness: If evaluation of a well-typed program terminates, the result
     is not a runtime error. Proved as a corollary of [normalize]. *)
-Theorem sound: forall G t T env optV j, has_type G t T ->
+Theorem sound: forall G t T env optV j, has_type false G t T ->
     R_env env G ->
     tevalSnOpt env t optV j ->
     exists v, optV = Some v /\ vtp T v.
