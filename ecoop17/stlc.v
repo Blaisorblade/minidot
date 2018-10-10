@@ -87,7 +87,7 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
       vf <- tevalSM tf n env;
       match vf with
       | vabs env2 tbody =>
-        logStep 1 (tevalSM tbody n (va :: env2))
+        tevalSM tbody n (va :: env2)
       | vrec env2 tbody =>
         logStep 1 (tevalSM tbody n (va :: vf :: env2))
       | _ => error
@@ -95,8 +95,7 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
     | tlet t1 t2 =>
       v1 <- tevalSM t1 n env;
       (* Omit counting an extra step, since this let is not recursive! *)
-      (* logStep 1 *)
-      (tevalSM t2 n (v1 :: env))
+      tevalSM t2 n (v1 :: env)
     (* | tunpack tx ty => *)
     (*   vx <- tevalSM tx n env; *)
     (*   logStep 1 (tevalSM ty n (vx::env)) *)
@@ -123,7 +122,7 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
                 | Some (None, k2) => Some (None, k1 + k2)
                 | Some (Some vf, k2) =>
                   match vf with
-                  | vabs env2 ey => logStep (k1 + k2 + 1) (tevalS ey n (vx::env2))
+                  | vabs env2 ey => logStep (k1 + k2) (tevalS ey n (vx::env2))
                   | vrec env2 ey => logStep (k1 + k2 + 1) (tevalS ey n (vx::vf::env2))
                   | _ => Some (None, k1 + k2)
                   end
