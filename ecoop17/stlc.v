@@ -72,10 +72,38 @@ Example ex__apply: has_type false [TFun TNat TNat] (tabs (tabs (tapp (tvar 1) (t
 Lemma has_type_nonrec_to_rec: forall t G T, has_type false G t T -> has_type true G t T.
 Proof. induction t; intros * Ht; inverse Ht; eauto. Qed.
 
+Definition rename (sigma: id -> id): tm -> tm :=
+  fix go (t: tm) {struct t}: tm :=
+    match t with
+    | tvar n => tvar (sigma n)
+    | tabs t => tabs (go t)
+    | trec t => trec (go t)
+    | tapp t1 t2 => tapp (go t1) (go t2)
+    | tlet t1 t2 => tlet (go t1) (go t2)
+    | tnat n => tnat n
+    end.
+Definition wk n' := rename (fun n => n + n').
+
+Lemma indexr_succ_wk: forall {X} i (G G': list X) r, indexr i G = Some r -> indexr (i + length G') (G ++ G') = Some r.
+Proof.
+  intros; induction G; simpl in *; try discriminate;
+  rewrite app_length; repeat better_case_match_ex; eauto; omega.
+Qed.
 (* Require Import Setoid. *)
 (* (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *) *)
 (* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
 (* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
+
+Lemma wk_has_type: forall t b G G' T, has_type b G t T -> has_type b (G ++ G') (wk (length G') t) T.
+Proof.
+  induction t; intros * Ht; inverse Ht; simpl;
+    (* Construct a new typing derivation (typing is syntax-directed, so econstructor is good enough for this. )*)
+    econstructor;
+    (* We can already solve goals without changes in context with *eauto* *)
+    eauto 2 using indexr_succ_wk;
+    (* Rearrange goals in context to match the inductive hypothesis. *)
+    repeat rewrite app_comm_cons; eauto.
+Qed.
 
 (* Adapted from dot_eval.v *)
 
