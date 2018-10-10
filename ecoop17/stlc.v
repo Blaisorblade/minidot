@@ -5,6 +5,8 @@ Require Export dot_monads.
 Require Export Arith.EqNat.
 Require Export Arith.Le.
 
+Ltac better_case_match_ex := try better_case_match; try beq_nat; injectHyps; try discriminate.
+
 Inductive tm : Set :=
 | tvar : id -> tm
 | tabs : tm -> tm
@@ -69,6 +71,11 @@ Example ex__apply: has_type false [TFun TNat TNat] (tabs (tabs (tapp (tvar 1) (t
 
 Lemma has_type_nonrec_to_rec: forall t G T, has_type false G t T -> has_type true G t T.
 Proof. induction t; intros * Ht; inverse Ht; eauto. Qed.
+
+(* Require Import Setoid. *)
+(* (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *) *)
+(* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
+(* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
 
 (* Adapted from dot_eval.v *)
 
@@ -147,7 +154,6 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
       end
   end.
 
-Ltac better_case_match_ex := try better_case_match; try beq_nat; injectHyps; try discriminate.
 Theorem evalMs_equiv: forall n env t, tevalSM t n env = tevalS t n env.
 Proof.
   intros; revert env t; induction n; simpl_unfold_monad; unfold logStep; try reflexivity;
