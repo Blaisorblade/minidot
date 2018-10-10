@@ -352,19 +352,20 @@ Definition sem_type (G : tenv) (T : ty) (e: tm) :=
     R_env k env G ->
     etp T k e env.
 
-Definition sem_subtype (G : tenv) (T1 T2: ty) :=
-  wf G T1 /\
-  wf G T2 /\
-  forall k env,
-    R_env k env G ->
-    forall e, etp T1 k e env -> etp T2 k e env.
-
 Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
   wf G T1 /\
   wf G T2 /\
   forall k env,
     R_env k env G ->
     forall v, vtp T1 k v env -> vtp T2 k v env.
+
+Definition sem_subtype (G : tenv) (T1 T2: ty) :=
+  wf G T1 /\
+  wf G T2 /\
+  sem_vl_subtype G T1 T2 /\
+  forall k env,
+    R_env k env G ->
+    forall e, etp T1 k e env -> etp T2 k e env.
 
 Hint Unfold wf sem_type sem_subtype sem_vl_subtype etp.
 
@@ -404,6 +405,19 @@ Proof.
       firstorder eauto.
 Qed.
 Hint Resolve vl_subtype_to_subtype.
+
+Lemma subtype_to_vl_subtype : forall G T1 T2,
+    sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
+Proof. unfold sem_subtype; tauto. Qed.
+Hint Resolve subtype_to_vl_subtype.
+
+Require Import PropExtensionality.
+Lemma vl_sub_equiv: sem_subtype = sem_vl_subtype.
+Proof.
+  repeat (apply functional_extensionality; intro); apply propositional_extensionality;
+    split; eauto.
+Qed.
+Hint Rewrite vl_sub_equiv.
 
 Lemma and_stp1 : forall env T1 T2 n v, vtp (TAnd T1 T2) n v env -> vtp T1 n v env.
 Proof. intros; vtp_simpl_unfold; tauto. Qed.
@@ -446,23 +460,9 @@ Proof.
   intros; vtp_simpl_unfold; repeat case_match; ev; intros; injectHyps; try contradiction; eauto.
 Qed.
 
-(* Program Definition vl_to_tm (v : vl): { (e, env) : tm * venv | *)
-(*                                         tevalSnmOpt env e (Some v) 0 0 } := *)
-(*   match v with *)
-(*   | vabs env T body => *)
-(*     (tabs T body, env) *)
-(*   | vty env T => *)
-(*     (ttyp T, env) *)
-(*   end. *)
-(* Solve Obligations with program_simplify; unfold tevalSnmOpt in *; intros * Hfuel; destruct n; solve [inverse Hfuel] || reflexivity. *)
-
-(* XXX this isn't true, but we should be able to fix it in a setting with substitution in terms (which depends on substitution in types). *)
 (* Once we define the OFE of semantic types, we can alternatively define a
 language of term realizers that mention no types, not even in ttyp, just like in
 Ahmed's typeless System F. *)
-(* Instead of writing [], just write arbitrary environments right away. *)
-Axiom vl_to_tm: forall (v : vl) , { e : tm | forall env,
-                                 tevalSnmOpt env e (Some v) 0 0 }.
 
 (* We want to relate etp and vtp. *)
 Lemma etp_vtp_j: forall e v k j nm T env,
@@ -506,40 +506,6 @@ Lemma vtp_etp:
     etp T k e env.
 Proof. eauto. Qed.
 Hint Resolve vtp_etp.
-
-Lemma subtype_to_vl_subtype : forall G T1 T2,
-    sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
-Proof.
-  (* unfold sem_subtype, sem_vl_subtype; intros; intuition eauto; *)
-  (*   destruct (vl_to_tm v) as [e Heval]; firstorder eauto. *)
-  unfold sem_subtype, sem_vl_subtype; intros * (? & ? & Hsub);
-    split_conj; eauto;
-      intros * Henv * HvT1;
-      destruct (vl_to_tm v) as [e Heval];
-      firstorder eauto.
-  (* specialize (Hsub k env Henv e); *)
-  (*   specialize (Heval env). *)
-  (*   (* assert (wf G T1) by eauto. *) *)
-  (* assert (etp T2 k e env) as [? HeT2]. { *)
-  (*   unfold etp, expr_sem in *; apply Hsub; intuition eauto. *)
-  (*   exists v; unfold tevalSnOpt in *; ev; eval_det; eauto. *)
-  (* } *)
-  (* (* eauto. *) *)
-  (* (* (* unfold etp, expr_sem, tevalSnOpt, tevalSnOpt, tevalSnmOpt in HeT2. *) *) *)
-  (* (* (* eauto. *) *) *)
-  (* (* (* destruct (HeT2 (Some v) 0) as (? & ? & ?); replace (k - 0) with k in * by omega; simpl. eauto. *) *) *)
-Qed.
-
-(* Qed. *)
-Hint Resolve subtype_to_vl_subtype.
-
-Require Import PropExtensionality.
-Lemma vl_sub_equiv: sem_subtype = sem_vl_subtype.
-Proof.
-  repeat (apply functional_extensionality; intro); apply propositional_extensionality;
-    split; eauto.
-Qed.
-Hint Rewrite vl_sub_equiv.
 
 Lemma sem_stp_and : forall G S T1 T2,
     sem_subtype G S T1 ->
@@ -838,11 +804,9 @@ Lemma stp_weak : forall G T1 T2 T,
     sem_subtype G T1 T2 ->
     sem_subtype (T :: G) T1 T2.
 Proof.
-  unfold sem_subtype, wf; simpl; intros * (? & ? & Hsub); split_conj; eauto.
-  intros * Henv * HT1.
-  dependent destruction Henv.
-  (* etp, expr_sem. *)
-  eapply Hsub; eauto.
+  unfold sem_subtype, sem_vl_subtype, wf; simpl; intros * (? & ? & Hvlsub & Hsub); split_conj; eauto; intros * Henv * HT1; dependent destruction Henv.
+  (* eapply Hvlsub; eauto. *)
+  (* eapply Hsub; eauto. *)
 Admitted.
 (*   (* eexists; ev. *) *)
 (*   eauto. *)
