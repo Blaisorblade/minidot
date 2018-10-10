@@ -115,6 +115,14 @@ Proof.
   rewrite app_length; omega.
 Qed.
 
+Lemma indexr_wk: forall {X} i (G G': list X) r, indexr i G = r -> indexr (i + length G') (G ++ G') = r.
+  destruct r; eauto using indexr_succ_wk, indexr_fail_wk. Qed.
+Hint Resolve indexr_wk.
+
+Lemma indexr_wk_eq: forall {X} i (G G': list X), indexr i G = indexr (i + length G') (G ++ G').
+  intros; erewrite indexr_wk; eauto.
+Qed.
+
 Lemma wk_has_type: forall t b G G' T, has_type b G t T -> has_type b (G ++ G') (wk (length G') t) T.
 Proof.
   induction t; intros * Ht; inverse Ht; simpl;
@@ -123,6 +131,9 @@ Proof.
     (* Rearrange goals in context to match the inductive hypothesis. *)
     repeat rewrite app_comm_cons; eauto using indexr_succ_wk.
 Qed.
+
+(*******************************)
+(** Evaluation and properties. *)
 
 (* Adapted from dot_eval.v *)
 
@@ -355,26 +366,6 @@ Lemma teval_var: forall env x,
 Proof. unfoldTeval; eexists; split_conj; try exists 0; intros; try step_eval; trivial. Qed.
 Hint Resolve teval_var.
 
-(*******************)
-(* Logical relation. *)
-
-Require Import Coq.Relations.Relation_Operators.
-(* Require Export Coq.Wellfounded.Lexicographic_Product. *)
-
-(*******************)
-(* Define language infrastructure. *)
-
-Definition vl_prop := vl -> Prop.
-Hint Unfold vl_prop.
-
-Fixpoint tsize (T: ty): nat :=
-  match T with
-  | TNat => 1
-  | TFun T1 T2 => 1 + tsize T1 + tsize T2
-  end.
-Definition tsize_rel (T1 T2: ty) := tsize T1 < tsize T2.
-Hint Extern 1 (tsize_rel _ _) => unfold tsize_rel; eauto.
-
 Ltac eval_det :=
   unfold2tevalSnmOpt; ev;
   match goal with
@@ -414,14 +405,6 @@ Proof.
 Qed.
 Hint Resolve tevalS_mono.
 
-Lemma indexr_wk: forall {X} i (G G': list X) r, indexr i G = r -> indexr (i + length G') (G ++ G') = r.
-  destruct r; eauto using indexr_succ_wk, indexr_fail_wk. Qed.
-Hint Resolve indexr_wk.
-
-Lemma indexr_wk_eq: forall {X} i (G G': list X), indexr i G = indexr (i + length G') (G ++ G').
-  intros; erewrite indexr_wk; eauto.
-Qed.
-
 (* Only true up to observational equality. *)
 Lemma wk_eval: forall n t env env', tevalS (wk (length env') t) n (env ++ env') = tevalS t n env.
   induction n; trivial; intros; destruct t; simpl; repeat fequalSafe; eauto;
@@ -439,6 +422,26 @@ Definition wk_val (env': venv) (v: vl) :=
   | vrec env t => vrec (env ++ env') (wk (length env') t)
   | vnat n => v
   end.
+
+(**********************)
+(** Logical relation. *)
+
+Require Import Coq.Relations.Relation_Operators.
+(* Require Export Coq.Wellfounded.Lexicographic_Product. *)
+
+(*******************)
+(* Define language infrastructure. *)
+
+Definition vl_prop := vl -> Prop.
+Hint Unfold vl_prop.
+
+Fixpoint tsize (T: ty): nat :=
+  match T with
+  | TNat => 1
+  | TFun T1 T2 => 1 + tsize T1 + tsize T2
+  end.
+Definition tsize_rel (T1 T2: ty) := tsize T1 < tsize T2.
+Hint Extern 1 (tsize_rel _ _) => unfold tsize_rel; eauto.
 
 Module Type vtp_arg.
   Parameter vtp : ty -> vl_prop.
