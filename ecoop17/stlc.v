@@ -89,10 +89,42 @@ Proof.
   intros; induction G; simpl in *; try discriminate;
   rewrite app_length; repeat better_case_match_ex; eauto; omega.
 Qed.
+
+Require Import PropExtensionality.
 (* Require Import Setoid. *)
 (* (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *) *)
 (* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
 (* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
+
+(* Simplifies next proof. *)
+Lemma indexr_fail_eq: forall {X} i (G: list X), (indexr i G = None) = (i >= length G).
+Proof.
+  intros.
+  apply propositional_extensionality.
+  split; intros; gen i; induction G; simpl; intros; eauto.
+  - better_case_match_ex; assert (i >= length G) by eauto; omega.
+  - better_case_match_ex; eauto 2; omega.
+Qed.
+
+(* Unused *)
+Lemma indexr_fail_wk: forall {X} i (G G': list X), indexr i G = None -> indexr (i + length G') (G ++ G') = None.
+Proof.
+  (* Really manual proof: *)
+  intros.
+  (* eapply indexr_fail_eq. *)
+  (* rewrite app_length. *)
+  (* enough (i >= length G) by omega. *)
+  (* eapply indexr_fail_eq; eassumption. *)
+
+  (* erewrite indexr_fail_eq. *)
+  (* rewrite app_length. *)
+  (* enough (i >= length G) by omega. *)
+  (* erewrite <- indexr_fail_eq; eassumption. *)
+
+  rewrite indexr_fail_eq in *.
+  rewrite app_length.
+  omega.
+Qed.
 
 Lemma wk_has_type: forall t b G G' T, has_type b G t T -> has_type b (G ++ G') (wk (length G') t) T.
 Proof.
