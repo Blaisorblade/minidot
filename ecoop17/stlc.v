@@ -498,4 +498,25 @@ Module Envs (VTP: vtp_arg).
     forall env,
       R_env env G ->
       etp T e env.
+
+  Definition sem_vl_subtype (G : tenv) (T1 T2: ty) :=
+    (* wf G T1 /\ *)
+    (* wf G T2 /\ *)
+    (* forall env, *)
+    (*   R_env env G -> *)
+    forall v, vtp T1 v -> vtp T2 v.
+
+  Definition sem_subtype (G : tenv) (T1 T2: ty) :=
+    (* wf G T1 /\ *)
+    (* wf G T2 /\ *)
+    sem_vl_subtype G T1 T2 /\
+    forall env,
+      R_env env G ->
+      forall e, etp T1 e env -> etp T2 e env.
+
+  Lemma subtype_to_vl_subtype : forall G T1 T2,
+      sem_subtype G T1 T2 -> sem_vl_subtype G T1 T2.
+  Proof. unfold sem_subtype; tauto. Qed.
+  Hint Resolve subtype_to_vl_subtype.
+
 End Envs.

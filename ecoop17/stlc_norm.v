@@ -22,6 +22,22 @@ Qed.
 
 Include Envs.
 
+Lemma vl_subtype_to_subtype : forall G T1 T2,
+    sem_vl_subtype G T1 T2 -> sem_subtype G T1 T2.
+Proof.
+  unfold sem_subtype, sem_vl_subtype, etp, expr_sem;
+    intros; intuition (ev; eauto).
+Qed.
+Hint Resolve vl_subtype_to_subtype.
+
+Require Import PropExtensionality.
+Lemma vl_sub_equiv: sem_subtype = sem_vl_subtype.
+Proof.
+  repeat (apply functional_extensionality; intro); apply propositional_extensionality;
+    split; eauto.
+Qed.
+Hint Rewrite vl_sub_equiv.
+
 Lemma vtp_etp: forall e v j nm T env,
     tevalSnm env e v j nm -> vtp T v -> etp T e env.
 Proof. unfold etp, expr_sem in *; intros; unfoldTeval; ev; eauto. Qed.
