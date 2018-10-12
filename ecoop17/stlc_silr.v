@@ -247,15 +247,6 @@ Proof. eauto. Qed.
 Hint Resolve vtp_etp.
 
 Ltac int := intuition trivial.
-(* XXX use the same trick as vtpEnvCore vs vtpEnv in definitions *)
-Lemma fund_t_abs: forall G T1 T2 t,
-    sem_type (T1 :: G) T2 t ->
-    sem_type G (TFun T1 T2) (tabs t).
-Proof.
-  unfold sem_type; int; eapply vtp_etp with (nm := 0).
-  - unfoldTeval; intros; step_eval; trivial.
-  - unfold etp, vtp in *; simp val_type; iauto.
-Qed.
 
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
@@ -270,6 +261,68 @@ Proof.
   unfold sem_type; int; eapply vtp_etp with (nm := 0).
   - unfoldTeval; intros; step_eval; trivial.
   - unfold etp in *; simp vtp; eauto.
+Qed.
+
+(* XXX use the same trick as vtpEnvCore vs vtpEnv in definitions *)
+Lemma fund_t_abs: forall G T1 T2 t,
+    sem_type (T1 :: G) T2 t ->
+    sem_type G (TFun T1 T2) (tabs t).
+Proof.
+  unfold sem_type; int; eapply vtp_etp with (nm := 0).
+  - unfoldTeval; intros; step_eval; trivial.
+  - unfold etp, vtp in *; simp val_type; iauto.
+Qed.
+
+Require Import Lia.
+
+(* Lemma loeb_vtp_1: forall T v, *)
+(*     (forall k, (forall j, j < k -> vtp T j v) -> vtp T k v) -> *)
+(*     forall j, vtp T j v. *)
+(* Proof. *)
+(*   unfold vtp; intros * Hloeb **. induction j; *)
+(*     [ pose (l := 0) | pose (l := (S j)) ]; *)
+(*     lets H : Hloeb l; subst l; *)
+(*       eapply H; intros; eauto; omega. *)
+(* Qed. *)
+
+(* Lemma loeb_vtp_2: forall n T v, *)
+(*     (forall k, k <= n -> (forall j, j < k -> vtp T j v) -> vtp T k v) -> *)
+(*     forall k, k <= n -> vtp T k v. *)
+(* Proof. *)
+(*   unfold vtp; intros * Hloeb. induction n; *)
+(*     (* [ pose (l := 0) | pose (l := (S n)) ]; *) *)
+(*     intros; try assert (k = 0) as -> by omega. *)
+(*   - apply (Hloeb 0); trivial; intros; omega. *)
+(*   - eauto. *)
+(* Qed. *)
+
+(** Loeb induction. *)
+Lemma loeb_vtp: forall n T v,
+    (forall k, k <= n -> (forall j, j < k -> vtp T j v) -> vtp T k v) ->
+    vtp T n v.
+Proof.
+  unfold vtp; intros * Hloeb.
+  induction n; intros;
+    [apply (Hloeb 0); int; omega | eauto].
+Qed.
+
+Lemma fund_t_rec: forall G S T t, sem_type (S :: TFun S T :: G) T t -> sem_type G (TFun S T) (trec t).
+Proof.
+  unfold sem_type; intros * [? HvtpBody]; int. eapply vtp_etp with (nm := 0).
+  - unfoldTeval; intros; step_eval; trivial.
+  -
+    (** We must show that the recursive closure [vrec env t] is semantically well-typed.
+        We proceed by Loeb induction. *)
+    eapply loeb_vtp; int.
+    unfold etp in *; unfold vtp; simp val_type; int.
+    eapply HvtpBody.
+    (** Now we must show the recursive environment is also well-typed.
+        For most entries this is trivial, but this environment also includes the
+        recursive closure, so we're almost back where we started.
+
+        However, we only need well-typedness *at a smaller index*, which we have
+        as the inductive hypothesis of Loeb induction! *)
+    repeat constructors; eauto.
 Qed.
 
 
@@ -316,8 +369,8 @@ Proof.
     do 2 better_case_match_ex; appVtpEval Harg t2 j;
   (* ev; eauto. try discriminate; injectHyps. *)
       do 3 better_case_match_ex; appVtpEval Hfun t1 j; ev; eauto.
-  repeat better_case_match_ex; simp val_type in *; unfold expr_sem in *; unfoldTeval.
-  all: try contradiction.
+  repeat better_case_match_ex; simp val_type in *; try contradiction.
+  all: unfold expr_sem in *; unfoldTeval.
   - lets Hs : H7 x (k - n - n0) __ __; eauto 2.
     lets Hgoal : (Hs optV n1) __ __ __ __ ; eauto 3.
     ev; repeat esplit; eauto.
@@ -326,9 +379,7 @@ Proof.
     lets (res & -> & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3.
     ev; repeat esplit.
     eapply (val_type_mon _ _ _ _ Hgoal).
-    Require Import Lia.
     lia.
-
 Qed.
   (* clear. *)
   (* simpl. *)
@@ -353,84 +404,6 @@ Qed.
   (*     idtac Hvtp; *)
   (*     assert (n <= j) by admit; lets ? : HvtpT o n ___; eauto; ev *)
   (*   end. *)
-Lemma loeb_vtp: forall T v,
-    (forall k, (forall j, j < k -> vtp T j v) -> vtp T k v) ->
-    forall j, vtp T j v.
-Proof.
-  unfold vtp; intros * Hloeb **. induction j;
-    [ pose (l := 0) | pose (l := (S j)) ];
-    lets H : Hloeb l; subst l;
-      eapply H; intros; eauto; lia.
-Qed.
-
-Lemma loeb_vtp_2: forall n T v,
-    (forall k, k <= n -> (forall j, j < k -> vtp T j v) -> vtp T k v) ->
-    forall k, k <= n -> vtp T k v.
-Proof.
-  unfold vtp; intros * Hloeb. induction n;
-    (* [ pose (l := 0) | pose (l := (S n)) ]; *)
-    intros; try assert (k = 0) as -> by omega.
-  - apply (Hloeb 0); trivial; intros; lia.
-  - eauto.
-Qed.
-Lemma loeb_vtp_3: forall n T v,
-    (forall k, k <= n -> (forall j, j < k -> vtp T j v) -> vtp T k v) ->
-    vtp T n v.
-Proof.
-  unfold vtp; intros * Hloeb.
-  induction n; intros;
-    [apply (Hloeb 0); int; lia | eauto].
-Qed.
-
-(*     apply Hloeb; try lia. *)
-(*     intros; apply IHn; try lia. *)
-(*     intros. apply Hloeb. *)
-(*     (* info_eauto 4. *) *)
-(* (* info eauto: *) *)
-(* simple apply Hloeb. *)
-(* exact H. *)
-(* intros. *)
-(* simple apply IHn. *)
-(* intros. *)
-(* simple apply Hloeb. *)
-(* (*external*) ineq_solver. *)
-(* exact H2. *)
-(* (*external*) ineq_solver. *)
-
-(* No more subgoals. *)
-
-
-
-(*   eapply (val_type_mon _ _ k (S n)); trivial. *)
-(*   eapply Hl. *)
-(*   intros. *)
-(*   assert (j <= n) by lia. *)
-(*   eapply (val_type_mon _ _ j n); trivial. *)
-(*   eauto. *)
-(*   eapply IHn; trivial. *)
-(*   eauto. *)
-(*   eapply Hl; intros; eauto. lia. *)
-(* Qed. *)
-
-Lemma fund_t_rec: forall G S T t, sem_type (S :: TFun S T :: G) T t -> sem_type G (TFun S T) (trec t).
-Proof.
-  unfold sem_type; intros * [? HvtpBody]; int. eapply vtp_etp with (nm := 0).
-  - unfoldTeval; intros; step_eval; trivial.
-  -
-    (** We must show that the recursive closure [vrec env t] is semantically well-typed.
-        We proceed by Loeb induction. *)
-    eapply loeb_vtp_3; int.
-    unfold etp in *; unfold vtp; simp val_type; int.
-    eapply HvtpBody.
-    (** Now we must show the recursive environment is also well-typed.
-        For most entries this is trivial, but this environment also includes the
-        recursive closure, so we're almost back where we started.
-
-        However, we only need well-typedness *at a smaller index*, which we have
-        as the inductive hypothesis of Loeb induction! *)
-    repeat constructors; eauto.
-Qed.
-
 
 (* Copy-paste of fund_t_app. *)
 Lemma fund_t_let: forall G T1 T2 t1 t2, sem_type G T1 t1 -> sem_type (T1 :: G) T2 t2 -> sem_type G T2 (tlet t1 t2).
