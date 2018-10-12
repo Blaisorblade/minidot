@@ -441,7 +441,7 @@ Fixpoint tsize (T: ty): nat :=
   | TFun T1 T2 => 1 + tsize T1 + tsize T2
   end.
 Definition tsize_rel (T1 T2: ty) := tsize T1 < tsize T2.
-Hint Extern 1 (tsize_rel _ _) => unfold tsize_rel; eauto.
+Hint Unfold tsize_rel.
 
 Module Type vtp_arg.
   Parameter vtp : ty -> vl_prop.
