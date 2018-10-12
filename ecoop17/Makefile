@@ -107,6 +107,7 @@ VFILES:=SfLib.v\
 	dot_storeless_wfrel.v \
 	stlc.v \
 	stlc_sound.v \
+	stlc_silr.v \
 	stlc_norm.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
