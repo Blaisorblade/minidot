@@ -1,4 +1,6 @@
-Require Export Omega.
+Require Export OmegaTactic.
+(* Require Export Lia. *)
+(* Ltac omega := lia. *)
 Require Export Program.
 Require Export LibTactics.
 Require Export SfLib.
