@@ -325,6 +325,61 @@ Proof.
     repeat constructors; eauto.
 Qed.
 
+Definition app vf va n := match vf with
+                            | vabs env t => tevalS t n (va :: env)
+                            | vrec env t => tevalS t n (va :: vf :: env)
+                            | _ => None
+                            end.
+
+Definition sProp := nat -> Prop.
+(* Definition later (P: sProp): sProp := fun k => k > 0 /\ P (k - 1). *)
+Definition later (P: sProp): sProp := fun k => forall j, j < k -> P j.
+Definition appP {X} (later: X -> X) (def: X) (P: venv -> tm -> X) vf va :=
+  match vf with
+  | vabs env t => P (va :: env) t
+  | vrec env t => later (P (va :: vf :: env) t)
+  | _ => def
+  end.
+
+Definition sFalse: sProp := fun n => False.
+Definition etpApp T k vf va := appP later sFalse (fun env t k => etp T k env t) vf va k.
+
+(** Fundamental property, application case, value-only. *)
+Lemma vtp_t_app: forall T1 T2 vf va kf ka kr
+                  (Hvtpfun: vtp (TFun T1 T2) kf vf)
+                  (Hvtparg: vtp T1 ka va),
+                  kr <= ka ->
+                  kr <= kf ->
+                  etpApp T2 kr vf va.
+Proof.
+  unfold etpApp, appP, etp, vtp, later.
+  intros; destruct vf; simp val_type in *; eauto.
+Qed.
+Hint Resolve vtp_t_app.
+
+(* Lemma inv_succ_opt_bind: forall {X Y} (p : option X) (r : Y) f, *)
+(*     (match p with None => None | Some x => f x end = Some r) -> *)
+(*     exists v, p = Some v /\ f v = Some r. *)
+(* Proof. intros; better_case_match_ex; eauto. Qed. *)
+
+Ltac ev2 :=
+  match goal with | p : _ * _ |- _ => destruct p end || ev.
+
+Lemma inv_succ_optP_bind: forall {X Y Z} (p : option (X * Y)) (r : Z) f,
+    (match p with None => None | Some x => f x end = Some r) ->
+    exists v1 v2, p = Some (v1, v2) /\ f (v1, v2) = Some r.
+Proof. intros; better_case_match; discriminate || ev2; eauto. Qed.
+Tactic Notation "inv_mbind" simple_intropattern(P) := match goal with | H : _ = Some _ |- _ => eapply inv_succ_optP_bind in H as P; ev end.
+Lemma inv_tevalS: forall t n env r, tevalS t n env = Some r -> exists n', n = S n'.
+Proof. intros; destruct n; discriminate || eauto. Qed.
+
+(* V1 Fast *)
+Ltac inv_tevalS :=
+  lazymatch goal with
+  | H : tevalS _ ?n _ = Some _ |- _ =>
+    let n' := fresh n in
+    lets (n' & ->) : inv_tevalS H
+  end.
 
 (** Fundamental property, application case.
  **** Proof sketch.
@@ -354,33 +409,86 @@ Proof.
      It's faster to only do as much case analysis as strictly needed. *)
 
   Ltac appVtpEval HvtpT t j :=
-    match goal with
+    lazymatch goal with
     | H : tevalS t _ _ = Some (?o, ?n) |- _ =>
-      assert (n <= j) by (repeat better_case_match_ex; omega); lets ? : HvtpT o n ___; eauto; ev
+      assert (n <= j) by (repeat better_case_match_ex; omega); lets ? : HvtpT o n ___; eauto; ev; subst
     end.
 
-  (* V1 Fast *)
-  n_is_succ_hp;
+  n_is_succ_hp; inv_mbind (? & n & ?);
     (** We must show that nmR is at least one, since that's required by the
         hypothesis of semantic expression typing for Hfun and Harg. *)
-    destruct nmR;
-    (* The iteration counts are optimized for speed, but it's also OK to do all *)
-    (*   case splits in advance as in V1.1. *)
-    do 2 better_case_match_ex; appVtpEval Harg t2 j;
-  (* ev; eauto. try discriminate; injectHyps. *)
-      do 3 better_case_match_ex; appVtpEval Hfun t1 j; ev; eauto.
-  repeat better_case_match_ex; simp val_type in *; try contradiction.
-  all: unfold expr_sem in *; unfoldTeval.
-  - lets Hs : H7 x (k - n - n0) __ __; eauto 2.
-    lets Hgoal : (Hs optV n1) __ __ __ __ ; eauto 3.
-    ev; repeat esplit; eauto.
+    inv_tevalS;
+    appVtpEval Harg t2 j; inv_mbind (? & n0 & ?);
+    appVtpEval Hfun t1 j.
+  lazymatch goal with
+  | HevlFun: tevalS t1 _ _ = Some (Some ?vf, _),
+    HevArg: tevalS t2 _ _ = Some (Some ?va, _),
+    HvtpFun: val_type (TFun T1 _, k - ?wf) ?vf,
+    HvtpArg: val_type (T1, k - ?wa) ?va
+    |- _ =>
+    simp val_type in *; unfold expr_sem in *; unfoldTeval;
+      lets HvtpApp : vtp_t_app (k - wf - wa) HvtpFun HvtpArg ___; eauto;
+        (* hnf in HvtpApp; *)
+        idtac
+  end.
 
-  - lets Hs : H7 x (k - n - n0 - 1) __ __; eauto 2.
-    lets (res & -> & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3.
-    ev; repeat esplit.
-    eapply (val_type_mon _ _ _ _ Hgoal).
-    lia.
+  better_case_match_ex; try solve [contradiction];
+  inv_mbind (? & n1 & ?); injectHyps.
+  (* unfold etp, expr_sem, later in *. *)
+  - eapply (HvtpApp optV n1); try lia; eauto.
+  - lets Hres : (HvtpApp (k - n - n0 - 1)) __; lia || idtac;
+    eapply (Hres optV n1); try lia; eauto.
 Qed.
+
+(*     lia. *)
+(*   eapply val_type_mon. *)
+
+(*   lets Hfin : HvtpApp optV n1 __ ___; eauto. *)
+(*   eapply Hfin. *)
+(*   specialize (HvtpApp optV n1 __). *)
+(*   eapply HvtpApp; eauto. hnf. eauto. *)
+
+(*   (* lazymatch goal with *) *)
+(*   Ltac foo t1 t2 := lazymatch goal with *)
+(*   | HevlFun: tevalS t1 _ _ = Some (Some (?c _ ?t), _), *)
+(*     HevArg: tevalS t2 _ _ = Some (Some ?va, _), *)
+(*     HvtpFun: val_type (TFun _ _, ?w) ?v  *)
+(*     |- _ => *)
+(*     idtac HevlFun HvtpFun; *)
+(*     match vrec with *)
+(*     | vabs => pose (jk := k - n - n0) *)
+(*     | vrec => pose (jk := k - n - n0 - n1) *)
+(*     end; *)
+(*     simp val_type in *; unfold expr_sem in *; unfoldTeval; *)
+(*     lets Hs: HvtpFun va; *)
+(*     idtac *)
+
+(*   end. *)
+(*   all: foo t1 t2. *)
+(*   all: simp val_type in *; unfold expr_sem in *; unfold2tevalSnmOpt. *)
+(*   (* unfoldTeval. *) *)
+(*   - *)
+(*     lets Hs : H7 x (k - n - n0) __ __; eauto 2. *)
+(*     lets (res & -> & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3. *)
+(*      eauto 3. *)
+(*     eauto. *)
+(*     unfoldTeval; eauto 3. *)
+(*     (* lets Hgoal : (Hs optV n1) __ __ __ __ ; eauto 3. *) *)
+(*     ev; repeat esplit; *)
+(*     eapply (val_type_mon _ _ _ _ Hgoal); lia || eauto. *)
+(*       (* info_eauto 2. *) *)
+
+(*   - lets Hs : H7 x (k - n - n0 - 1) __ __; eauto 2. *)
+(*     dup. *)
+(*     (* V0 *) *)
+(*     + lets (res & -> & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3. *)
+(*       ev; repeat esplit; eapply val_type_mon; lia || eassumption. *)
+(*     (* V1 *) *)
+(*     + lets (res & ? & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3. *)
+(*       ev; repeat esplit; try eassumption; eapply val_type_mon; lia || eassumption. *)
+(*     (* eapply (val_type_mon _ _ _ _ Hgoal). *) *)
+(*     (* lia. *) *)
+(* Qed. *)
   (* clear. *)
   (* simpl. *)
 
