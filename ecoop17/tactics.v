@@ -116,7 +116,7 @@ Ltac injectHyp :=
   | H : ?c _ _ _ = ?c _ _ _ |- _ => cinject H
   | H : ?c _ _ = ?c _ _ |- _ => cinject H
   | H : ?c _ = ?c _ |- _ => cinject H
-  | H : ?c = ?c |- _ => cinject H
+  | H : ?c = ?c |- _ => clear H
   end.
 Ltac injectHyps := repeat injectHyp.
 
