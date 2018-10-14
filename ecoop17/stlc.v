@@ -414,24 +414,6 @@ Proof.
 Qed.
 Hint Resolve tevalS_mono.
 
-(* Only true up to observational equality. *)
-Lemma wk_eval: forall n t env env', tevalS (wk (length env') t) n (env ++ env') = tevalS t n env.
-  induction n; trivial; intros; destruct t; simpl; repeat fequalSafe; eauto;
-    match goal with
-    | |- context [vabs _ _] => admit
-    | |- context [vrec _ _] => admit
-    | _ => repeat better_case_match_ex; try rewrite app_comm_cons in *; try rewrite IHn in *; try now repeat optFuncs_det
-    end.
-Abort.
-
-(* We could try to weaken return values, but such weakening would have to be recursive. *)
-Definition wk_val (env': venv) (v: vl) :=
-  match v with
-  | vabs env t => vabs (env ++ env') (wk (length env') t)
-  | vrec env t => vrec (env ++ env') (wk (length env') t)
-  | vnat n => v
-  end.
-
 (**********************)
 (** Logical relation. *)
 
