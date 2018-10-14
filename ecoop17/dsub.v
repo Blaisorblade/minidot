@@ -8,7 +8,7 @@ Require Export Arith.EqNat.
 Require Export Arith.Le.
 
 (* term variables occurring in types *)
-Inductive var : Type :=
+Inductive var : Set :=
 | varF : id -> var (* free *)
 | varB : id -> var (* locally-bound variable *)
 .
@@ -36,20 +36,40 @@ Lemma closed_var_upgrade_both: forall t i i1 k k1, closed_var i k t -> i <= i1 -
 Proof. intros; inverts_closed_var; eauto. Qed.
 Hint Extern 5 (closed_var _ _ _) => try_once closed_var_upgrade_both.
 
+(** Types. Work-in-progress mixture of D<: and Lillibridge's calculus. The goal is to limit the amount of constructors. *)
 Inductive ty : Set :=
 | TNat : ty
 (* (z: S) -> T^z *)
 | TAll : ty -> ty -> ty
 (* x.Type *)
 | TSel : var -> ty
+(* x.Type = T (from bounding transformation) *)
+| TSelA : var -> kn -> ty
 (* Existentials Exists X. U^X are encodable in D<: as:
 iota {x: {type T} /\ U^x}
 we first add this directly.
  *)
-| TBind  : ty -> ty (* Recursive binder: iota{ z => Type /\ T^z },
+(* Single-field version of Lillibridge's opaque sum *)
+| TBind  : ty -> ty (* Recursive binder: iota{ z => {Type} /\ T^z },
                        where z is locally bound in T *)
-| TSing: ty -> ty (* Singleton(T) *)
+(* Single-field version of Lillibridge's transparent sum *)
+| TSBind : ty -> ty -> ty
+                       (* iota {z : {Type = T} /\ U^z}*)
+(* Beware that T may not refer to z. Enabling such references would enable encoding
+   proper recursive types and break strong normalization (Wang and Rompf 2017,
+   Sec. 4.2); for that, we'd need to enforce (strong?) positivity or
+   guardedness.
+   In our model, values inhabiting such types would have to be recursive, which we don't support.
+ *)
+(** Kind annotations for our system *)
+with kn : Set :=
+| KSing : ty -> kn
+| KStar : kn
 .
+
+Scheme ty_mut := Induction for ty Sort Prop
+with   kn_mut := Induction for kn Sort Prop.
+Combined Scheme ty_mutind from ty_mut, kn_mut.
 
 Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 | cl_nat: forall i j,
@@ -61,35 +81,73 @@ Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 | cl_sel: forall i j x,
     closed_var i j x ->
     closed_ty i j (TSel x)
-| cl_bind: forall i j T,
-    closed_ty (S i) j T ->
-    closed_ty i j (TBind T)
-| cl_sing: forall i j T,
+| cl_sela: forall i j x K,
+    closed_var i j x ->
+    closed_kn i j K ->
+    closed_ty i j (TSelA x K)
+| cl_bind: forall i j U,
+    closed_ty (S i) j U ->
+    closed_ty i j (TBind U)
+| cl_sbind: forall i j T U,
     closed_ty i j T ->
-    closed_ty i j (TSing T)
+    closed_ty (S i) j U ->
+    closed_ty i j (TSBind T U)
+with
+closed_kn: nat -> nat -> kn -> Prop :=
+| cl_ksing : forall i j T,
+    closed_ty i j T ->
+    closed_kn i j (KSing T)
+| cl_selan: forall i j,
+    closed_kn i j KStar
 .
+
 Hint Constructors ty closed_ty.
 
+(* Search ((?A -> ?B) -> list ?A -> list ?B). *)
+(* Search ((?A -> ?B) -> option ?A -> option ?B). *)
 Fixpoint open_ty_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
   match T with
-    | TNat        => TNat
-    | TAll T1 T2  => TAll (open_ty_rec k u T1) (open_ty_rec (S k) u T2)
-    | TSel x  => TSel (open_var_rec k u x)
-    | TBind T => TBind (open_ty_rec (S k) u T)
-    | TSing T => TSing (open_ty_rec k u T)
+  | TNat        => TNat
+  | TAll T1 T2  => TAll (open_ty_rec k u T1) (open_ty_rec (S k) u T2)
+  | TSel x  => TSel (open_var_rec k u x)
+  | TSelA x K => TSelA (open_var_rec k u x) (open_kn_rec k u K)
+  | TBind U => TBind (open_ty_rec (S k) u U)
+  | TSBind T U => TSBind (open_ty_rec k u T) (open_ty_rec (S k) u U)
+  end
+with
+open_kn_rec (k: nat) (u: var) (K: kn): kn :=
+  match K with
+  | KSing T => KSing (open_ty_rec k u T)
+  | KStar => KStar
   end.
 
 Notation open := (open_ty_rec 0).
 
-Ltac inverts_closed_ty :=
+Ltac inverts_closed_ty_kn :=
   lazymatch goal with
   | H : closed_ty _ _ ?T  |- _ =>
     tryif is_var T then fail else inverts H
+  | H : closed_kn _ _ ?K  |- _ =>
+    tryif is_var K then fail else inverts H
   end.
 
-Lemma closed_ty_upgrade_both: forall T i i1 k k1, closed_ty i k T -> i <= i1 -> k <= k1 -> closed_ty i1 k1 T.
-Proof. induction T; intros; inverts_closed_ty; eauto. Qed.
+Hint Constructors kn closed_kn.
+Lemma closed_ty_kn_upgrade_both_rec:
+  (forall T i i1 k k1, closed_ty i k T -> i <= i1 -> k <= k1 -> closed_ty i1 k1 T) /\
+  (forall K i i1 k k1, closed_kn i k K -> i <= i1 -> k <= k1 -> closed_kn i1 k1 K).
+Proof. apply ty_mutind; intros; inverts_closed_ty_kn; eauto. Qed.
+
+(** Tactic to split lemmas proven using mutual induction into their separate parts. *)
+Ltac unmut_lemma H := destruct H; ev; eauto.
+
+Lemma closed_ty_upgrade_both:
+  forall T i i1 k k1, closed_ty i k T -> i <= i1 -> k <= k1 -> closed_ty i1 k1 T.
+Proof. unmut_lemma closed_ty_kn_upgrade_both_rec. Qed.
+Lemma closed_kn_upgrade_both:
+  forall K i i1 k k1, closed_kn i k K -> i <= i1 -> k <= k1 -> closed_kn i1 k1 K.
+Proof. unmut_lemma closed_ty_kn_upgrade_both_rec. Qed.
 Hint Extern 5 (closed_ty _ _ _) => try_once closed_ty_upgrade_both.
+Hint Extern 5 (closed_kn _ _ _) => try_once closed_kn_upgrade_both.
 
 (* XXX True facts, not the statements we care about. Drop. *)
 (* Lemma closed_var_open: forall i j k x y, *)
@@ -106,10 +164,18 @@ Lemma closed_var_open: forall v i j x,
 Proof. intros * Hv Hx; inverts Hv; simpl; better_case_match_ex; eauto. Qed.
 Hint Resolve closed_var_open.
 
-Lemma closed_ty_open: forall T i j x,
-  closed_ty (S i) j T -> closed_var i j x -> closed_ty i j (open_ty_rec i x T).
-Proof. induction T; intros; inverts_closed_ty; simpl; eauto. Qed.
-Hint Resolve closed_ty_open.
+Lemma closed_ty_kn_open_rec:
+  (forall T i j x, closed_ty (S i) j T -> closed_var i j x -> closed_ty i j (open_ty_rec i x T)) /\
+  (forall K i j x, closed_kn (S i) j K -> closed_var i j x -> closed_kn i j (open_kn_rec i x K)).
+Proof. apply ty_mutind; intros; inverts_closed_ty_kn; simpl; eauto. Qed.
+
+Lemma closed_ty_open:
+  forall T i j x, closed_ty (S i) j T -> closed_var i j x -> closed_ty i j (open_ty_rec i x T).
+Proof. unmut_lemma closed_ty_kn_open_rec. Qed.
+Lemma closed_kn_open:
+  forall K i j x, closed_kn (S i) j K -> closed_var i j x -> closed_kn i j (open_kn_rec i x K).
+Proof. unmut_lemma closed_ty_kn_open_rec. Qed.
+Hint Resolve closed_ty_open closed_kn_open.
 
 Inductive tm : Set :=
 | tvar : id -> tm
@@ -125,75 +191,294 @@ Inductive tm : Set :=
 .
 Hint Constructors tm.
 
+Reserved Notation "'venv'".
 Inductive vl : Set :=
 (* a closure for a lambda abstraction *)
-| vabs : list vl -> tm -> vl
+| vabs : venv -> tm -> vl
 (* a closure for a recursive function *)
-| vrec : list vl (*H*) -> tm -> vl
+| vrec : venv -> tm -> vl
 | vnat: nat -> vl
-| vpack : ty -> vl -> vl.
+| vpack : venv -> ty -> vl -> vl
+where
+"'venv'" := (list vl).
 Hint Constructors vl.
 
-
 Notation tenv := (list ty).
-Notation venv := (list vl).
-
-(* de Bruijn levels! *)
-(* the boolean says if this is recursive. *)
-Inductive has_type: bool -> tenv -> tm -> ty -> Prop :=
-| t_var : forall b G x T,
-    indexr x G = Some T ->
-    has_type b G (tvar x) T
-| t_abs : forall b G t S T,
-    has_type b (S :: G) t T ->
-    has_type b G (tabs t) (TAll S T)
-| t_rec : forall b G t S T,
-    has_type b (S :: TAll S T :: G) t T ->
-    has_type true G (trec t) (TAll S T)
-| t_app : forall b G f t S T,
-    has_type b G f (TAll S T) ->
-    has_type b G t S ->
-    has_type b G (tapp f t) T
-| t_let : forall b G e1 e2 S T,
-    has_type b G e1 S ->
-    has_type b (S :: G) e2 T ->
-    has_type b G (tlet e1 e2) T
-| t_nat: forall b G n, has_type b G (tnat n) TNat
-| t_pack : forall b G T U t,
-    (* Argh. Replace TSel x with T. *)
-    has_type b (TSing T :: G) t U ->
-    has_type b G (tpack T t) (TBind U)
-| t_proj: forall b G x T,
-    has_type b G (tvar x) (TBind T) ->
-    has_type b G (tproj (tvar x)) (TSel (varF x))
-(* Beware this is not syntax-directed. But who cares. *)
-| t_sel_sing : forall b G x t T,
-    indexr x G = Some (TSing T) ->
-    has_type b G t T ->
-    has_type b G t (TSel (varF x))
-.
-Hint Constructors has_type.
-
-Example ex1: has_type false [TNat] (tvar 0) TNat. eauto. Qed.
-Example ex2: has_type false [TAll TNat TNat] (tabs (tvar 1)) (TAll TNat TNat). eauto. Qed.
 
 Hint Extern 5 => match goal with
-                | |- indexr _ _ = _ => progress cbn; eauto
+                | |- indexr _ _ = _ => progress cbn
                 end.
 
-Example ex__apply: has_type false [TAll TNat TNat] (tabs (tabs (tapp (tvar 1) (tvar 2))))
-                          (TAll (TAll TNat TNat) (TAll TNat TNat)). eauto 6. Qed.
+(* de Bruijn levels! *)
+Inductive stp: tenv -> ty -> ty -> Prop :=
+| s_bind : forall G T U,
+    stp G (TSBind T U) (TBind U)
+| s_tsela1 : forall x T G,
+    stp G (TSelA x (KSing T)) T
+| s_tsela2 : forall x T G,
+    stp G T (TSelA x (KSing T))
+| s_tsel1 : forall x T U G,
+    indexr x G = Some (TSBind T U) ->
+    stp G (TSel (varF x)) T
+| s_tsel2 : forall x T U G,
+    indexr x G = Some (TSBind T U) ->
+    stp G T (TSel (varF x))
+.
+(** Beware stp does not satisfy regularity! *)
 
-Lemma has_type_nonrec_to_rec: forall t G T (Ht: has_type false G t T), has_type true G t T.
-Proof. intros; induction Ht; info_eauto. Qed.
+(** [ann] indexes derivation to indicate whether kind annotations in TSel are required or not. *)
+Inductive ann := Ann | NoAnn.
+
+(** The boolean says if this is recursive. *)
+Inductive has_type: bool -> ann -> tenv -> tm -> ty -> Prop :=
+| t_var : forall b a G x T,
+    indexr x G = Some T ->
+    has_type b a G (tvar x) T
+| t_abs : forall b a G t S T,
+    has_type b a (S :: G) t T ->
+    has_type b a G (tabs t) (TAll S T)
+| t_rec : forall b a G t S T,
+    has_type b a (S :: TAll S T :: G) t T ->
+    has_type true a G (trec t) (TAll S T)
+| t_app : forall b a G f t S T,
+    has_type b a G f (TAll S T) ->
+    has_type b a G t S ->
+    has_type b a G (tapp f t) T
+| t_let : forall b a G e1 e2 S T,
+    has_type b a G e1 S ->
+    has_type b a (S :: G) e2 T ->
+    has_type b a G (tlet e1 e2) T
+| t_nat: forall b a G n, has_type b a G (tnat n) TNat
+| t_pack_transparent : forall b a G T U t,
+    has_type b a (TSBind T U :: G) t (open (varF (length G)) U) ->
+    has_type b a G (tpack T t) (TSBind T U)
+(* | t_pack_opaque : forall b a G T U t, *)
+(*     has_type b a (TSBind T U :: G) t U -> *)
+(*     has_type b a G (tpack T t) (TBind U) *)
+| t_sub : forall T b a G t U,
+    stp G T U ->
+    has_type b a G t T ->
+    has_type b a G t U
+| t_proj: forall b a G x T T',
+    has_type b a G (tvar x) (TBind T) ->
+    open (varF x) T = T' ->
+    has_type b a G (tproj (tvar x)) T'
+| t_sel_sing : forall b G x t T U,
+    indexr x G = Some (TSBind T U) ->
+    (* This premise is more general but even less syntax-directed. *)
+    (* has_type b a G t T -> *)
+    has_type b NoAnn G t T ->
+    has_type b NoAnn G t (TSel (varF x))
+| t_sel_ann : forall b G x t T U,
+    indexr x G = Some (TSBind T U) ->
+    (* This premise is more general but even less syntax-directed. *)
+    (* has_type b a G t T -> *)
+    has_type b Ann G t T ->
+    has_type b Ann G t (TSelA (varF x) (KSing T))
+.
+
+Hint Constructors has_type ann.
+Hint Resolve s_bind.
+Hint Resolve s_tsela1 s_tsela2 s_tsel1 s_tsel2: tsel_red.
 
 (* *)
-Eval simpl in tpack TNat (tnat 0).
-Example ex_pack1: exists T, has_type false [] (tpack TNat (tnat 0)) T. eexists; eauto. Qed.
-Print ex_pack1.
-Example ex_pack2: exists (T: ty), has_type false [] (tpack TNat (tnat 0)) (TBind TNat). eexists; eauto. Qed.
-Example ex_pack3: has_type false [] (tpack TNat (tnat 0)) (TBind (TSel (varF 0))). eauto. Qed.
+Hint Extern 5 => match goal with | |- context [open _ _] => progress cbn end.
+Example ex_pack3: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind (TSel (varB 0))).
+info_eauto 6.
+Qed.
+Example ex_pack3expl: has_type false NoAnn [] (tpack TNat (tnat 0)) (TSBind TNat (TSel (varB 0))).
+info_eauto 6.
+Qed.
+
+Notation "'{_:' A '/\' B '}'" := (TSBind A B).
+Notation "x '.T'" := (TSel x) (at level 20).
+Notation "x '.T' '::' U" := (TSelA x U) (at level 10).
+
+Example ex_pack3expla: has_type false Ann [] (tpack TNat (tnat 0)) (TSBind TNat (TSelA (varB 0) (KSing TNat))).
+info_eauto 4 with tsel_red.
+Restart.
+(* info eauto: *)
+simple apply t_pack_transparent.
+simple eapply t_sub.
+simpl.
+simple apply s_tsela2.
+simple apply t_nat.
+Restart.
+info_eauto 6.
+Restart.
+(* info eauto: *)
+simple apply t_pack_transparent.
+cbn.
+simple eapply t_sel_ann.
+cbn.
+simple apply @eq_refl.
+simple apply t_nat.
+Qed.
+
 Print ex_pack3.
+Example ex_pack3a: has_type false Ann [] (tpack TNat (tnat 0)) (TBind (TSelA (varB 0) (KSing TNat))). eauto 6. Qed.
+
+Example ex_projpacka: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) TNat.
+solve [info_eauto 8 using ex_pack3expla with tsel_red].
+Restart.
+eapply t_let.
+exact ex_pack3expla.
+info_eauto 7 with tsel_red.
+Restart.
+eapply t_let.
+exact ex_pack3expla.
+
+(* info eauto: *)
+simple eapply t_sub.
+simple apply s_tsela1.
+simple eapply t_proj.
+simple eapply t_sub.
+simple apply s_bind.
+simple apply t_var.
+cbn.
+simple apply @eq_refl.
+cbn.
+simple apply @eq_refl.
+Qed.
+
+(* Bad *)
+Example ex_projpackbad: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) (TSelA (varF 0) (KSing TNat)).
+solve [info_eauto 6 using ex_pack3expla].
+Restart.
+
+(* info eauto: *)
+simple eapply t_let.
+exact ex_pack3expla.
+simple eapply t_proj.
+simple eapply t_sub.
+simple apply s_bind.
+simple apply t_var.
+(*external*) (match goal with
+                           | |- indexr _ _ = _ => progress cbn
+                           end).
+simple apply @eq_refl.
+simple apply @eq_refl.
+Qed.
+(* eapply t_let. *)
+(* eapply ex_pack3expla. *)
+(* eapply t_proj. eauto. *)
+(* Qed. *)
+(* eauto. *)
+
+Example ex_projpack: has_type false NoAnn [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) TNat.
+solve [info_eauto 9 using ex_pack3expl, (s_tsel1 0)].
+Restart.
+(* solve [info_eauto 8 using ex_pack3expl with tsel_red]. *)
+(* Fail solve [info_eauto 9 using ex_pack3expl with tsel_red]. *)
+eapply t_let.
+eapply ex_pack3expl.
+(* eauto with tsel_red. *)
+
+eapply t_sub.
+eapply (s_tsel1 0); eauto.
+eauto.
+Qed.
+
+Example ex_pack2_bad: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind TNat). eauto. Qed.
+(* XXX Fishy. *)
+Example ex_pack2: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind (TSel (varF 0))). eauto 8. Qed.
+Example clo_ex3: closed_ty 0 0 (TBind (TSel (varB 0))). eauto. Qed.
+Example clo_ex2: closed_ty 0 0 (TBind (TSel (varF 0))). eauto. Fail Qed. Abort.
+
+(* Example ex_pack1: exists T, has_type false NoAnn [] (tpack TNat (tnat 0)) T. eauto 10. Qed. *)
+(* Print ex_pack1. *)
+
+Example ex1: has_type false NoAnn [TNat] (tvar 0) TNat. eauto. Qed.
+Example ex2: has_type false NoAnn [TAll TNat TNat] (tabs (tvar 1)) (TAll TNat TNat). eauto. Qed.
+
+Example ex__apply: has_type false NoAnn [TAll TNat TNat] (tabs (tabs (tapp (tvar 1) (tvar 2))))
+                          (TAll (TAll TNat TNat) (TAll TNat TNat)). eauto 7. Qed.
+
+Lemma has_type_nonrec_to_rec: forall t G T a (Ht: has_type false a G t T), has_type true a G t T.
+Proof. intros; induction Ht; eauto. Qed.
+
+Fixpoint tsize_ty (T: ty): nat :=
+  match T with
+  | TNat => 1
+  | TAll T1 T2 => 1 + tsize_ty T1 + tsize_ty T2
+  | TSel x => 1
+  | TSelA x K => 1 + tsize_kn K
+  | TBind U => 1 + tsize_ty U
+  | TSBind T U => 1 + tsize_ty T + tsize_ty U
+  end
+with
+tsize_kn (K: kn): nat :=
+  match K with
+  | KStar => 1
+  | KSing T => 1 + tsize_ty T
+  end.
+Definition tsize_rel (T1 T2: ty) := tsize_ty T1 < tsize_ty T2.
+Hint Unfold tsize_rel.
+
+Program Fixpoint annot_ty (G: tenv) T {measure (tsize_rel T) lt}: option ty :=
+  match T with
+  | TNat => ret TNat
+  | TAll T U =>
+    T' <- (annot_ty G T);
+    (* U' <- (annot_ty (T :: G) (open (varF (length G)) U)); *)
+    U' <- (annot_ty (T :: G) U);
+    ret (TAll T' U')
+  | TSel (varB x) => None
+  | TSel (varF x) =>
+    T0 <- indexr x G;
+    ret (TSelA (varF x) (
+      match T0 with
+      | TSBind T _ =>
+        (* Here we could just return T, TSelA is needed when we have bounded types *)
+        KSing T
+      | _ =>
+        KStar
+      end))
+  | TSelA x K =>
+    K' <- (annot_kn G K);
+    ret (TSelA x K')
+  | TSBind T U =>
+    T' <- (annot_ty G T);
+    U' <- (annot_ty (TSBind T U :: G) U);
+    ret (TSBind T' U')
+  | TBind U =>
+    U' <- (annot_ty (TBind U :: G) U);
+    ret (TBind U')
+  end
+with
+annot_kn (G: tenv) K : option kn :=
+  match K with
+  | KStar => ret KStar
+  | KSing T =>
+    T' <- annot_ty G T;
+    ret (KSing T')
+end.
+
+Lemma closed_annot_total_rec:
+  (forall T G, closed_ty 0 (length G) T -> exists T', annot_ty G T = Some T') /\
+  (forall K G, closed_kn 0 (length G) K -> exists K', annot_kn G K = Some K').
+Proof. apply ty_mutind; intros; inverts_closed_ty_kn; simpl; eauto.
+       repeat better_case_match_ex; eauto.
+
+Fixpoint annot_tenv (G: tenv) : option tenv :=
+  match G with
+  | [] => ret []
+  | T :: G =>
+    G' <- annot_tenv G;
+    T' <- annot_ty G' T;
+    ret (T' :: G')
+  end.
+
+
+Lemma has_type_noann_to_ann: forall t G T b (Ht: has_type b NoAnn G t T),
+    closed_ty 
+    exists G' T', annot_tenv G = Some G' /\ annot_ty G' T = Some T' /\
+    has_type b Ann G' t T'.
+    (* exists G' T', has_type b Ann G' t T'. *)
+Proof. intros; induction Ht; ev; eauto 10.
+       ev; repeat eexists; constructors; eapply H.
+       ev; eexists. eapply t_rec. eapply H.
+       all: ev; eexists; constructors; eauto 10. eapply H. eexists. eauto. Qed.
 
 (* Definition rename (sigma: id -> id): tm -> tm := *)
 (*   fix go (t: tm) {struct t}: tm := *)
@@ -550,14 +835,6 @@ Print ex_pack3.
 
 (* Definition vl_prop := vl -> Prop. *)
 (* Hint Unfold vl_prop. *)
-
-(* Fixpoint tsize (T: ty): nat := *)
-(*   match T with *)
-(*   | TNat => 1 *)
-(*   | TAll T1 T2 => 1 + tsize T1 + tsize T2 *)
-(*   end. *)
-(* Definition tsize_rel (T1 T2: ty) := tsize T1 < tsize T2. *)
-(* Hint Unfold tsize_rel. *)
 
 (* Module Type vtp_arg. *)
 (*   Parameter vtp : ty -> vl_prop. *)
