@@ -5,8 +5,6 @@ Require Export dot_monads.
 Require Export Arith.EqNat.
 Require Export Arith.Le.
 
-Ltac better_case_match_ex := try better_case_match; try beq_nat; injectHyps; try discriminate.
-
 Inductive tm : Set :=
 | tvar : id -> tm
 | tabs : tm -> tm
@@ -360,6 +358,17 @@ Ltac n_is_succ := let n' := fresh "n" in n_is_succ' n'.
 
 Ltac step_eval := n_is_succ; simpl in *.
 (* Hint Extern 5 => step_eval. *)
+
+Lemma inv_tevalS: forall t n env r, tevalS t n env = Some r -> exists n', n = S n'.
+Proof. intros; destruct n; discriminate || eauto. Qed.
+
+Ltac inv_tevalS :=
+  lazymatch goal with
+  | H : tevalS _ ?n _ = Some _ |- _ =>
+    let n' := fresh n in
+    lets (n' & ->) : inv_tevalS H
+  end.
+
 
 Lemma teval_var: forall env x,
   exists optV, tevalSnOpt env (tvar x) optV 0 /\ indexr x env = optV.

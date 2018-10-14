@@ -246,8 +246,6 @@ Lemma vtp_etp:
 Proof. eauto. Qed.
 Hint Resolve vtp_etp.
 
-Ltac int := intuition trivial.
-
 Lemma fund_t_var: forall G x T, indexr x G = Some T -> sem_type G T (tvar x).
 Proof.
   unfold sem_type, etp, expr_sem; int;
@@ -356,26 +354,6 @@ Proof.
   intros; destruct vf; simp val_type in *; eauto.
 Qed.
 Hint Resolve vtp_t_app.
-
-(* Lemma inv_succ_opt_bind: forall {X Y} (p : option X) (r : Y) f, *)
-(*     (match p with None => None | Some x => f x end = Some r) -> *)
-(*     exists v, p = Some v /\ f v = Some r. *)
-(* Proof. intros; better_case_match_ex; eauto. Qed. *)
-
-Lemma inv_succ_optP_bind: forall {X Y Z} (p : option (X * Y)) (r : Z) f,
-    (match p with None => None | Some x => f x end = Some r) ->
-    exists v1 v2, p = Some (v1, v2) /\ f (v1, v2) = Some r.
-Proof. intros; better_case_match; discriminate || ev; eauto. Qed.
-Tactic Notation "inv_mbind" simple_intropattern(P) := match goal with | H : _ = Some _ |- _ => eapply inv_succ_optP_bind in H as (? & P & ? & ?); injectHyps end.
-Lemma inv_tevalS: forall t n env r, tevalS t n env = Some r -> exists n', n = S n'.
-Proof. intros; destruct n; discriminate || eauto. Qed.
-
-Ltac inv_tevalS :=
-  lazymatch goal with
-  | H : tevalS _ ?n _ = Some _ |- _ =>
-    let n' := fresh n in
-    lets (n' & ->) : inv_tevalS H
-  end.
 
 (** Fundamental property, application case.
  **** Proof sketch.

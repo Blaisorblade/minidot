@@ -9,6 +9,7 @@ Global Unset Transparent Obligations.
 Remove Hints Bool.trans_eq_bool.
 
 Ltac inverse H := (inversion H; subst).
+Ltac int := intuition trivial.
 
 Ltac ev := repeat match goal with
                     | H: exists _, _ |- _ => destruct H
@@ -194,3 +195,5 @@ Ltac beq_nat :=
   | H : (?a =? ?b) = true |- _ => try eapply beq_nat_true in H
   | H : (?a =? ?b) = false |- _ => try eapply beq_nat_false in H
   end.
+
+Ltac better_case_match_ex := try better_case_match; try beq_nat; injectHyps; try discriminate.
