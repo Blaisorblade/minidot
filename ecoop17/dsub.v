@@ -857,9 +857,8 @@ Qed.
 
 (*   Lemma R_env_to_indexr_success: forall G env x T, indexr x G = Some T -> R_env env G -> exists v, indexr x env = Some v. *)
 (*     intros * HT Henv; induction Henv; simpl in *; *)
-(*       [ discriminate | *)
-(*         lenG_to_lenEnv; *)
-(*         repeat (better_case_match; beq_nat); eauto]. *)
+(*       tryfalse; *)
+(*       lenG_to_lenEnv; better_case_match_ex; eauto. *)
 (*   Qed. *)
 (*   Hint Resolve R_env_to_indexr_success. *)
 
