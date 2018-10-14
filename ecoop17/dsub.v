@@ -412,8 +412,30 @@ tsize_kn (K: kn): nat :=
   | KStar => 1
   | KSing T => 1 + tsize_ty T
   end.
-Definition tsize_rel (T1 T2: ty) := tsize_ty T1 < tsize_ty T2.
-Hint Unfold tsize_rel.
+Definition tsize_ty_rel (T1 T2: ty) := tsize_ty T1 < tsize_ty T2.
+Hint Unfold tsize_ty_rel.
+
+Definition tsize_kn_rel (T1 T2: kn) := tsize_kn T1 < tsize_kn T2.
+Hint Unfold tsize_kn_rel.
+
+Require Import Equations.Equations.
+(* Instance wflt: WellFounded lt. typeclass. Qed. *)
+Equations annot_ty (G: tenv) (T: ty) : option ty :=
+  annot_ty G T by rec T tsize_ty_rel :=
+    annot_ty G T := None
+with
+  annot_kn (G: tenv) (T: kn) : option kn :=
+  annot_kn G K by rec T tsize_kn_rel :=
+    annot_kn G K := None.
+Preterm.
+Solve All Obligations with program_simpl.
+Next Obligation.
+  exact (x G T). Qed.
+  unfold hide_pattern.
+  unfold add_pattern.
+  Print add_pattern.
+  Print hide_pattern.
+  hnf. exact None. Qed.
 
 Program Fixpoint annot_ty (G: tenv) T {measure (tsize_rel T) lt}: option ty :=
   match T with
