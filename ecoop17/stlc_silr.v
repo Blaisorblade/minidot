@@ -381,18 +381,18 @@ Proof.
   (* Various implementations of the same case analysis are possible.
      It's faster to only do as much case analysis as strictly needed. *)
 
-  Ltac appVtpEval HvtpT t j :=
+  Ltac appVtpEval HvtpT k t :=
     lazymatch goal with
     | H : tevalS t _ _ = Some (?o, ?n) |- _ =>
-      assert (n <= j) by (repeat better_case_match_ex; omega); lets ? : HvtpT o n ___; eauto; ev; subst; clear HvtpT
+      assert (n <= k) by (repeat better_case_match_ex; omega); specializes HvtpT k o n ___; eauto; ev; subst
     end.
 
   n_is_succ_hp; inv_mbind n;
     (** We must show that nmR is at least one, since that's required by the
         hypothesis of semantic expression typing for Hfun and Harg. *)
-    inv_tevalS.
-    appVtpEval Harg t2 j.
-      inv_mbind n0; appVtpEval Hfun t1 j.
+    inv_tevalS;
+    appVtpEval Harg k t2;
+      inv_mbind n0; appVtpEval Hfun k t1.
   lazymatch goal with
   | HevlFun: tevalS t1 _ _ = Some (Some ?vf, _),
     HevArg: tevalS t2 _ _ = Some (Some ?va, _),
@@ -406,12 +406,11 @@ Proof.
         idtac
   end.
 
-  case_match; try solve [contradiction];
+  case_match; tryfalse;
   inv_mbind n1; injectHyps.
   (* unfold etp, expr_sem, later in *. *)
-  - eapply (HvtpApp optV n1); try lia; eauto.
-  - lets Hres : HvtpApp (k - n - n0 - 1) optV n1 __; lia || idtac;
-    eapply Hres; try lia; eauto.
+  - applys HvtpApp optV n1; lia || eauto.
+  - applys HvtpApp (k - n - n0 - 1) optV n1; lia || eauto.
 Qed.
 
 (* Adapted from fund_t_app. *)
@@ -428,8 +427,8 @@ Proof.
     (** We must show that nmR is at least one, since that's required by the
         hypothesis of semantic expression typing for Hfun and Harg. *)
     inv_tevalS.
-  appVtpEval Hvtp1 t1 j; inv_mbind ?.
-  appVtpEval Hvtp2 t2 (k - n); eauto 4.
+  appVtpEval Hvtp1 k t1; inv_mbind ?.
+  appVtpEval Hvtp2 (k - n) t2; eauto 4.
 Qed.
 
 (** Fundamental property.
