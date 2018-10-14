@@ -369,11 +369,10 @@ Lemma inv_succ_optP_bind: forall {X Y Z} (p : option (X * Y)) (r : Z) f,
     (match p with None => None | Some x => f x end = Some r) ->
     exists v1 v2, p = Some (v1, v2) /\ f (v1, v2) = Some r.
 Proof. intros; better_case_match; discriminate || ev2; eauto. Qed.
-Tactic Notation "inv_mbind" simple_intropattern(P) := match goal with | H : _ = Some _ |- _ => eapply inv_succ_optP_bind in H as P; ev end.
+Tactic Notation "inv_mbind" simple_intropattern(P) := match goal with | H : _ = Some _ |- _ => eapply inv_succ_optP_bind in H as (? & P & ? & ?); injectHyps end.
 Lemma inv_tevalS: forall t n env r, tevalS t n env = Some r -> exists n', n = S n'.
 Proof. intros; destruct n; discriminate || eauto. Qed.
 
-(* V1 Fast *)
 Ltac inv_tevalS :=
   lazymatch goal with
   | H : tevalS _ ?n _ = Some _ |- _ =>
@@ -411,109 +410,37 @@ Proof.
   Ltac appVtpEval HvtpT t j :=
     lazymatch goal with
     | H : tevalS t _ _ = Some (?o, ?n) |- _ =>
-      assert (n <= j) by (repeat better_case_match_ex; omega); lets ? : HvtpT o n ___; eauto; ev; subst
+      assert (n <= j) by (repeat better_case_match_ex; omega); lets ? : HvtpT o n ___; eauto; ev; subst; clear HvtpT
     end.
 
-  n_is_succ_hp; inv_mbind (? & n & ?);
+  n_is_succ_hp; inv_mbind n;
     (** We must show that nmR is at least one, since that's required by the
         hypothesis of semantic expression typing for Hfun and Harg. *)
-    inv_tevalS;
-    appVtpEval Harg t2 j; inv_mbind (? & n0 & ?);
-    appVtpEval Hfun t1 j.
+    inv_tevalS.
+    appVtpEval Harg t2 j.
+      inv_mbind n0; appVtpEval Hfun t1 j.
   lazymatch goal with
   | HevlFun: tevalS t1 _ _ = Some (Some ?vf, _),
     HevArg: tevalS t2 _ _ = Some (Some ?va, _),
     HvtpFun: val_type (TFun T1 _, k - ?wf) ?vf,
     HvtpArg: val_type (T1, k - ?wa) ?va
     |- _ =>
-    simp val_type in *; unfold expr_sem in *; unfoldTeval;
+    (* simp val_type in *; unfold expr_sem in *; unfoldTeval; *)
       lets HvtpApp : vtp_t_app (k - wf - wa) HvtpFun HvtpArg ___; eauto;
+        clear HevlFun HevArg HvtpFun HvtpArg;
         (* hnf in HvtpApp; *)
         idtac
   end.
 
-  better_case_match_ex; try solve [contradiction];
-  inv_mbind (? & n1 & ?); injectHyps.
+  case_match; try solve [contradiction];
+  inv_mbind n1; injectHyps.
   (* unfold etp, expr_sem, later in *. *)
   - eapply (HvtpApp optV n1); try lia; eauto.
   - lets Hres : (HvtpApp (k - n - n0 - 1)) __; lia || idtac;
     eapply (Hres optV n1); try lia; eauto.
 Qed.
 
-(*     lia. *)
-(*   eapply val_type_mon. *)
-
-(*   lets Hfin : HvtpApp optV n1 __ ___; eauto. *)
-(*   eapply Hfin. *)
-(*   specialize (HvtpApp optV n1 __). *)
-(*   eapply HvtpApp; eauto. hnf. eauto. *)
-
-(*   (* lazymatch goal with *) *)
-(*   Ltac foo t1 t2 := lazymatch goal with *)
-(*   | HevlFun: tevalS t1 _ _ = Some (Some (?c _ ?t), _), *)
-(*     HevArg: tevalS t2 _ _ = Some (Some ?va, _), *)
-(*     HvtpFun: val_type (TFun _ _, ?w) ?v  *)
-(*     |- _ => *)
-(*     idtac HevlFun HvtpFun; *)
-(*     match vrec with *)
-(*     | vabs => pose (jk := k - n - n0) *)
-(*     | vrec => pose (jk := k - n - n0 - n1) *)
-(*     end; *)
-(*     simp val_type in *; unfold expr_sem in *; unfoldTeval; *)
-(*     lets Hs: HvtpFun va; *)
-(*     idtac *)
-
-(*   end. *)
-(*   all: foo t1 t2. *)
-(*   all: simp val_type in *; unfold expr_sem in *; unfold2tevalSnmOpt. *)
-(*   (* unfoldTeval. *) *)
-(*   - *)
-(*     lets Hs : H7 x (k - n - n0) __ __; eauto 2. *)
-(*     lets (res & -> & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3. *)
-(*      eauto 3. *)
-(*     eauto. *)
-(*     unfoldTeval; eauto 3. *)
-(*     (* lets Hgoal : (Hs optV n1) __ __ __ __ ; eauto 3. *) *)
-(*     ev; repeat esplit; *)
-(*     eapply (val_type_mon _ _ _ _ Hgoal); lia || eauto. *)
-(*       (* info_eauto 2. *) *)
-
-(*   - lets Hs : H7 x (k - n - n0 - 1) __ __; eauto 2. *)
-(*     dup. *)
-(*     (* V0 *) *)
-(*     + lets (res & -> & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3. *)
-(*       ev; repeat esplit; eapply val_type_mon; lia || eassumption. *)
-(*     (* V1 *) *)
-(*     + lets (res & ? & Hgoal) : (Hs optV n1) __ __ __ __ ; eauto 3. *)
-(*       ev; repeat esplit; try eassumption; eapply val_type_mon; lia || eassumption. *)
-(*     (* eapply (val_type_mon _ _ _ _ Hgoal). *) *)
-(*     (* lia. *) *)
-(* Qed. *)
-  (* clear. *)
-  (* simpl. *)
-
-  (* Goal forall k n n0 n1, k - (n + n0 + 1 + n1) <= k - n - n0 - 1 - n1. *)
-  (*   intros. *)
-  (*   lia. omega. *)
-  (* eapply Nat.eq_le_incl. *)
-  (* omega. *)
-  (* Search (?m = ?n -> ?m <= ?n). *)
-
-  (* constructor. *)
-  (* omega. *)
-  (* Check (val_type_mon Hgoal). *)
-  (* eauto. *)
-  (* try_once val_type_mon; eauto. *)
-
-  (* eapply Hgoal. *)
-  (* lets ? : H2 Heqo __. *)
-  (*   match goal with *)
-  (*   | H : tevalS t _ _ = Some (?o, ?n), Hvtp: context [tevalS t] |- _ => *)
-  (*     idtac Hvtp; *)
-  (*     assert (n <= j) by admit; lets ? : HvtpT o n ___; eauto; ev *)
-  (*   end. *)
-
-(* Copy-paste of fund_t_app. *)
+(* Adapted from fund_t_app. *)
 Lemma fund_t_let: forall G T1 T2 t1 t2, sem_type G T1 t1 -> sem_type (T1 :: G) T2 t2 -> sem_type G T2 (tlet t1 t2).
 Proof.
   (* unfold sem_type, etp, expr_sem; unfoldTeval; *)
@@ -523,19 +450,12 @@ Proof.
   intros * [? Hvtp1] [? Hvtp2]; split_conj; eauto;
   intros * ? * ? * [nmR HappEv] **; subst.
 
-  (* Various implementations of the same case analysis are possible. *)
-(*      It's faster to only do as much case analysis as strictly needed. *)
-
-  (* V1 Fast *)
-
-  n_is_succ_hp;
-    (** We must show that nmR is at least one, since that's required by the *)
-(*         hypothesis of semantic expression typing for Hfun and Harg. *)
-    destruct nmR;
-    (* The iteration counts are optimized for speed, but it's also OK to do all *)
-    (*   case splits in advance as in V1.1. *)
-    do 2 progress better_case_match_ex; appVtpEval Hvtp1 t1 j; subst;
-  do 3 better_case_match_ex; appVtpEval Hvtp2 t2 (k - n); eauto.
+  n_is_succ_hp; inv_mbind n;
+    (** We must show that nmR is at least one, since that's required by the
+        hypothesis of semantic expression typing for Hfun and Harg. *)
+    inv_tevalS.
+  appVtpEval Hvtp1 t1 j; inv_mbind ?.
+  appVtpEval Hvtp2 t2 (k - n); eauto 4.
 Qed.
 
 (** Fundamental property.
