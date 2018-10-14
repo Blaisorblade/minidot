@@ -108,7 +108,8 @@ VFILES:=SfLib.v\
 	stlc.v \
 	stlc_sound.v \
 	stlc_silr.v \
-	stlc_norm.v
+	stlc_norm.v \
+	dsub.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
