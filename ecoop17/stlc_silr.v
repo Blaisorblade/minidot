@@ -362,13 +362,10 @@ Hint Resolve vtp_t_app.
 (*     exists v, p = Some v /\ f v = Some r. *)
 (* Proof. intros; better_case_match_ex; eauto. Qed. *)
 
-Ltac ev2 :=
-  match goal with | p : _ * _ |- _ => destruct p end || ev.
-
 Lemma inv_succ_optP_bind: forall {X Y Z} (p : option (X * Y)) (r : Z) f,
     (match p with None => None | Some x => f x end = Some r) ->
     exists v1 v2, p = Some (v1, v2) /\ f (v1, v2) = Some r.
-Proof. intros; better_case_match; discriminate || ev2; eauto. Qed.
+Proof. intros; better_case_match; discriminate || ev; eauto. Qed.
 Tactic Notation "inv_mbind" simple_intropattern(P) := match goal with | H : _ = Some _ |- _ => eapply inv_succ_optP_bind in H as (? & P & ? & ?); injectHyps end.
 Lemma inv_tevalS: forall t n env r, tevalS t n env = Some r -> exists n', n = S n'.
 Proof. intros; destruct n; discriminate || eauto. Qed.

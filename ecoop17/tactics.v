@@ -18,6 +18,7 @@ Ltac ev := repeat match goal with
                     | H : { _ | _ & _ } |- _ => destruct H
                     | H : { _ & _ } |- _ => destruct H
                     | H : { _ : _ & _ & _ } |- _ => destruct H
+                    | p : _ * _ |- _ => destruct p
                   end.
 
 (* From coq_stdpp *)
