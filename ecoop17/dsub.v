@@ -44,7 +44,7 @@ Inductive ty : Set :=
 (* x.Type *)
 | TSel : var -> ty
 (* x.Type = T (from bounding transformation) *)
-| TSelA : var -> kn -> ty
+| TSelA : var -> ty -> ty
 (* Existentials Exists X. U^X are encodable in D<: as:
 iota {x: {type T} /\ U^x}
 we first add this directly.
@@ -61,15 +61,7 @@ we first add this directly.
    guardedness.
    In our model, values inhabiting such types would have to be recursive, which we don't support.
  *)
-(** Kind annotations for our system *)
-with kn : Set :=
-| KSing : ty -> kn
-| KStar : kn
 .
-
-Scheme ty_mut := Induction for ty Sort Prop
-with   kn_mut := Induction for kn Sort Prop.
-Combined Scheme ty_mutind from ty_mut, kn_mut.
 
 Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 | cl_nat: forall i j,
@@ -81,10 +73,10 @@ Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
 | cl_sel: forall i j x,
     closed_var i j x ->
     closed_ty i j (TSel x)
-| cl_sela: forall i j x K,
+| cl_sela: forall i j x T,
     closed_var i j x ->
-    closed_kn i j K ->
-    closed_ty i j (TSelA x K)
+    closed_ty i j T ->
+    closed_ty i j (TSelA x T)
 | cl_bind: forall i j U,
     closed_ty (S i) j U ->
     closed_ty i j (TBind U)
@@ -92,13 +84,6 @@ Inductive closed_ty: nat(*B*) -> nat(*F*) -> ty -> Prop :=
     closed_ty i j T ->
     closed_ty (S i) j U ->
     closed_ty i j (TSBind T U)
-with
-closed_kn: nat -> nat -> kn -> Prop :=
-| cl_ksing : forall i j T,
-    closed_ty i j T ->
-    closed_kn i j (KSing T)
-| cl_selan: forall i j,
-    closed_kn i j KStar
 .
 
 Hint Constructors ty closed_ty.
@@ -110,44 +95,27 @@ Fixpoint open_ty_rec (k: nat) (u: var) (T: ty) { struct T }: ty :=
   | TNat        => TNat
   | TAll T1 T2  => TAll (open_ty_rec k u T1) (open_ty_rec (S k) u T2)
   | TSel x  => TSel (open_var_rec k u x)
-  | TSelA x K => TSelA (open_var_rec k u x) (open_kn_rec k u K)
+  | TSelA x T => TSelA (open_var_rec k u x) (open_ty_rec k u T)
   | TBind U => TBind (open_ty_rec (S k) u U)
   | TSBind T U => TSBind (open_ty_rec k u T) (open_ty_rec (S k) u U)
-  end
-with
-open_kn_rec (k: nat) (u: var) (K: kn): kn :=
-  match K with
-  | KSing T => KSing (open_ty_rec k u T)
-  | KStar => KStar
   end.
 
 Notation open := (open_ty_rec 0).
 
-Ltac inverts_closed_ty_kn :=
+Ltac inverts_closed_ty :=
   lazymatch goal with
   | H : closed_ty _ _ ?T  |- _ =>
     tryif is_var T then fail else inverts H
-  | H : closed_kn _ _ ?K  |- _ =>
-    tryif is_var K then fail else inverts H
   end.
 
-Hint Constructors kn closed_kn.
-Lemma closed_ty_kn_upgrade_both_rec:
-  (forall T i i1 k k1, closed_ty i k T -> i <= i1 -> k <= k1 -> closed_ty i1 k1 T) /\
-  (forall K i i1 k k1, closed_kn i k K -> i <= i1 -> k <= k1 -> closed_kn i1 k1 K).
-Proof. apply ty_mutind; intros; inverts_closed_ty_kn; eauto. Qed.
-
 (** Tactic to split lemmas proven using mutual induction into their separate parts. *)
-Ltac unmut_lemma H := destruct H; ev; eauto.
+(* Ltac unmut_lemma H := destruct H; ev; eauto. *)
 
 Lemma closed_ty_upgrade_both:
   forall T i i1 k k1, closed_ty i k T -> i <= i1 -> k <= k1 -> closed_ty i1 k1 T.
-Proof. unmut_lemma closed_ty_kn_upgrade_both_rec. Qed.
-Lemma closed_kn_upgrade_both:
-  forall K i i1 k k1, closed_kn i k K -> i <= i1 -> k <= k1 -> closed_kn i1 k1 K.
-Proof. unmut_lemma closed_ty_kn_upgrade_both_rec. Qed.
+Proof. induction T; intros; inverts_closed_ty; eauto. Qed.
+
 Hint Extern 5 (closed_ty _ _ _) => try_once closed_ty_upgrade_both.
-Hint Extern 5 (closed_kn _ _ _) => try_once closed_kn_upgrade_both.
 
 (* XXX True facts, not the statements we care about. Drop. *)
 (* Lemma closed_var_open: forall i j k x y, *)
@@ -164,18 +132,10 @@ Lemma closed_var_open: forall v i j x,
 Proof. intros * Hv Hx; inverts Hv; simpl; better_case_match_ex; eauto. Qed.
 Hint Resolve closed_var_open.
 
-Lemma closed_ty_kn_open_rec:
-  (forall T i j x, closed_ty (S i) j T -> closed_var i j x -> closed_ty i j (open_ty_rec i x T)) /\
-  (forall K i j x, closed_kn (S i) j K -> closed_var i j x -> closed_kn i j (open_kn_rec i x K)).
-Proof. apply ty_mutind; intros; inverts_closed_ty_kn; simpl; eauto. Qed.
-
 Lemma closed_ty_open:
   forall T i j x, closed_ty (S i) j T -> closed_var i j x -> closed_ty i j (open_ty_rec i x T).
-Proof. unmut_lemma closed_ty_kn_open_rec. Qed.
-Lemma closed_kn_open:
-  forall K i j x, closed_kn (S i) j K -> closed_var i j x -> closed_kn i j (open_kn_rec i x K).
-Proof. unmut_lemma closed_ty_kn_open_rec. Qed.
-Hint Resolve closed_ty_open closed_kn_open.
+Proof. induction T; intros; inverts_closed_ty; simpl; eauto. Qed.
+Hint Resolve closed_ty_open.
 
 Inductive tm : Set :=
 | tvar : id -> tm
@@ -214,9 +174,9 @@ Inductive stp: tenv -> ty -> ty -> Prop :=
 | s_bind : forall G T U,
     stp G (TSBind T U) (TBind U)
 | s_tsela1 : forall x T G,
-    stp G (TSelA x (KSing T)) T
+    stp G (TSelA x T) T
 | s_tsela2 : forall x T G,
-    stp G T (TSelA x (KSing T))
+    stp G T (TSelA x T)
 | s_tsel1 : forall x T U G,
     indexr x G = Some (TSBind T U) ->
     stp G (TSel (varF x)) T
@@ -274,7 +234,7 @@ Inductive has_type: bool -> ann -> tenv -> tm -> ty -> Prop :=
     (* This premise is more general but even less syntax-directed. *)
     (* has_type b a G t T -> *)
     has_type b Ann G t T ->
-    has_type b Ann G t (TSelA (varF x) (KSing T))
+    has_type b Ann G t (TSelA (varF x) T)
 .
 
 Hint Constructors has_type ann.
@@ -294,7 +254,7 @@ Notation "'{_:' A '/\' B '}'" := (TSBind A B).
 Notation "x '.T'" := (TSel x) (at level 20).
 Notation "x '.T' '::' U" := (TSelA x U) (at level 10).
 
-Example ex_pack3expla: has_type false Ann [] (tpack TNat (tnat 0)) (TSBind TNat (TSelA (varB 0) (KSing TNat))).
+Example ex_pack3expla: has_type false Ann [] (tpack TNat (tnat 0)) (TSBind TNat (TSelA (varB 0) TNat)).
 info_eauto 4 with tsel_red.
 Restart.
 (* info eauto: *)
@@ -316,7 +276,7 @@ simple apply t_nat.
 Qed.
 
 Print ex_pack3.
-Example ex_pack3a: has_type false Ann [] (tpack TNat (tnat 0)) (TBind (TSelA (varB 0) (KSing TNat))). eauto 6. Qed.
+Example ex_pack3a: has_type false Ann [] (tpack TNat (tnat 0)) (TBind (TSelA (varB 0) TNat)). eauto 6. Qed.
 
 Example ex_projpacka: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) TNat.
 solve [info_eauto 8 using ex_pack3expla with tsel_red].
@@ -342,7 +302,7 @@ simple apply @eq_refl.
 Qed.
 
 (* Bad *)
-Example ex_projpackbad: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) (TSelA (varF 0) (KSing TNat)).
+Example ex_projpackbad: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) (TSelA (varF 0) TNat).
 solve [info_eauto 6 using ex_pack3expla].
 Restart.
 
@@ -402,85 +362,86 @@ Fixpoint tsize_ty (T: ty): nat :=
   | TNat => 1
   | TAll T1 T2 => 1 + tsize_ty T1 + tsize_ty T2
   | TSel x => 1
-  | TSelA x K => 1 + tsize_kn K
+  | TSelA x T => 1 + tsize_ty T
   | TBind U => 1 + tsize_ty U
   | TSBind T U => 1 + tsize_ty T + tsize_ty U
-  end
-with
-tsize_kn (K: kn): nat :=
-  match K with
-  | KStar => 1
-  | KSing T => 1 + tsize_ty T
   end.
-Definition tsize_ty_rel (T1 T2: ty) := tsize_ty T1 < tsize_ty T2.
+
+Definition tsize_ty_rel := fun T1 T2 => tsize_ty T1 < tsize_ty T2.
 Hint Unfold tsize_ty_rel.
 
-Definition tsize_kn_rel (T1 T2: kn) := tsize_kn T1 < tsize_kn T2.
-Hint Unfold tsize_kn_rel.
+Definition tsize_ty_rel2 := MR lt tsize_ty.
+
+Lemma tsize_ty_eq: tsize_ty_rel = (fun T1 T2 => tsize_ty T1 < tsize_ty T2).
+Proof. reflexivity. Qed.
+
+Lemma wf_tsize_ty_rel : well_founded tsize_ty_rel.
+Proof. apply (measure_wf lt_wf). Qed.
+Hint Resolve wf_tsize_ty_rel.
+
+Lemma open_preserves_size: forall T v j,
+    tsize_ty (open_ty_rec j v T) = tsize_ty T.
+Proof. induction T; intros; simpl; eauto. Qed.
+Hint Extern 5 (_ < tsize_ty _) =>
+  rewrite open_preserves_size.
 
 Require Import Equations.Equations.
 (* Instance wflt: WellFounded lt. typeclass. Qed. *)
 Equations annot_ty (G: tenv) (T: ty) : option ty :=
   annot_ty G T by rec T tsize_ty_rel :=
-    annot_ty G T := None
-with
-  annot_kn (G: tenv) (T: kn) : option kn :=
-  annot_kn G K by rec T tsize_kn_rel :=
-    annot_kn G K := None.
-Preterm.
-Solve All Obligations with program_simpl.
-Next Obligation.
-  exact (x G T). Qed.
-  unfold hide_pattern.
-  unfold add_pattern.
-  Print add_pattern.
-  Print hide_pattern.
-  hnf. exact None. Qed.
-
-Program Fixpoint annot_ty (G: tenv) T {measure (tsize_rel T) lt}: option ty :=
-  match T with
-  | TNat => ret TNat
-  | TAll T U =>
-    T' <- (annot_ty G T);
-    (* U' <- (annot_ty (T :: G) (open (varF (length G)) U)); *)
-    U' <- (annot_ty (T :: G) U);
-    ret (TAll T' U')
-  | TSel (varB x) => None
-  | TSel (varF x) =>
-    T0 <- indexr x G;
-    ret (TSelA (varF x) (
+    annot_ty G TNat := ret TNat;
+    annot_ty G (TAll T U) :=
+      T' <- (annot_ty G T);
+      U' <- (annot_ty (T :: G) (open (varF (length G)) U));
+      (* U' <- (annot_ty (T :: G) U); *)
+      ret (TAll T' U');
+    annot_ty G (TSelA x T) :=
+      T' <- (annot_ty G T);
+      ret (TSelA x T');
+    annot_ty G (TSBind T U) :=
+      T' <- (annot_ty G T);
+      U' <- (annot_ty (TSBind T U :: G) (open (varF (length G)) U));
+      ret (TSBind T' U');
+    annot_ty G (TBind U) :=
+      U' <- (annot_ty (TBind U :: G) (open (varF (length G)) U));
+      ret (TBind U');
+    annot_ty G (TSel (varF x)) :=
+      T0 <- indexr x G;
       match T0 with
       | TSBind T _ =>
         (* Here we could just return T, TSelA is needed when we have bounded types *)
-        KSing T
+        ret (TSelA (varF x) T)
       | _ =>
-        KStar
-      end))
-  | TSelA x K =>
-    K' <- (annot_kn G K);
-    ret (TSelA x K')
-  | TSBind T U =>
-    T' <- (annot_ty G T);
-    U' <- (annot_ty (TSBind T U :: G) U);
-    ret (TSBind T' U')
-  | TBind U =>
-    U' <- (annot_ty (TBind U :: G) U);
-    ret (TBind U')
-  end
-with
-annot_kn (G: tenv) K : option kn :=
-  match K with
-  | KStar => ret KStar
-  | KSing T =>
-    T' <- annot_ty G T;
-    ret (KSing T')
-end.
+        ret (TSel (varF x))
+      end;
+    annot_ty G (TSel (varB x)) := None.
+Solve All Obligations with program_simpl.
 
-Lemma closed_annot_total_rec:
-  (forall T G, closed_ty 0 (length G) T -> exists T', annot_ty G T = Some T') /\
-  (forall K G, closed_kn 0 (length G) K -> exists K', annot_kn G K = Some K').
-Proof. apply ty_mutind; intros; inverts_closed_ty_kn; simpl; eauto.
-       repeat better_case_match_ex; eauto.
+Lemma tsize_ind : forall T (P: ty -> Prop),
+    (forall T,
+        (forall T', tsize_ty_rel T' T -> P T') -> P T) ->
+    P T.
+Proof. intros; eapply well_founded_ind; eauto. Qed.
+
+Lemma indexr_exists : forall X vs n,
+                       n < length vs ->
+                       exists (T:X), indexr n vs = Some T.
+Proof. induction vs; simpl; intros; try omega; better_case_match_ex; eauto. Qed.
+Hint Resolve indexr_exists.
+
+Lemma closed_annot_total:
+  forall T G, closed_ty 0 (length G) T -> exists T', annot_ty G T = Some T'.
+Proof.
+  induction T using tsize_ind; intros; destruct T; inverts_closed_ty; try inverts_closed_var; simp annot_ty in *; eauto; try omega;
+  try solve [repeat lazymatch goal with
+  | |- context [annot_ty ?G ?T] =>
+    let T' := fresh "T" in
+    lets [T' ->] : H T G __; simpl; eauto
+  end].
+  - edestruct indexr_exists as [T' ->]; eauto; simpl; better_case_match_ex; omega || eauto.
+Qed.
+(* XXX but we never *close* those damn types. *)
+Hint Resolve closed_annot_total.
 
 Fixpoint annot_tenv (G: tenv) : option tenv :=
   match G with
@@ -493,79 +454,86 @@ Fixpoint annot_tenv (G: tenv) : option tenv :=
 
 
 Lemma has_type_noann_to_ann: forall t G T b (Ht: has_type b NoAnn G t T),
-    closed_ty 
+    closed_ty 0 (length G) T ->
     exists G' T', annot_tenv G = Some G' /\ annot_ty G' T = Some T' /\
     has_type b Ann G' t T'.
     (* exists G' T', has_type b Ann G' t T'. *)
-Proof. intros; induction Ht; ev; eauto 10.
-       ev; repeat eexists; constructors; eapply H.
-       ev; eexists. eapply t_rec. eapply H.
-       all: ev; eexists; constructors; eauto 10. eapply H. eexists. eauto. Qed.
+Proof.
+  (* intros; induction Ht; ev; eauto 10. *)
+  (* ev; repeat eexists; try constructors; eauto. *)
+  (* admit. *)
+  (* eapply closed_annot_total. *)
+  (*      eapply H. *)
+  (*      ev; eexists. eapply t_rec. eapply H. *)
+  (*      all: ev; eexists; constructors; eauto 10. eapply H. eexists. eauto. Qed. *)
+Abort.
 
-(* Definition rename (sigma: id -> id): tm -> tm := *)
-(*   fix go (t: tm) {struct t}: tm := *)
-(*     match t with *)
-(*     | tvar n => tvar (sigma n) *)
-(*     | tabs t => tabs (go t) *)
-(*     | trec t => trec (go t) *)
-(*     | tapp t1 t2 => tapp (go t1) (go t2) *)
-(*     | tlet t1 t2 => tlet (go t1) (go t2) *)
-(*     | tnat n => tnat n *)
-(*     end. *)
-(* Definition wk n' := rename (fun n => n + n'). *)
+Definition rename (sigma: id -> id): tm -> tm :=
+  fix go (t: tm) {struct t}: tm :=
+    match t with
+    | tvar n => tvar (sigma n)
+    | tabs t => tabs (go t)
+    | trec t => trec (go t)
+    | tapp t1 t2 => tapp (go t1) (go t2)
+    | tlet t1 t2 => tlet (go t1) (go t2)
+    | tnat n => tnat n
+    | tpack T t => tpack T (* XXX*) (go t)
+    | tproj t => tproj (go t)
+    end.
+Definition wk n' := rename (fun n => n + n').
 
-(* Lemma indexr_succ_wk: forall {X} i (G G': list X) r, indexr i G = Some r -> indexr (i + length G') (G ++ G') = Some r. *)
+Lemma indexr_succ_wk: forall {X} i (G G': list X) r, indexr i G = Some r -> indexr (i + length G') (G ++ G') = Some r.
+Proof.
+  intros; induction G; simpl in *; try discriminate;
+  rewrite app_length; repeat better_case_match_ex; eauto; omega.
+Qed.
+
+(* Require Import Setoid. *)
+(* (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *) *)
+(* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *)
+(* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *)
+
+(** Simplifies next proof. *)
+Lemma indexr_fail_eq: forall {X} i (G: list X), (indexr i G = None) <-> (i >= length G).
+Proof.
+  intros.
+  split; intros; gen i; induction G; simpl; intros; eauto.
+  - better_case_match_ex; assert (i >= length G) by eauto; omega.
+  - better_case_match_ex; eauto 2; omega.
+Qed.
+
+(* Unused *)
+Lemma indexr_fail_wk: forall {X} i (G G': list X), indexr i G = None -> indexr (i + length G') (G ++ G') = None.
+Proof.
+  (* Really manual proof: *)
+  intros * H.
+  (** Translate the problem to an inequality on lengths. *)
+  eapply indexr_fail_eq; eapply indexr_fail_eq in H.
+  (** Then solve it. *)
+  rewrite app_length; omega.
+Qed.
+
+Lemma indexr_wk: forall {X} i (G G': list X) r, indexr i G = r -> indexr (i + length G') (G ++ G') = r.
+  destruct r; eauto using indexr_succ_wk, indexr_fail_wk. Qed.
+Hint Resolve indexr_wk.
+
+Lemma indexr_wk_eq: forall {X} i (G G': list X), indexr i G = indexr (i + length G') (G ++ G').
+  intros; erewrite indexr_wk; eauto.
+Qed.
+
+(* Lemma wk_has_type: forall t b a G T, has_type b a G t T -> forall G', has_type b a (G ++ G') (wk (length G') t) T. *)
 (* Proof. *)
-(*   intros; induction G; simpl in *; try discriminate; *)
-(*   rewrite app_length; repeat better_case_match_ex; eauto; omega. *)
-(* Qed. *)
-
-(* (* Require Import Setoid. *) *)
-(* (* (* Stolen from https://github.com/coq/coq/issues/3814, and dangerous, but enable setoid_rewrite using equalities on the goal. *) *) *)
-(* (* Instance subrelation_eq_impl : subrelation eq impl. congruence. Qed. *) *)
-(* (* Instance subrelation_eq_flip_impl : subrelation eq (flip impl). congruence. Qed. *) *)
-
-(* (** Simplifies next proof. *) *)
-(* Lemma indexr_fail_eq: forall {X} i (G: list X), (indexr i G = None) <-> (i >= length G). *)
-(* Proof. *)
-(*   intros. *)
-(*   split; intros; gen i; induction G; simpl; intros; eauto. *)
-(*   - better_case_match_ex; assert (i >= length G) by eauto; omega. *)
-(*   - better_case_match_ex; eauto 2; omega. *)
-(* Qed. *)
-
-(* (* Unused *) *)
-(* Lemma indexr_fail_wk: forall {X} i (G G': list X), indexr i G = None -> indexr (i + length G') (G ++ G') = None. *)
-(* Proof. *)
-(*   (* Really manual proof: *) *)
-(*   intros * H. *)
-(*   (** Translate the problem to an inequality on lengths. *) *)
-(*   eapply indexr_fail_eq; eapply indexr_fail_eq in H. *)
-(*   (** Then solve it. *) *)
-(*   rewrite app_length; omega. *)
-(* Qed. *)
-
-(* Lemma indexr_wk: forall {X} i (G G': list X) r, indexr i G = r -> indexr (i + length G') (G ++ G') = r. *)
-(*   destruct r; eauto using indexr_succ_wk, indexr_fail_wk. Qed. *)
-(* Hint Resolve indexr_wk. *)
-
-(* Lemma indexr_wk_eq: forall {X} i (G G': list X), indexr i G = indexr (i + length G') (G ++ G'). *)
-(*   intros; erewrite indexr_wk; eauto. *)
-(* Qed. *)
-
-(* Lemma wk_has_type: forall t b G G' T, has_type b G t T -> has_type b (G ++ G') (wk (length G') t) T. *)
-(* Proof. *)
-(*   induction t; intros * Ht; inverse Ht; simpl; *)
-(*     (* Construct a new typing derivation (typing is syntax-directed, so econstructor is good enough for this. )*) *)
+(*   intros * Ht; induction Ht; simpl; *)
+(*     (* Construct a new typing derivation (typing is *not* syntax-directed, so econstructor is good enough for this. )*) *)
 (*     econstructor; *)
 (*     (* Rearrange goals in context to match the inductive hypothesis. *) *)
 (*     repeat rewrite app_comm_cons; eauto using indexr_succ_wk. *)
 (* Qed. *)
 
-(* (*******************************) *)
-(* (** Evaluation and properties. *) *)
+(*******************************)
+(** Evaluation and properties. *)
 
-(* (* Adapted from dot_eval.v *) *)
+(* Adapted from dot_eval.v *)
 
 (* Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) := *)
 (*   match n with *)
