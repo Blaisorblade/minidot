@@ -124,7 +124,7 @@ Hint Extern 5 (closed_ty _ _ _) => try_once closed_ty_upgrade_both.
 (* Lemma closed_open: forall T i j k x, *)
 (*   closed_ty i j T -> closed_var i (S j) x -> closed_ty i (S j) (open_ty_rec k x T). *)
 (* Proof. *)
-(*   induction T; intros; inverts_closed_ty; simpl; info_eauto using closed_var_open, closed_var_upgrade_both. *)
+(*   induction T; intros; inverts_closed_ty; simpl; eauto using closed_var_open, closed_var_upgrade_both. *)
 (* Qed. *)
 
 Lemma closed_var_open: forall v i j x,
@@ -244,10 +244,10 @@ Hint Resolve s_tsela1 s_tsela2 s_tsel1 s_tsel2: tsel_red.
 (* *)
 Hint Extern 5 => match goal with | |- context [open _ _] => progress cbn end.
 Example ex_pack3: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind (TSel (varB 0))).
-info_eauto 6.
+eauto 6.
 Qed.
 Example ex_pack3expl: has_type false NoAnn [] (tpack TNat (tnat 0)) (TSBind TNat (TSel (varB 0))).
-info_eauto 6.
+eauto 6.
 Qed.
 
 Notation "'{_:' A '/\' B '}'" := (TSBind A B).
@@ -255,88 +255,80 @@ Notation "x '.T'" := (TSel x) (at level 20).
 Notation "x '.T' '::' U" := (TSelA x U) (at level 10).
 
 Example ex_pack3expla: has_type false Ann [] (tpack TNat (tnat 0)) (TSBind TNat (TSelA (varB 0) TNat)).
-info_eauto 4 with tsel_red.
-Restart.
-(* info eauto: *)
-simple apply t_pack_transparent.
-simple eapply t_sub.
-simpl.
-simple apply s_tsela2.
-simple apply t_nat.
-Restart.
-info_eauto 6.
-Restart.
-(* info eauto: *)
-simple apply t_pack_transparent.
-cbn.
-simple eapply t_sel_ann.
-cbn.
-simple apply @eq_refl.
-simple apply t_nat.
+eauto 4 with tsel_red.
+(* Restart. *)
+(* (* info eauto: *) *)
+(* simple apply t_pack_transparent. *)
+(* simple eapply t_sub. *)
+(* simpl. *)
+(* simple apply s_tsela2. *)
+(* simple apply t_nat. *)
+(* Restart. *)
+(* eauto 6. *)
+(* Restart. *)
+(* (* info eauto: *) *)
+(* simple apply t_pack_transparent. *)
+(* cbn. *)
+(* simple eapply t_sel_ann. *)
+(* cbn. *)
+(* simple apply @eq_refl. *)
+(* simple apply t_nat. *)
 Qed.
 
-Print ex_pack3.
 Example ex_pack3a: has_type false Ann [] (tpack TNat (tnat 0)) (TBind (TSelA (varB 0) TNat)). eauto 6. Qed.
 
 Example ex_projpacka: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) TNat.
-solve [info_eauto 8 using ex_pack3expla with tsel_red].
-Restart.
-eapply t_let.
-exact ex_pack3expla.
-info_eauto 7 with tsel_red.
-Restart.
-eapply t_let.
-exact ex_pack3expla.
+solve [eauto 8 using ex_pack3expla with tsel_red].
+(* Restart. *)
+(* eapply t_let. *)
+(* exact ex_pack3expla. *)
+(* eauto 7 with tsel_red. *)
+(* Restart. *)
+(* eapply t_let. *)
+(* exact ex_pack3expla. *)
 
-(* info eauto: *)
-simple eapply t_sub.
-simple apply s_tsela1.
-simple eapply t_proj.
-simple eapply t_sub.
-simple apply s_bind.
-simple apply t_var.
-cbn.
-simple apply @eq_refl.
-cbn.
-simple apply @eq_refl.
+(* (* info eauto: *) *)
+(* simple eapply t_sub. *)
+(* simple apply s_tsela1. *)
+(* simple eapply t_proj. *)
+(* simple eapply t_sub. *)
+(* simple apply s_bind. *)
+(* simple apply t_var. *)
+(* cbn. *)
+(* simple apply @eq_refl. *)
+(* cbn. *)
+(* simple apply @eq_refl. *)
 Qed.
 
 (* Bad *)
 Example ex_projpackbad: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) (TSelA (varF 0) TNat).
-solve [info_eauto 6 using ex_pack3expla].
-Restart.
+solve [eauto 6 using ex_pack3expla].
+(* Restart. *)
 
-(* info eauto: *)
-simple eapply t_let.
-exact ex_pack3expla.
-simple eapply t_proj.
-simple eapply t_sub.
-simple apply s_bind.
-simple apply t_var.
-(*external*) (match goal with
-                           | |- indexr _ _ = _ => progress cbn
-                           end).
-simple apply @eq_refl.
-simple apply @eq_refl.
+(* (* info eauto: *) *)
+(* simple eapply t_let. *)
+(* exact ex_pack3expla. *)
+(* simple eapply t_proj. *)
+(* simple eapply t_sub. *)
+(* simple apply s_bind. *)
+(* simple apply t_var. *)
+(* cbn. *)
+(* simple apply @eq_refl. *)
+(* simple apply @eq_refl. *)
 Qed.
-(* eapply t_let. *)
-(* eapply ex_pack3expla. *)
-(* eapply t_proj. eauto. *)
-(* Qed. *)
-(* eauto. *)
 
 Example ex_projpack: has_type false NoAnn [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) TNat.
-solve [info_eauto 9 using ex_pack3expl, (s_tsel1 0)].
-Restart.
-(* solve [info_eauto 8 using ex_pack3expl with tsel_red]. *)
-(* Fail solve [info_eauto 9 using ex_pack3expl with tsel_red]. *)
-eapply t_let.
-eapply ex_pack3expl.
-(* eauto with tsel_red. *)
+solve [eauto 9 using ex_pack3expl, (s_tsel1 0)].
+(* Restart. *)
+(* (* solve [eauto 8 using ex_pack3expl with tsel_red]. *) *)
+(* (* Fail solve [eauto 9 using ex_pack3expl with tsel_red]. *) *)
+(* eapply t_let. *)
+(* eapply ex_pack3expl. *)
+(* (* eauto with tsel_red. *) *)
 
-eapply t_sub.
-eapply (s_tsel1 0); eauto.
-eauto.
+(* eapply t_sub. *)
+(* eapply (s_tsel1 0); eauto. *)
+(* eauto. *)
 Qed.
 
 Example ex_pack2_bad: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind TNat). eauto. Qed.
