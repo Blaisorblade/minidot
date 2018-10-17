@@ -37,7 +37,8 @@ Solve Obligations with program_simplify;
 Ltac simpl_unfold_monad :=
   repeat (unfold ret, bind, error in *; simpl in *).
 
-Program Instance monadOptionOption : MonadError (fun A => option (option A)) :=
+Definition optOpt A := option (option A).
+Program Instance monadOptionOption : MonadError optOpt :=
   {
     error := fun {A} => ret None;
     ret := fun {A} x => @ret option _ _ (ret x);
@@ -62,7 +63,8 @@ Definition logStep {A} (k : nat) (x: m A) : m A :=
   | Some (v, k') => Some (v, k + k')
   end.
 
-Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((option A) * nat)) :=
+Definition optOptNat A := option (option A * nat).
+Program Instance monadOptionOptionNat : MonadError optOptNat :=
   {
     error := fun {A} => ret (None, 0);
     ret := fun {A} x => ret (ret x, 0);
