@@ -190,7 +190,7 @@ Qed.
     We can show that adding more fuel to evaluation that doesn't time out gives
     the same result. But we can also build that in our assumptions.
  *)
-Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalS e n env = Some (optV, k).
+Definition tevalSnmOpt env e optV k nm := forall n, n > nm -> tevalSM e n env = Some (optV, k).
 Definition tevalSnm env e v k nm := tevalSnmOpt env e (Some v) k nm.
 Definition tevalSnOpt env e optV k := exists nm, tevalSnmOpt env e optV k nm.
 Definition tevalSn env e v k := tevalSnOpt env e (Some v) k.
@@ -207,21 +207,21 @@ Ltac n_is_succ_hp :=
   end.
 
 (** [tevalSnmOpt] (expanded) is monotonic relative to [nm]. This does not
-    follow from properties of [tevalS], but by construction of [tevalSnmOpt]. *)
-Lemma tevalS_kripke_mono: forall env e optV k nm1,
-    (forall n, n > nm1 -> tevalS e n env = Some (optV, k)) ->
+    follow from properties of [tevalSM], but by construction of [tevalSnmOpt]. *)
+Lemma tevalSM_kripke_mono: forall env e optV k nm1,
+    (forall n, n > nm1 -> tevalSM e n env = Some (optV, k)) ->
     forall nm2, nm2 >= nm1 ->
-    forall n, n > nm2 -> tevalS e n env = Some (optV, k).
+    forall n, n > nm2 -> tevalSM e n env = Some (optV, k).
 Proof. eauto. Qed.
-Hint Resolve tevalS_kripke_mono.
+Hint Resolve tevalSM_kripke_mono.
 
 (** [tevalSnmOpt] is monotonic relative to [nm]. This does not follow from
-    properties of [tevalS], but by construction of [tevalSnmOpt]. *)
+    properties of [tevalSM], but by construction of [tevalSnmOpt]. *)
 Lemma tevalSnmOpt_mono: forall env e optV k nm1,
     tevalSnmOpt env e optV k nm1 ->
     forall nm2, nm2 >= nm1 ->
     tevalSnmOpt env e optV k nm2.
-Proof. intros; unfoldTeval; eauto using tevalS_kripke_mono. Qed.
+Proof. intros; unfoldTeval; eauto using tevalSM_kripke_mono. Qed.
 
 Lemma max_bigger_both: forall n1 n2, max n1 n2 >= n1 /\ max n1 n2 >= n2.
   intuition eauto using Nat.le_max_l, Nat.le_max_r.
@@ -230,7 +230,7 @@ Qed.
 Ltac alignTevalAssumptions :=
   unfoldTeval;
   match goal with
-  | H1 : forall n, n > ?nm1 -> tevalS ?t n ?env = Some ?t1 , H2 : forall n, n > ?nm2 -> tevalS ?t n ?env = Some ?t2 |- _ =>
+  | H1 : forall n, n > ?nm1 -> tevalSM ?t n ?env = Some ?t1 , H2 : forall n, n > ?nm2 -> tevalSM ?t n ?env = Some ?t2 |- _ =>
     let nm := fresh "nm" in
     remember (max (nm1) (nm2)) as nm;
     assert (nm >= nm1 /\ nm >= nm2) as (? & ?) by (subst; eauto using max_bigger_both);
@@ -240,19 +240,19 @@ Ltac alignTevalAssumptions :=
     unfoldTeval
   end.
 
-Lemma tevalS_det: forall optV1 optV2 env t j1 j2 nm1 nm2,
-  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
-  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+Lemma tevalSM_det: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalSM t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalSM t n env = Some (optV2, j2)) ->
   optV1 = optV2 /\ j1 = j2.
 Proof.
   intros; alignTevalAssumptions;
     repeat n_is_succ_hp; optFuncs_det; eauto.
 Qed.
 
-(* Experiment on different way of writing tevalS_det: can we make auto happier about injecting p1 = p2 than splitting it? *)
-Lemma tevalS_det2: forall optV1 optV2 env t j1 j2 nm1 nm2,
-  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
-  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+(* Experiment on different way of writing tevalSM_det: can we make auto happier about injecting p1 = p2 than splitting it? *)
+Lemma tevalSM_det2: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalSM t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalSM t n env = Some (optV2, j2)) ->
   (optV1, j1) = (optV2, j2).
 Proof.
   intros; alignTevalAssumptions;
@@ -269,22 +269,22 @@ Definition injectHyps_marker := 0.
 Hint Extern 5 => try_once_tac injectHyps_marker injectHyps.
 (* Hint Extern 5 => optFuncs_det. *)
 
-(* XXX this used tevalS_detp, the next uses _det, seems _detp might not be that useful here yet... *)
-Lemma tevalS_det_optV: forall optV1 optV2 env t j1 j2 nm1 nm2,
-  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
-  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+(* XXX this used tevalSM_detp, the next uses _det, seems _detp might not be that useful here yet... *)
+Lemma tevalSM_det_optV: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalSM t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalSM t n env = Some (optV2, j2)) ->
   optV1 = optV2.
-Proof. intros. lets ?: tevalS_det2 optV1 optV2 ___; eauto. Qed.
+Proof. intros. lets ?: tevalSM_det2 optV1 optV2 ___; eauto. Qed.
 
 (* Hint Extern 5 => ev. *)
 
-Lemma tevalS_det_j: forall optV1 optV2 env t j1 j2 nm1 nm2,
-  (forall n : nat, n > nm1 -> tevalS t n env = Some (optV1, j1)) ->
-  (forall n : nat, n > nm2 -> tevalS t n env = Some (optV2, j2)) ->
+Lemma tevalSM_det_j: forall optV1 optV2 env t j1 j2 nm1 nm2,
+  (forall n : nat, n > nm1 -> tevalSM t n env = Some (optV1, j1)) ->
+  (forall n : nat, n > nm2 -> tevalSM t n env = Some (optV2, j2)) ->
   j1 = j2.
-Proof. intros; lets ?: tevalS_det optV1 optV2 ___; ev; eauto. Qed.
+Proof. intros; lets ?: tevalSM_det optV1 optV2 ___; ev; eauto. Qed.
 
-Hint Resolve tevalS_det_optV tevalS_det_j.
+Hint Resolve tevalSM_det_optV tevalSM_det_j.
 
 Lemma tevalSnmOpt_det_optV: forall env t optV1 optV2 j1 j2 nm1 nm2,
     tevalSnmOpt env t optV1 j1 nm1 ->
@@ -325,14 +325,14 @@ Ltac n_is_succ := let n' := fresh "n" in n_is_succ' n'.
 Ltac step_eval := n_is_succ; simpl in *.
 (* Hint Extern 5 => step_eval. *)
 
-Lemma inv_tevalS: forall t n env r, tevalS t n env = Some r -> exists n', n = S n'.
+Lemma inv_tevalSM: forall t n env r, tevalSM t n env = Some r -> exists n', n = S n'.
 Proof. intros; destruct n; discriminate || eauto. Qed.
 
-Ltac inv_tevalS :=
+Ltac inv_tevalSM :=
   lazymatch goal with
-  | H : tevalS _ ?n _ = Some _ |- _ =>
+  | H : tevalSM _ ?n _ = Some _ |- _ =>
     let n' := fresh n in
-    lets (n' & ->) : inv_tevalS H
+    lets (n' & ->) : inv_tevalSM H
   end.
 
 
@@ -358,14 +358,14 @@ Ltac eval_det :=
       calls with more fuel give the same result, hence overall evaluation with
       more fuel gives the same result.
  *)
-Lemma tevalS_mono: forall n e env optV, tevalS e n env = Some optV -> forall m, m >= n -> tevalS e m env = Some optV.
+Lemma tevalSM_mono: forall n e env optV, tevalSM e n env = Some optV -> forall m, m >= n -> tevalSM e m env = Some optV.
 Proof.
-  (** [tevalS_det] applies the induction hypothesis to recursive calls. *)
-  Ltac tevalS_det n m' IHn :=
+  (** [tevalSM_det] applies the induction hypothesis to recursive calls. *)
+  Ltac tevalSM_det n m' IHn :=
     match goal with
-    | H1: tevalS ?e n ?env = Some ?r1, H2 : tevalS ?e m' ?env = ?r2 |- _ =>
+    | H1: tevalSM ?e n ?env = Some ?r1, H2 : tevalSM ?e m' ?env = ?r2 |- _ =>
       let H := fresh "H" in
-      assert (tevalS e m' env = Some r1) as H by (eapply IHn; auto 1);
+      assert (tevalSM e m' env = Some r1) as H by (eapply IHn; auto 1);
       rewrite H in *; clear H
     end.
 
@@ -376,9 +376,9 @@ Proof.
     intros; simpl in *; unfold logStep in *;
     trivial;
 
-  repeat (better_case_match_ex; try tevalS_det n m' IHn); trivial.
+  repeat (better_case_match_ex; try tevalSM_det n m' IHn); trivial.
 Qed.
-Hint Resolve tevalS_mono.
+Hint Resolve tevalSM_mono.
 
 (**********************)
 (** Logical relation. *)

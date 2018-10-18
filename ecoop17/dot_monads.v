@@ -64,7 +64,7 @@ Definition logStep {A} (k : nat) (x: m A) : m A :=
   end.
 
 Definition optOptNat A := option (option A * nat).
-Instance monadOptionOptionNat : MonadError optOptNat :=
+Program Instance monadOptionOptionNat : MonadError optOptNat :=
   {
     error := fun {A} => ret (None, 0);
     ret := fun {A} x => ret (ret x, 0);
@@ -86,6 +86,19 @@ Instance monadOptionOptionNat : MonadError optOptNat :=
                 (* end *)
               end;
   }.
+(* Proof. *)
+(*   all: intros; *)
+(*   simpl; *)
+(*   repeat case_match; try reflexivity; *)
+(*     repeat fequalSafe; injectHyps; *)
+(*       reflexivity || omega || discriminate. *)
+(* Defined. *)
+Solve Obligations with program_simplify;
+  repeat case_match; try reflexivity;
+    repeat fequalSafe; injectHyps;
+      reflexivity || omega || discriminate.
+
+
   (* refine (fun {A B} m f => *)
   (*             match m with *)
   (*             | None => None *)
@@ -96,11 +109,38 @@ Instance monadOptionOptionNat : MonadError optOptNat :=
   (*                 (b, k2) => ret (b, k1 + k2) *)
   (*               end *)
   (*             end). *)
-
-Solve Obligations with program_simplify;
-  repeat case_match; try reflexivity;
-    repeat fequalSafe; injectHyps;
-      reflexivity || omega || discriminate.
+(* Program Instance monadOptionOptionNat : MonadError (* m *) (fun A => option ((option A) * nat)) := *)
+(*   { *)
+(*     error := fun {A} => ret (None, 0); *)
+(*     ret := fun {A} x => ret (ret x, 0); *)
+(*     bind := fun {A B} m f => *)
+(*               match m with *)
+(*               | None => None *)
+(*               | Some (None, k1) => ret (None, k1) *)
+(*               | Some (Some a, k1) => *)
+(*                 @bind option _ _ _ *)
+(*                       (f a) *)
+(*                       (fun ob => *)
+(*                          match ob with *)
+(*                            (b, k2) => ret (b, k1 + k2) *)
+(*                          end *)
+(*                       ) *)
+(*                 (* ob <- f a; *) *)
+(*                 (* match ob with *) *)
+(*                 (*   (b, k2) => ret (b, k1 + k2) *) *)
+(*                 (* end *) *)
+(*               end; *)
+(*   }. *)
+(*   (* refine (fun {A B} m f => *) *)
+(*   (*             match m with *) *)
+(*   (*             | None => None *) *)
+(*   (*             | Some (None, k1) => ret (None, k1) *) *)
+(*   (*             | Some (Some a, k1) => *) *)
+(*   (*               ob <- f a; *) *)
+(*   (*               match ob with *) *)
+(*   (*                 (b, k2) => ret (b, k1 + k2) *) *)
+(*   (*               end *) *)
+(*   (*             end). *) *)
 
 (* Lemma inv_succ_opt_bind: forall {X Y} (p : option X) (r : Y) f, *)
 (*     (match p with None => None | Some x => f x end = Some r) -> *)

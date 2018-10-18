@@ -105,15 +105,30 @@ Proof.
 
 
   (* V1 Fast *)
-  n_is_succ_hp;
+Ltac n_is_succ_hp ::=
+  ev; match goal with
+  | H : forall n, n > ?nm -> _ |- _ =>
+    let H2 := fresh "H" in
+    lets ? : H (S nm) __; eauto; clear H;
+    cbn [tevalSM] in H2; try unfold logStep in H2
+  end.
+  n_is_succ_hp. simpl_unfold_monad.
+  SearchAbout eq_refl.
+  ssimpl_unfold_monad.
+Lemma inv_succ_opt_bind: forall {X Y M} (m: option X) (f : X -> option Y)
+    bind m f = Some v ->
+    (match p with None => None | Some x => f x end = Some r) ->
+    exists v1 v2, p = Some (v1, v2) /\ f (v1, v2) = Some r.
+Proof. intros; better_case_match; discriminate || ev; eauto. Qed.
+  inv_mbind n.
     (** We must show that nmR is at least one, since that's required by the
         hypothesis of semantic expression typing for Hfun and Harg. *)
-    destruct nmR;
+    inv_tevalSM.
     (* The iteration counts are optimized for speed, but it's also OK to do all *)
     (*   case splits in advance as in V1.1. *)
     do 2 better_case_match_ex; edestruct Harg; ev; eauto; try discriminate; injectHyps;
       do 3 better_case_match_ex; edestruct Hfun; ev; eauto; try discriminate; injectHyps;
-        repeat better_case_match_ex; simp vtp in *; unfold expr_sem in *; unfoldTeval; eauto; contradiction.
+        repeat better_case_match_ex; simp vtp in *; unfold expr_sem in *; unfoldTeval; eauto. contradiction.
 
   (* V1.1 less fast, more maintainable. *)
   (* n_is_succ_hp; destruct nmR; *)

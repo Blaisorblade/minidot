@@ -323,8 +323,8 @@ Proof.
 Qed.
 
 Definition app vf va n := match vf with
-                            | vabs env t => tevalS t n (va :: env)
-                            | vrec env t => tevalS t n (va :: vf :: env)
+                            | vabs env t => tevalSM t n (va :: env)
+                            | vrec env t => tevalSM t n (va :: vf :: env)
                             | _ => None
                             end.
 
@@ -383,19 +383,19 @@ Proof.
 
   Ltac appVtpEval HvtpT k t :=
     lazymatch goal with
-    | H : tevalS t _ _ = Some (?o, ?n) |- _ =>
+    | H : tevalSM t _ _ = Some (?o, ?n) |- _ =>
       assert (n <= k) by (repeat better_case_match_ex; omega); specializes HvtpT k o n ___; eauto; ev; subst
     end.
 
   n_is_succ_hp; inv_mbind n;
     (** We must show that nmR is at least one, since that's required by the
         hypothesis of semantic expression typing for Hfun and Harg. *)
-    inv_tevalS;
+    inv_tevalSM;
     appVtpEval Harg k t2;
       inv_mbind n0; appVtpEval Hfun k t1.
   lazymatch goal with
-  | HevlFun: tevalS t1 _ _ = Some (Some ?vf, _),
-    HevArg: tevalS t2 _ _ = Some (Some ?va, _),
+  | HevlFun: tevalSM t1 _ _ = Some (Some ?vf, _),
+    HevArg: tevalSM t2 _ _ = Some (Some ?va, _),
     HvtpFun: val_type (TFun T1 _, k - ?wf) ?vf,
     HvtpArg: val_type (T1, k - ?wa) ?va
     |- _ =>
@@ -426,7 +426,7 @@ Proof.
   n_is_succ_hp; inv_mbind n;
     (** We must show that nmR is at least one, since that's required by the
         hypothesis of semantic expression typing for Hfun and Harg. *)
-    inv_tevalS.
+    inv_tevalSM.
   appVtpEval Hvtp1 k t1; inv_mbind ?.
   appVtpEval Hvtp2 (k - n) t2; eauto 4.
 Qed.
