@@ -263,7 +263,7 @@ Proof.
     (* try smaller_n; assumption. *)
 Qed.
 
-Hint Resolve vtp_mon.
+Hint Extern 5 (vtp _ _ _ _) => try_once vtp_mon.
 
 (* XXX questionable, why take env? But that comes from how vtp's defined internally. *)
 Record vset := mkVset
@@ -320,7 +320,7 @@ Lemma R_env_mon: forall G env m n,
 Proof.
   intros * Henv; induction Henv; eauto.
 Qed.
-Hint Resolve R_env_mon.
+Hint Extern 5 (R_env _ _ _) => try_once R_env_mon.
 
 Lemma wf_length_all : forall k vs ts,
                     R_env_all k vs ts ->
@@ -473,12 +473,12 @@ Proof.
       (unfold etp, expr_sem in *; iauto);
   ev; injectHyps; eauto.
 Qed.
-Hint Resolve etp_vtp_j.
+Hint Extern 5 (vtp _ _ _ _) => try_once etp_vtp_j.
 
 Lemma etp_vtp: forall e v k nm T env,
     tevalSnm env e v 0 nm -> etp T k e env -> vtp T k v env.
 Proof. eauto. Qed.
-Hint Resolve etp_vtp.
+Hint Extern 5 (vtp _ _ _ _) => try_once etp_vtp.
 
 Lemma vtp_etp_j: forall e v T env k j nm,
     vtp T (k - j) v env ->
@@ -497,7 +497,7 @@ Proof.
     split_conj; congruence);
   eexists; split_conj; eauto.
 Qed.
-Hint Resolve vtp_etp_j.
+Hint Extern 5 (etp _ _ _ _) => try_once vtp_etp_j.
 
 Lemma vtp_etp:
   forall e v T env k nm,
@@ -505,7 +505,7 @@ Lemma vtp_etp:
     tevalSnm env e v 0 nm ->
     etp T k e env.
 Proof. eauto. Qed.
-Hint Resolve vtp_etp.
+Hint Extern 5 (etp _ _ _ _) => try_once vtp_etp.
 
 Lemma sem_stp_and : forall G S T1 T2,
     sem_subtype G S T1 ->
@@ -569,6 +569,9 @@ Hint Resolve closed_ty_extend.
 (*   (*     admit. (* False! *) *) *)
 (*   (* -  beq_nat. *) *)
 (*   (*    cinject H0. *) *)
+
+Definition valTypeObligationsSSReflection_marker := 0.
+Hint Extern 5 (val_type_termRel _ _) => try_once_tac valTypeObligationsSSReflection_marker (solve [valTypeObligationsSSReflection]).
 
 Lemma vtp_extend : forall vx v k env T,
   vtp T k v env ->
