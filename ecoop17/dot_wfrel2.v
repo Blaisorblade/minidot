@@ -172,9 +172,9 @@ Proof.
   apply Hless.
 Qed.
 
-Ltac vtp_induction T n :=
-  apply ind_args with (T := T) (n := n);
-  clear T n.
+Ltac vtp_induction T k :=
+  apply ind_args with (T := T) (n := k);
+  clear T k.
 
 Hint Unfold wf.
 Lemma vtp_closed: forall T k v env,
