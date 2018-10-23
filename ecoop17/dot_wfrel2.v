@@ -573,18 +573,53 @@ Hint Resolve closed_ty_extend.
 Definition valTypeObligationsSSReflection_marker := 0.
 Hint Extern 5 (val_type_termRel _ _) => try_once_tac valTypeObligationsSSReflection_marker (solve [valTypeObligationsSSReflection]).
 
-Lemma vtp_extend : forall vx v k env T,
+Lemma vtp_extend : forall T k vx v env,
   vtp T k v env ->
   vtp T k v (vx::env).
 Proof.
+  intros T k. vtp_induction T k; intros.
+  destruct T;
+    destruct v;
+    rewrite vtp_unfold in *;
+    vtp_unfold_pieces;
+    ev; repeat split_conj;
+      (* Either case_match or better_case_match works*)
+      repeat better_case_match_ex; simpl; ev; subst.
+
+  Ltac indexr_extend_const := lazymatch goal with
+  | H1: indexr ?i ?env = ?a, H2 : indexr ?i (?vx :: ?env) = ?b |- _ =>
+    eapply indexr_extend with (x := vx) in H1; optFuncs_det; try discriminate
+  end.
+  all: try indexr_extend_const.
+  all: unfold wf; simpl; intuition eauto 2.
+  - admit. (* Local closure goal *)
+  -
+    (* We only have this for a bigger environment, we'd need strengthening here. *)
+    assert (vtp T1 k vx0 env) by admit.
+    lets [? Hnew] : H2 vx0 k __; eauto.
+    lets (v & -> & Hvtp): Hnew optV j ___; try assumption || omega.
+    exists; split_conj; try reflexivity.
+    (* Our goal is almost Hvtp. *)
+    (* The induction hypothesis H lets us weaken, but in the wrong position. *)
+    eapply H; eauto.
+    admit.
+  - (* T1 <: T2 but only at the smaller environment; contravariant position. *)
+    admit.
+    (* edestruct (H2 vy j); try omega. *)
+    (* firstorder eauto 2. *)
+  - (* bounds for existential, contravariant position. *)
+    admit.
+  -
+    (* Ditto *)
+    admit.
+  -
+    (* TBind: The induction hypothesis H lets us weaken, but in the wrong position. *)
+    admit.
+  -
+    (* Ditto. *)
+    admit.
 Admitted.
-  (* induction T; vtp_simpl_unfold; unfold wf; simpl; intuition eauto. *)
-  (* - admit. *)
-  (* - admit. *)
-  (* - better_case_match; intuition eauto. *)
-  (*   + admit. *)
-  (*   +  *)
-Hint Immediate vtp_extend.
+(* Hint Immediate vtp_extend. *)
 
 Lemma vtp_etp_rev:
   forall e v T env k nm,
@@ -618,6 +653,26 @@ Proof.
   - replace (length G) with (length env) in * by eauto.
     unfold etp in *; vtp_simpl_unfold;
       split_conj; eauto.
+
+    +
+      (* Either: *)
+      (* info_eauto using vtp_extend. *)
+      (* Or: *)
+      (* info eauto: *)
+      intros.
+      apply H3.
+      apply R_cons.
+      *
+        eauto 2.
+        (* (try_once R_env_mon). *)
+        (* exact H1. *)
+        (* exact Hj. *)
+      *
+        (* vtp for functions assumes an argument vx typed in env, but to build an environment
+           we need an argument typed in (vx :: env). Hence we either use weakening, or change
+           vtp for functions (which I had in mind anyway). *)
+        apply vtp_extend.
+        assumption.
 Qed.
 
 Lemma teval_var: forall env x,
