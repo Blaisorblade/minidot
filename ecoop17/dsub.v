@@ -207,6 +207,7 @@ Inductive has_type: bool -> ann -> tenv -> tm -> ty -> Prop :=
 | t_let : forall b a G e1 e2 S T,
     has_type b a G e1 S ->
     has_type b a (S :: G) e2 T ->
+    closed_ty 0 (length G) T ->
     has_type b a G (tlet e1 e2) T
 | t_nat: forall b a G n, has_type b a G (tnat n) TNat
 | t_pack_transparent : forall b a G T U t,
@@ -223,18 +224,19 @@ Inductive has_type: bool -> ann -> tenv -> tm -> ty -> Prop :=
     has_type b a G (tvar x) (TBind T) ->
     open (varF x) T = T' ->
     has_type b a G (tproj (tvar x)) T'
-| t_sel_sing : forall b G x t T U,
-    indexr x G = Some (TSBind T U) ->
-    (* This premise is more general but even less syntax-directed. *)
-    (* has_type b a G t T -> *)
-    has_type b NoAnn G t T ->
-    has_type b NoAnn G t (TSel (varF x))
-| t_sel_ann : forall b G x t T U,
-    indexr x G = Some (TSBind T U) ->
-    (* This premise is more general but even less syntax-directed. *)
-    (* has_type b a G t T -> *)
-    has_type b Ann G t T ->
-    has_type b Ann G t (TSelA (varF x) T)
+(* t_sel_ann and t_sel_sing seem redundant with s_tsela1 and s_tsela2 *)
+(* | t_sel_sing : forall b G x t T U, *)
+(*     indexr x G = Some (TSBind T U) -> *)
+(*     (* This premise is more general but even less syntax-directed. *) *)
+(*     (* has_type b a G t T -> *) *)
+(*     has_type b NoAnn G t T -> *)
+(*     has_type b NoAnn G t (TSel (varF x)) *)
+(* | t_sel_ann : forall b G x t T U, *)
+(*     indexr x G = Some (TSBind T U) -> *)
+(*     (* This premise is more general but even less syntax-directed. *) *)
+(*     (* has_type b a G t T -> *) *)
+(*     has_type b Ann G t T -> *)
+(*     has_type b Ann G t (TSelA (varF x) T) *)
 .
 
 Hint Constructors has_type ann.
@@ -244,10 +246,53 @@ Hint Resolve s_tsela1 s_tsela2 s_tsel1 s_tsel2: tsel_red.
 (* *)
 Hint Extern 5 => match goal with | |- context [open _ _] => progress cbn end.
 Example ex_pack3: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind (TSel (varB 0))).
-eauto 6.
+Proof.
+  info_eauto 7 with tsel_red.
+  Restart.
+  (* Refine TBind-type with TSBind-based subtype. *)
+  eapply t_sub.
+  - apply s_bind.
+  - (* introduce TSBind type. *)
+    apply t_pack_transparent; cbn.
+    (* To type package body, reduce its type. *)
+    eapply t_sub.
+    + eapply s_tsel2; reflexivity.
+    +
+      (* Now just type 0 as Int. *)
+      apply t_nat.
+Restart.
+
+eapply t_sub.
+apply s_bind.
+apply t_pack_transparent.
+cbn.
+apply (t_sub TNat). eauto with tsel_red.
+constructor.
+(* Restart. *)
+(* simple eapply t_sel_sing. *)
+(* (*external*) (match goal with *)
+(*                            | |- indexr _ _ = _ => progress cbn *)
+(*                            end). *)
+(* simple apply @eq_refl. *)
+(* simple apply t_nat. *)
+
+(* info_eauto 6 with tsel_red. *)
+(* eauto 6. *)
 Qed.
+
 Example ex_pack3expl: has_type false NoAnn [] (tpack TNat (tnat 0)) (TSBind TNat (TSel (varB 0))).
-eauto 6.
+(* info_eauto 6. *)
+info_eauto 6 with tsel_red.
+Restart.
+apply t_pack_transparent.
+cbn.
+
+eapply (t_sub TNat); eauto.
+info_eauto 4 with tsel_red.
+(* eapply t_sel_sing. *)
+(* cbn. *)
+(* apply @eq_refl. *)
+(* apply t_nat. *)
 Qed.
 
 Notation "'{_:' A '/\' B '}'" := (TSBind A B).
@@ -258,65 +303,64 @@ Example ex_pack3expla: has_type false Ann [] (tpack TNat (tnat 0)) (TSBind TNat 
 eauto 4 with tsel_red.
 (* Restart. *)
 (* (* info eauto: *) *)
-(* simple apply t_pack_transparent. *)
-(* simple eapply t_sub. *)
+(* apply t_pack_transparent. *)
+(* eapply t_sub. *)
 (* simpl. *)
-(* simple apply s_tsela2. *)
-(* simple apply t_nat. *)
+(* apply s_tsela2. *)
+(* apply t_nat. *)
 (* Restart. *)
 (* eauto 6. *)
 (* Restart. *)
 (* (* info eauto: *) *)
-(* simple apply t_pack_transparent. *)
+(* apply t_pack_transparent. *)
 (* cbn. *)
-(* simple eapply t_sel_ann. *)
+(* eapply t_sel_ann. *)
 (* cbn. *)
-(* simple apply @eq_refl. *)
-(* simple apply t_nat. *)
+(* apply @eq_refl. *)
+(* apply t_nat. *)
 Qed.
 
-Example ex_pack3a: has_type false Ann [] (tpack TNat (tnat 0)) (TBind (TSelA (varB 0) TNat)). eauto 6. Qed.
+Example ex_pack3a: has_type false Ann [] (tpack TNat (tnat 0)) (TBind (TSelA (varB 0) TNat)). eauto with tsel_red. Qed.
 
 Example ex_projpacka: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) TNat.
-solve [eauto 8 using ex_pack3expla with tsel_red].
-(* Restart. *)
-(* eapply t_let. *)
-(* exact ex_pack3expla. *)
-(* eauto 7 with tsel_red. *)
-(* Restart. *)
-(* eapply t_let. *)
-(* exact ex_pack3expla. *)
+solve [info_eauto 8 using ex_pack3expla with tsel_red].
 
-(* (* info eauto: *) *)
-(* simple eapply t_sub. *)
-(* simple apply s_tsela1. *)
-(* simple eapply t_proj. *)
-(* simple eapply t_sub. *)
-(* simple apply s_bind. *)
-(* simple apply t_var. *)
-(* cbn. *)
-(* simple apply @eq_refl. *)
-(* cbn. *)
-(* simple apply @eq_refl. *)
+Restart.
+eapply t_let.
+- exact ex_pack3expla.
+- info_eauto 7 with tsel_red.
+- constructor.
+Restart.
+eapply t_let.
+exact ex_pack3expla.
+
+(* info_eauto 7 with tsel_red. *)
+(* info eauto: *)
+eapply t_sub.
+apply s_tsela1.
+eapply t_proj.
+eapply t_sub.
+apply s_bind.
+apply t_var.
+all: constructor.
 Qed.
 
-(* Bad *)
+(* Bad: variables escape! Fixed. *)
 Example ex_projpackbad: has_type false Ann [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) (TSelA (varF 0) TNat).
-solve [eauto 6 using ex_pack3expla].
+Fail progress eauto 6 using ex_pack3expla.
 (* Restart. *)
 
-(* (* info eauto: *) *)
-(* simple eapply t_let. *)
-(* exact ex_pack3expla. *)
-(* simple eapply t_proj. *)
-(* simple eapply t_sub. *)
-(* simple apply s_bind. *)
-(* simple apply t_var. *)
-(* cbn. *)
-(* simple apply @eq_refl. *)
-(* simple apply @eq_refl. *)
-Qed.
-
+(* info eauto: *)
+simple eapply t_let.
+exact ex_pack3expla.
+simple eapply t_proj.
+simple eapply t_sub.
+simple apply s_bind.
+simple apply t_var.
+all: cbn; eauto.
+Fail Qed.
+Abort.
+ 
 Example ex_projpack: has_type false NoAnn [] (tlet (tpack TNat (tnat 0)) (tproj (tvar 0))) TNat.
 solve [eauto 9 using ex_pack3expl, (s_tsel1 0)].
 (* Restart. *)
@@ -331,9 +375,11 @@ solve [eauto 9 using ex_pack3expl, (s_tsel1 0)].
 (* eauto. *)
 Qed.
 
+(** This is OK in fact.*)
 Example ex_pack2_bad: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind TNat). eauto. Qed.
 (* XXX Fishy. *)
-Example ex_pack2: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind (TSel (varF 0))). eauto 8. Qed.
+Example ex_pack2: has_type false NoAnn [] (tpack TNat (tnat 0)) (TBind (TSel (varF 0))). eauto 8 with tsel_red.
+Qed.
 Example clo_ex3: closed_ty 0 0 (TBind (TSel (varB 0))). eauto. Qed.
 Example clo_ex2: closed_ty 0 0 (TBind (TSel (varF 0))). eauto. Fail Qed. Abort.
 
