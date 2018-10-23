@@ -197,3 +197,13 @@ Ltac beq_nat :=
   end.
 
 Ltac better_case_match_ex := try better_case_match; try beq_nat; injectHyps; try discriminate.
+
+Tactic Notation "try_once_tac" constr(T) tactic(tac) :=
+  match goal with
+  | H : usedLemma T |- _ => fail 1
+  | _ => markUsed T; tac
+  end.
+
+(* Example. *)
+(* Definition injectHyps_marker := 0. *)
+(* Hint Extern 5 => try_once_tac injectHyps_marker injectHyps. *)

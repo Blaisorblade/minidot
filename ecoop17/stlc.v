@@ -259,12 +259,6 @@ Proof.
     repeat n_is_succ_hp; optFuncs_det; eauto.
 Qed.
 
-Tactic Notation "try_once_tac" constr(T) tactic(tac) :=
-  match goal with
-  | H : usedLemma T |- _ => fail 1
-  | _ => markUsed T; tac
-  end.
-
 Definition injectHyps_marker := 0.
 Hint Extern 5 => try_once_tac injectHyps_marker injectHyps.
 (* Hint Extern 5 => optFuncs_det. *)
