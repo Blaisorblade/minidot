@@ -574,52 +574,125 @@ Definition valTypeObligationsSSReflection_marker := 0.
 Hint Extern 5 (val_type_termRel _ _) => try_once_tac valTypeObligationsSSReflection_marker (solve [valTypeObligationsSSReflection]).
 
 Lemma vtp_extend : forall T k vx v env,
-  vtp T k v env ->
-  vtp T k v (vx::env).
+    closed_ty 0 (length env) T ->
+    vtp T k v env <->
+    vtp T k v (vx::env).
 Proof.
-  intros T k. vtp_induction T k; intros.
+  intros T k. vtp_induction T k. intros * Hind *.
+  assert
+    ((forall (T' : ty) (n' : nat),
+      val_type_termRel (T', n') (T, n) ->
+      forall (vx v : vl) (env : list vl),
+        closed_ty 0 (length env) T' ->
+        vtp T' n' v env -> vtp T' n' v (vx :: env)) /\
+    (forall (T' : ty) (n' : nat),
+      val_type_termRel (T', n') (T, n) ->
+      forall (vx v : vl) (env : list vl),
+        closed_ty 0 (length env) T' ->
+        vtp T' n' v (vx :: env) -> vtp T' n' v env)) as [Hwind Hsind] by
+    intuition (edestruct Hind; eauto).
+  clear Hind.
+  assert (indexr (length env) env = None) by admit.
   destruct T;
     destruct v;
-    rewrite vtp_unfold in *;
-    vtp_unfold_pieces;
-    ev; repeat split_conj;
-      (* Either case_match or better_case_match works*)
-      repeat better_case_match_ex; simpl; ev; subst.
+    repeat rewrite vtp_unfold in *;
+    vtp_unfold_pieces; unfold wf in *; simpl in *;
+    intuition trivial;
+    repeat invert_closed; repeat invert_closed_var;
+    eauto 2.
 
+ (* Local closure goals *)
+  Ltac admit_closure := match goal with |- closed_ty _ _ _ => admit end.
+  all: try admit_closure.
   Ltac indexr_extend_const := lazymatch goal with
   | H1: indexr ?i ?env = ?a, H2 : indexr ?i (?vx :: ?env) = ?b |- _ =>
     eapply indexr_extend with (x := vx) in H1; optFuncs_det; try discriminate
   end.
-  all: try indexr_extend_const.
-  all: unfold wf; simpl; intuition eauto 2.
-  - admit. (* Local closure goal *)
-  -
-    (* We only have this for a bigger environment, we'd need strengthening here. *)
-    assert (vtp T1 k vx0 env) by admit.
-    lets [? Hnew] : H2 vx0 k __; eauto.
+
+  (* These goals arise from TBind and have a reduced pattern match, but shouldn't.
+     For those, we need to relate open n T and open (S n) T.
+     Proving weakening there with these definitions seems a bad idea.
+   *)
+  all: try match goal with 
+  | H : context [ match open (varF _) ?x with _ => _ end ] |-
+    context [ match open (varF _) ?x with _ => _ end ] => admit end.
+
+  {
+    (* We only have this for a bigger environment, we'd need strengthening here. DONE *)
+    assert (vtp T1 k vx0 env) by eauto.
+    lets [? Hnew] : H4 vx0 k __; eauto.
     lets (v & -> & Hvtp): Hnew optV j ___; try assumption || omega.
     exists; split_conj; try reflexivity.
     (* Our goal is almost Hvtp. *)
     (* The induction hypothesis H lets us weaken, but in the wrong position. *)
-    eapply H; eauto.
+    eapply Hwind. eauto.
+    simpl.
+    admit_closure.
     admit.
-  - (* T1 <: T2 but only at the smaller environment; contravariant position. *)
-    admit.
-    (* edestruct (H2 vy j); try omega. *)
-    (* firstorder eauto 2. *)
-  - (* bounds for existential, contravariant position. *)
-    admit.
-  -
-    (* Ditto *)
-    admit.
-  -
-    (* TBind: The induction hypothesis H lets us weaken, but in the wrong position. *)
-    admit.
-  -
-    (* Ditto. *)
-    admit.
+  }
+  (* same problem *)
+  { admit. }
+
+  all: (repeat better_case_match_ex; try indexr_extend_const; tryfalse; try omega); intuition eauto 4.
+  all: firstorder eauto 3.
+
+  (* all: better_case_match_ex. *)
+  (*     (* Either case_match or better_case_match works*) *)
+  (*     better_case_match_ex; simpl; ev; subst. *)
 Admitted.
-(* Hint Immediate vtp_extend. *)
+
+(* Split before this. *)
+(* Hint Resolve vtp_extend. *)
+
+  (* (* all: do 3 try (better_case_match_ex; subst; tryfalse; try omega); iauto. *) *)
+
+
+  (* (* all: try solve [(repeat better_case_match_ex; try indexr_extend_const; tryfalse); intuition eauto]. *) *)
+  (* (* all: (better_case_match_ex; tryfalse). *) *)
+  (* (* all: (better_case_match_ex; tryfalse); intuition eauto 2. *) *)
+  (* (* all: (better_case_match_ex; tryfalse); intuition eauto 2. *) *)
+
+  (* (* -  *) *)
+  (* (*   repeat (better_case_match_ex; tryfalse). *) *)
+  (* (*   iauto. *) *)
+  (* { repeat (better_case_match_ex; subst; tryfalse; try omega); iauto. } *)
+
+  (* { repeat (better_case_match_ex; subst; tryfalse; try omega); iauto. } *)
+  (* { repeat (better_case_match_ex; subst; tryfalse; try omega); iauto. } *)
+  (* Hint Extern 5 => admit_closure. *)
+  (* all: firstorder eauto 3. *)
+
+
+  (* { *)
+  (*   repeat (better_case_match_ex; subst; tryfalse; try omega); iauto. } *)
+
+  (* -  *)
+  (* -  *)
+
+  (*   repeat (better_case_match_ex; tryfalse). *)
+  (*   repeat invert_closed; invert_closed_var. *)
+  (*   iauto. *)
+  (*  - (* T1 <: T2 but only at the smaller environment; contravariant position. *) *)
+  (*   admit. *)
+  (*   (* edestruct (H2 vy j); try omega. *) *)
+  (*   (* firstorder eauto 2. *) *)
+  (* - (* bounds for existential, contravariant position. *) *)
+  (*   admit. *)
+  (* - *)
+  (*   (* Ditto *) *)
+  (*   admit. *)
+  (* - *)
+  (*   (* TBind: The induction hypothesis H lets us weaken, but in the wrong position. *) *)
+  (*   admit. *)
+  (* - *)
+  (*   (* Ditto. *) *)
+  (*   admit. *)
+
+
+  (* -  *)
+  (*   eapply Hwind. *)
+
+  (*   intuition trivial. *)
 
 Lemma vtp_etp_rev:
   forall e v T env k nm,
