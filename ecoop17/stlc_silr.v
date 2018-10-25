@@ -148,7 +148,7 @@ Hint Resolve termRelShow.
 Equations val_type (Tn: ty * nat) (v : vl) : Prop :=
   val_type Tn t by rec Tn val_type_termRel :=
   val_type (pair TNat n) (vnat _) := True;
-  val_type (pair (TFun T1 T2) n) (vabs env body) := forall v k (Hk : k <= n), val_type (T1, k) v -> expr_sem k T2 (fun j _ v => val_type (T2, j) v) (v :: env) body;
+  val_type (pair (TFun T1 T2) n) (vabs env body) := forall v k (Hk : k < n), val_type (T1, k) v -> expr_sem k T2 (fun j _ v => val_type (T2, j) v) (v :: env) body;
   val_type (pair (TFun T1 T2) n) (vrec env body) := forall v k (Hk : k < n), val_type (T1, k) v -> expr_sem k T2 (fun j _ v => val_type (T2, j) v) (v :: vrec env body :: env) body;
   val_type _ _ := False.
 
@@ -334,7 +334,7 @@ Definition later (P: sProp): sProp := fun k => forall j, j < k -> P j.
 Definition appP {X} (later: X -> X) (def: X) (P: venv -> tm -> X) vf va :=
   match vf with
   | vabs env t => P (va :: env) t
-  | vrec env t => later (P (va :: vf :: env) t)
+  | vrec env t => (P (va :: vf :: env) t)
   | _ => def
   end.
 
@@ -346,7 +346,7 @@ Lemma vtp_t_app: forall T1 T2 vf va kf ka kr
                   (Hvtpfun: vtp (TFun T1 T2) kf vf)
                   (Hvtparg: vtp T1 ka va),
                   kr <= ka ->
-                  kr <= kf ->
+                  kr < kf ->
                   etpApp T2 kr vf va.
 Proof.
   unfold etpApp, appP, etp, vtp, later.
@@ -393,6 +393,9 @@ Proof.
     inv_tevalS;
     appVtpEval Harg k t2;
       inv_mbind n0; appVtpEval Hfun k t1.
+
+  case_match; tryfalse;
+  inv_mbind n1; injectHyps;
   lazymatch goal with
   | HevlFun: tevalS t1 _ _ = Some (Some ?vf, _),
     HevArg: tevalS t2 _ _ = Some (Some ?va, _),
@@ -400,17 +403,12 @@ Proof.
     HvtpArg: val_type (T1, k - ?wa) ?va
     |- _ =>
     (* simp val_type in *; unfold expr_sem in *; unfoldTeval; *)
-      lets HvtpApp : vtp_t_app (k - wf - wa) HvtpFun HvtpArg ___; eauto;
+      lets HvtpApp : vtp_t_app (k - wf - wa - 1) HvtpFun HvtpArg ___; eauto;
         clear HevlFun HevArg HvtpFun HvtpArg;
+        applys HvtpApp optV n1; lia || eauto;
         (* hnf in HvtpApp; *)
         idtac
   end.
-
-  case_match; tryfalse;
-  inv_mbind n1; injectHyps.
-  (* unfold etp, expr_sem, later in *. *)
-  - applys HvtpApp optV n1; lia || eauto.
-  - applys HvtpApp (k - n - n0 - 1) optV n1; lia || eauto.
 Qed.
 
 (* Adapted from fund_t_app. *)

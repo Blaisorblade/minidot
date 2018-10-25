@@ -116,7 +116,7 @@ Fixpoint tevalSM (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
       vf <- tevalSM tf n env;
       match vf with
       | vabs env2 tbody =>
-        tevalSM tbody n (va :: env2)
+        logStep 1 (tevalSM tbody n (va :: env2))
       | vrec env2 tbody =>
         logStep 1 (tevalSM tbody n (va :: vf :: env2))
       | _ => error
@@ -151,7 +151,7 @@ Fixpoint tevalS (t: tm) (n: nat) (env: venv): option (option vl * nat) :=
                 | Some (None, k2) => Some (None, k1 + k2)
                 | Some (Some vf, k2) =>
                   match vf with
-                  | vabs env2 ey => logStep (k1 + k2) (tevalS ey n (vx::env2))
+                  | vabs env2 ey => logStep (k1 + k2 + 1) (tevalS ey n (vx::env2))
                   | vrec env2 ey => logStep (k1 + k2 + 1) (tevalS ey n (vx::vf::env2))
                   | _ => Some (None, k1 + k2)
                   end
