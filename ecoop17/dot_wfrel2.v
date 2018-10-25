@@ -744,8 +744,7 @@ Proof.
         (* vtp for functions assumes an argument vx typed in env, but to build an environment
            we need an argument typed in (vx :: env). Hence we either use weakening, or change
            vtp for functions (which I had in mind anyway). *)
-        apply vtp_extend.
-        assumption.
+        apply vtp_extend; assumption.
 Qed.
 
 Lemma teval_var: forall env x,
