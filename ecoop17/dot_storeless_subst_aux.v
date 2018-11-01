@@ -153,8 +153,8 @@ with dm_subst_par (sigma: id -> vr) (d: dm) { struct d }: dm :=
    match d with
      | dfun T1 T2 t2 =>
        dfun (subst_par sigma T1) (subst_par sigma T2) (tm_subst_par sigma t2)
-     | dty T1 =>
-       dty (subst_par sigma T1)
+     | dty T1 g =>
+       dty (subst_par sigma T1) g
    end
 with dms_subst_par (sigma: id -> vr) (ds: dms) { struct ds }: dms :=
    match ds with

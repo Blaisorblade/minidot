@@ -179,7 +179,7 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
                                           k _ (subst_tm vyds t));
     val_type (pair (TMem l L U) n) (tvar (VObj ds)) :=
                                        closed 0 0 L /\ closed 0 0 U /\ dms_closed 0 1 ds /\
-                                       exists TX, index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) /\
+                                       exists TX g, index l (dms_to_list (subst_dms ds ds)) = Some (dty TX g) /\
                                              (forall vy j (Hj: j <= n),
                                                  val_type (pair L j) vy -> val_type (pair U j) vy) /\
                                              (forall vy j (Hj: j < n),
@@ -190,7 +190,7 @@ Equations val_type (Tn: ty * nat) (v : tm) : Prop :=
                                          irred v /\
                                          dms_closed 0 1 ds /\
                                          tm_closed 0 0 v /\
-                                         exists TX, index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) /\
+                                         exists TX g, index l (dms_to_list (subst_dms ds ds)) = Some (dty TX g) /\
                                                forall j (Hj: j < n), val_type (TX, j) v;
     val_type (pair (TBind T) n) (tvar (VObj ds)) :=
                                            closed 0 1 T /\
@@ -313,8 +313,8 @@ Equations ds_type (Tn: ty * nat) (ds : list dm) : Prop :=
                    k _ (subst_tm vyds t));
 
   ds_type (pair (TMem l L U) n) ds :=
-    exists TX,
-      index l ds = Some (dty TX) /\
+    exists TX g,
+      index l ds = Some (dty TX g) /\
       (forall vy j (Hj: j <= n),
           val_type (pair L j) vy -> val_type (pair U j) vy) /\
       (forall vy j (Hj: j < n),
@@ -399,10 +399,10 @@ Lemma vtp_v_closed : forall T n v, vtp T n v -> tm_closed 0 0 v.
 Qed.
 Hint Resolve vtp_v_closed.
 
-Example ex3: forall T n, closed 0 1 T -> vtp (TMem 0 TBot TTop) n (tvar (VObj (dcons (dty T) dnil))).
+Example ex3: forall T n g, closed 0 1 T -> vtp (TMem 0 TBot TTop) n (tvar (VObj (dcons (dty T g) dnil))).
 Proof.
   intros; simpl_vtp; intuition eauto; simpl;
-    eexists; intuition idtac; simp val_type in *; now eauto.
+    do 2 eexists; intuition idtac; simp val_type in *; now eauto.
 Qed.
 
 (* (* Check syntax_mutind. *) *)
@@ -486,7 +486,7 @@ Proof.
     end.
     Unshelve.
     omega.
-  - eexists; split_conj; eauto.
+  - do 2 eexists; split_conj; eauto.
 
   - match goal with
     | [ H : val_type _ _ \/ val_type _ _ |- _ ] => destruct H

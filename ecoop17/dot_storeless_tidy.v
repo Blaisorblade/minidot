@@ -43,7 +43,7 @@ with  tm : Type :=
 
 with dm : Type :=
   | dfun : ty -> ty -> tm -> dm
-  | dty  : ty -> dm
+  | dty  : ty -> gname -> dm
 
 (* we need our own list-like structure for stuctural recursion, e.g. in subst_tm *)
 with dms : Type :=
@@ -121,9 +121,9 @@ with dm_closed: nat -> nat -> dm -> Prop :=
     closed i (S k) T2 ->
     tm_closed i (S k) t2 ->
     dm_closed i k (dfun T1 T2 t2)
-| cld_ty: forall i k T1,
+| cld_ty: forall i k T1 g,
     closed i k T1 ->
-    dm_closed i k (dty T1)
+    dm_closed i k (dty T1 g)
 with dms_closed: nat -> nat -> dms -> Prop :=
 | clds_nil: forall i k,
     dms_closed i k dnil
@@ -159,7 +159,7 @@ with tm_open (k: nat) (u: vr) (t: tm) { struct t }: tm :=
 with dm_open (k: nat) (u: vr) (d: dm) { struct d }: dm :=
    match d with
      | dfun T1 T2 t2 => dfun (open k u T1) (open (S k) u T2) (tm_open (S k) u t2)
-     | dty T1 => dty (open k u T1)
+     | dty T1 g => dty (open k u T1) g
    end
 with dms_open (k: nat) (u: vr) (ds: dms) { struct ds }: dms :=
    match ds with
@@ -193,7 +193,7 @@ with tm_subst (u : vr) (t : tm) { struct t } : tm :=
 with dm_subst (u : vr) (d : dm) { struct d } : dm :=
    match d with
      | dfun T1 T2 t2 => dfun (subst u T1) (subst u T2) (tm_subst u t2)
-     | dty T1 => dty (subst u T1)
+     | dty T1 g => dty (subst u T1) g
    end
 with dms_subst (u : vr) (ds : dms) { struct ds } : dms :=
    match ds with
@@ -1075,7 +1075,7 @@ with tm_splice n (t : tm) {struct t} : tm :=
 with dm_splice n (d : dm) {struct d} : dm :=
   match d with
     | dfun T1 T2 t2 => dfun (splice n T1) (splice n T2) (tm_splice n t2)
-    | dty T1 => dty (splice n T1)
+    | dty T1 g => dty (splice n T1) g
   end
 with dms_splice n (ds : dms) {struct ds} : dms :=
   match ds with
@@ -1269,13 +1269,13 @@ Proof.
       reflexivity.
 Qed.
 
-Lemma dm_splice_self_dty: forall k n ds l T,
+Lemma dm_splice_self_dty: forall k n ds l T g,
   vr_closed k 0 (VObj ds) ->
-  index l (dms_to_list (subst_dms ds ds)) = Some (dty T) ->
-  index l (dms_to_list (subst_dms (dms_splice n ds) (dms_splice n ds))) = Some (dty (splice n T)).
+  index l (dms_to_list (subst_dms ds ds)) = Some (dty T g) ->
+  index l (dms_to_list (subst_dms (dms_splice n ds) (dms_splice n ds))) = Some (dty (splice n T) g).
 Proof.
   intros.
-  assert (dty (splice n T) = dm_splice n (dty T)) as A by eauto.
+  assert (dty (splice n T) g = dm_splice n (dty T g)) as A by eauto.
   rewrite A.
   eapply dm_splice_self; eauto.
 Qed.

@@ -41,9 +41,9 @@ Inductive has_type : tenv -> tm -> ty -> nat -> Prop :=
       stp GH T1 T2 n2 ->
       has_type GH t T2 (S (n1 + n2))
 with dm_has_type: tenv -> lb -> dm -> ty -> nat -> Prop :=
-  | D_Mem : forall GH l T11 n1,
+  | D_Mem : forall GH l T11 n1 g,
       closed (length GH) 0 T11 ->
-      dm_has_type GH l (dty T11) (TMem l T11 T11) (S n1)
+      dm_has_type GH l (dty T11 g) (TMem l T11 T11) (S n1)
   | D_Fun : forall GH l T11 T12 T12' t12 t12' n1,
       has_type (T11::GH) t12' T12' n1 ->
       T12' = (open 0 (VarF (length GH)) T12) ->
@@ -85,12 +85,12 @@ with stp: tenv -> ty -> ty -> nat -> Prop :=
     vr_closed (length GH) 0 v1 ->
     stp GH (TSel v1 l) (TSel v1 l) (S n1)
 
-| stp_strong_sel1: forall GH l ds TX n1,
-    index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) ->
+| stp_strong_sel1: forall GH l ds TX n1 g,
+    index l (dms_to_list (subst_dms ds ds)) = Some (dty TX g) ->
     vr_closed (length GH) 0 (VObj ds) ->
     stp GH (TSel (VObj ds) l) TX (S n1)
-| stp_strong_sel2: forall GH l ds TX n1,
-    index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) ->
+| stp_strong_sel2: forall GH l ds TX n1 g,
+    index l (dms_to_list (subst_dms ds ds)) = Some (dty TX g) ->
     vr_closed (length GH) 0 (VObj ds) ->
     stp GH TX (TSel (VObj ds) l) (S n1)
 
@@ -178,8 +178,8 @@ Inductive vtp(*possible types*) : nat(*pack count*) -> dms -> ty -> nat(*size*) 
 | vtp_top: forall m ds n1,
     vr_closed 0 0 (VObj ds) ->
     vtp m ds TTop (S n1)
-| vtp_mem: forall m l ds TX T1 T2 n1 n2,
-    index l (dms_to_list (subst_dms ds ds)) = Some (dty TX) ->
+| vtp_mem: forall m l ds TX T1 T2 n1 n2 g,
+    index l (dms_to_list (subst_dms ds ds)) = Some (dty TX g) ->
     stp [] T1 TX n1 ->
     stp [] TX T2 n2 ->
     vr_closed 0 0 (VObj ds) ->
@@ -207,8 +207,8 @@ Inductive vtp(*possible types*) : nat(*pack count*) -> dms -> ty -> nat(*size*) 
     vtp m ds (open 0 (VObj ds) T2) n1 ->
     closed 0 1 T2 ->
     vtp (S m) ds (TBind T2) (S (n1))
-| vtp_sel: forall m ds dsy l TX n1,
-    index l (dms_to_list (subst_dms dsy dsy)) = Some (dty TX) ->
+| vtp_sel: forall m ds dsy l TX n1 g,
+    index l (dms_to_list (subst_dms dsy dsy)) = Some (dty TX g) ->
     vr_closed 0 0 (VObj dsy) ->
     vtp m ds TX n1 ->
     vtp m ds (TSel (VObj dsy) l) (S (n1))
@@ -350,7 +350,7 @@ Proof.
   - subst. econstructor. eauto.
   - subst. econstructor. eauto.
   - subst.
-    assert (dm_closed (length GH) 0 (dty T1)) as A. {
+    assert (dm_closed (length GH) 0 (dty T1 g)) as A. {
       eapply index_dm_closed. inversion H2; subst.
       eapply (proj2 (proj2 (proj2 (proj2 closed_open_rec)))).
       simpl. eassumption. eassumption.
@@ -378,7 +378,7 @@ Proof.
   - econstructor. eapply IHS1. eauto. omega. eapply IHS2. eauto. omega.
   - subst. econstructor. eauto.
   - subst.
-    assert (dm_closed (length GH) 0 (dty T2)) as A. {
+    assert (dm_closed (length GH) 0 (dty T2 g)) as A. {
       eapply index_dm_closed. inversion H2; subst.
       eapply (proj2 (proj2 (proj2 (proj2 closed_open_rec)))).
       simpl. eassumption. eassumption.
@@ -1905,8 +1905,8 @@ Proof.
     inversion H4; subst.
     unfold substt in *. simpl in HC. inversion HC; subst. inversion Hds; subst.
     edestruct IHn0 as [? [? IH]]. eapply H1. omega. eauto. eassumption. reflexivity.
-    instantiate (1:=dsa ++ [(dty t)]). rewrite <- app_assoc. eauto.
-    instantiate (1:=dsa' ++ [(dm_open 0 (VarF 0) (dty t))]). rewrite <- app_assoc. eauto.
+    instantiate (1:=dsa ++ [(dty t g0)]). rewrite <- app_assoc. eauto.
+    instantiate (1:=dsa' ++ [(dm_open 0 (VarF 0) (dty t g0))]). rewrite <- app_assoc. eauto.
     simpl.
 
     assert (closed 0 1 t) as A1. {
@@ -1923,8 +1923,8 @@ Proof.
 
     exists x. eexists. eapply vtp_and.
     eapply vtp_mem. rewrite <- length_dms_open.
-    instantiate (1:=(subst_ty ds0 t)).
-    assert (dty (subst_ty ds0 t) = subst_dm ds0 (dty t)) as R1. {
+    instantiate (2:=(subst_ty ds0 t)).
+    assert (dty (subst_ty ds0 t) g0 = subst_dm ds0 (dty t g0)) as R1. {
       unfold subst_ty. unfold subst_dm. simpl. reflexivity.
     }
     rewrite R1. eapply index_subst_dms. instantiate (1:=dsa). simpl. eauto.
