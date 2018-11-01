@@ -15,6 +15,8 @@ Require Import Omega.
 Require Export Arith.EqNat.
 Require Export Arith.Lt.
 
+From iris Require Import base_logic.lib.saved_prop.
+
 Definition id := nat.
 Definition lb := nat.
 
@@ -782,7 +784,7 @@ Lemma index_dms_open_eq: forall l x D Dx,
 Proof.
   intros l x D Dx HC HI HIx.
   remember HC as HCx. clear HeqHCx.
-  remember x as x0. rewrite Heqx0 in *.
+  remember x as x0. rewrite -> Heqx0 in *.
   rewrite <- Heqx0 in HI at 1. rewrite <- Heqx0 in HC. rewrite <- Heqx0.
   clear Heqx0.
   remember x as dsb.
@@ -825,7 +827,7 @@ Lemma index_subst_dms_eq: forall l ds D D',
   subst_dm ds D = D'.
 Proof.
   intros l ds D D' HI HI'.
-  remember ds as x. rewrite Heqx in *. rewrite <- Heqx in HI' at 1.
+  remember ds as x. rewrite -> Heqx in *. rewrite <- Heqx in HI' at 1.
   rewrite <- Heqx.  clear Heqx.
   remember ds as dsb.
   remember (length (dms_to_list dsb)) as n.
@@ -863,7 +865,7 @@ Proof.
   - simpl in *. solve by inversion.
   - simpl in *.
     case_eq (beq_nat l (length (dms_to_list ds2))); intros E;
-    rewrite E in *.
+    rewrite -> E in *.
     + inversion H1. subst. assumption.
     + eapply IHdms_closed; eauto.
 Qed.
@@ -953,7 +955,7 @@ Lemma dm_subst_self: forall k x ds l D,
 Proof.
   intros k x ds l D HCx HCds HI.
   inversion HCds; subst. clear HCds. rename H2 into HCds.
-  remember ds as ds0. rewrite Heqds0 in *.
+  remember ds as ds0. rewrite -> Heqds0 in *.
   rewrite <- Heqds0 in HI at 1. rewrite <- Heqds0 at 1. clear Heqds0.
   generalize dependent D. generalize dependent ds0.
   induction HCds; intros.
@@ -961,7 +963,7 @@ Proof.
   - simpl in *.
     rewrite <- length_dms_open in *. rewrite <- length_dms_subst in *.
     case_eq (beq_nat l (length (dms_to_list ds2))); intros E;
-    rewrite E in *.
+    rewrite -> E in *.
     + inversion HI; subst. f_equal.
       rewrite (proj1 (proj2 (proj2 (proj2 (subst_open_distribute 0 0 (VObj x) (VObj ds0) HCx))))).
       simpl. reflexivity. omega.
@@ -1251,7 +1253,7 @@ Lemma dm_splice_self: forall k n ds l D,
 Proof.
   intros k n ds l D HCds HI.
   inversion HCds; subst. clear HCds. rename H2 into HCds.
-  remember ds as ds0. rewrite Heqds0 in *.
+  remember ds as ds0. rewrite -> Heqds0 in *.
   rewrite <- Heqds0 in HI at 1. rewrite <- Heqds0 at 1. clear Heqds0.
   generalize dependent D. generalize dependent ds0.
   induction HCds; intros.
@@ -1259,7 +1261,7 @@ Proof.
   - simpl in *.
     rewrite <- length_dms_open in *. rewrite <- length_dms_splice in *.
     case_eq (beq_nat l (length (dms_to_list ds2))); intros E;
-    rewrite E in *.
+    rewrite -> E in *.
     + inversion HI; subst. f_equal.
       rewrite (proj1 (proj2 (proj2 (proj2 splice_open_distribute_rec)))).
       simpl. reflexivity.

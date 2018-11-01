@@ -43,8 +43,8 @@ Hint Constructors lexprod.
 
 (*******************)
 (* Infrastructure for well-founded induction for properties of vtp. *)
-Definition argMeasure (p: ty * nat) := let '(T, n) := p in (existT (fun _ => nat) n (tsize_flat T)).
-Definition val_type_termRel := MR (lexprod lt (fun _ => lt)) (fun p => let '(T, n) := p in (existT (fun _ => nat) n (tsize_flat T))).
+Definition argMeasure (p: ty * nat) := let '(T, n) := p in (existT n (tsize_flat T)).
+Definition val_type_termRel := MR (lexprod lt (fun _ => lt)) (fun p => let '(T, n) := p in (existT n (tsize_flat T))).
 
 (*******************)
 (* Tactics. *)
@@ -158,6 +158,7 @@ Equations expr_sem n (T : ty) (A : pretype_dom n) k (p : k <= n) (t : tm) : Prop
     j <= k ->
     (* then evaluation did not get stuck and the result satisfies A. *)
     A (k - j) _ v.
+Solve All Obligations with program_simpl.
 
 Definition for_object_type ds := dms_to_list (subst_dms ds ds).
 
@@ -289,6 +290,7 @@ Hint Constructors val_type_ind.
 Transparent val_type_unfold.
 Next Obligation.
   Ltac loop := (subst; progress (better_case_match; simp val_type); loop) || idtac.
+  program_simpl.
   apply ind_args with (T := t) (n := n); clear t n; intros * Hind;
     rewrite val_type_unfold_eq; unfold val_type_unfold; loop; eauto.
     (* rewrite val_type_unfold_eq in *. unfold val_type_unfold in *. simpl. auto. *)
@@ -327,6 +329,7 @@ Hint Constructors ds_type_ind.
 Next Obligation.
   Transparent ds_type_unfold.
   Ltac loop ::= (subst; progress (better_case_match; simp ds_type); loop) || idtac.
+  program_simpl.
   apply ind_args with (T := t) (n := n); clear t n; intros * Hind;
     rewrite ds_type_unfold_eq; unfold ds_type_unfold; loop; eauto.
     (* rewrite val_type_unfold_eq in *. unfold val_type_unfold in *. simpl. auto. *)
